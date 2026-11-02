@@ -1,0 +1,27 @@
+spring:
+  main:
+    banner-mode: off
+
+groundstation:
+  orekit-data-path: orekit-data   # relative to the project root
+
+  station:
+    name: Vilnius
+    latitude-deg: 54.67519
+    longitude-deg: 25.23422
+    altitude-m: 114
+
+  time-zone: Europe/Vilnius
+
+  forecast:
+    satellite: 25544   # ISS
+    duration: 1d
+
+  pass-detection:
+    min-elevation-deg: 5.0
+    max-check-s: 30.0
+    threshold-s: 0.001
+
+  tles:
+    - line1: "1 25544U 98067A   26304.17644455  .00006183  00000-0  11976-3 0  9996"
+      line2: "2 25544  51.6332 347.1486 0007016 330.4977  29.5614 15.49124187592838"

@@ -1,0 +1,19 @@
+package lt.vsh1ft.groundstation.pass;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+
+import org.junit.jupiter.api.Test;
+
+class NoradIdTest {
+
+    @Test
+    void zeroIsRejected() {
+        assertThatIllegalArgumentException().isThrownBy(() -> new NoradId(0));
+    }
+
+    @Test
+    void sameNumberMeansSameSatellite() {
+        assertThat(new NoradId(25544)).isEqualTo(new NoradId(25544));
+    }
+}

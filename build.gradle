@@ -1,0 +1,15 @@
+plugins {
+
+}
+
+group = 'lt.vsh1ft'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+
+}
+
