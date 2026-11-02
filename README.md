@@ -1,6 +1,7 @@
-# groundstation
+# ground-segment-api
 
-Predicts satellite passes over a ground station. The `orbit_service` module downloads the latest orbital elements
+A ground-segment backend for satellite passes, tracking and telemetry, built API first. It's in an early
+stage: today it predicts satellite passes over a ground station. The `orbit_service` module downloads the latest orbital elements
 from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates them with [Orekit](https://www.orekit.org/) (SGP4) and prints each pass: when the satellite rises above the minimum
 elevation, its highest point, and when it sets, in UTC and local time.
 
