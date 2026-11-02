@@ -36,3 +36,7 @@ The station, satellite, forecast length and detection settings are set in
 ```
 ./gradlew :orbit_service:test
 ```
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE).
