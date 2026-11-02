@@ -43,7 +43,7 @@ bin/
 
 ### Project ###
 # Downloadable, see README
-orekit-data/
+/orekit-data/
 .claude/
 .idea/
 PLAN.md

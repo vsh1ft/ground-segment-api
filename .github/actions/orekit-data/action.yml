@@ -1,0 +1,23 @@
+name: Orekit data
+description: Downloads orekit-data into the project root, cached per month so leap seconds and Earth orientation stay current
+
+runs:
+  using: composite
+  steps:
+    - id: month
+      shell: bash
+      run: echo "value=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+    - id: cache
+      uses: actions/cache@v4
+      with:
+        path: orekit-data
+        key: orekit-data-${{ steps.month.outputs.value }}
+
+    - if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        curl -sSfL -o orekit-data.zip https://gitlab.orekit.org/orekit/orekit-data/-/archive/main/orekit-data-main.zip
+        unzip -q orekit-data.zip
+        mv orekit-data-main orekit-data
+        rm orekit-data.zip

@@ -28,3 +28,5 @@ groundstation:
   celestrak:
     base-url: https://celestrak.org
     refresh: 2h
+    connect-timeout: 5s
+    read-timeout: 10s

@@ -31,6 +31,10 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jdbc-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+    testImplementation 'org.testcontainers:testcontainers-postgresql'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -40,6 +44,21 @@ bootRun {
 }
 
 test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'live'
+    }
     workingDir = rootProject.projectDir
+    jvmArgs '-Duser.timezone=UTC'
+}
+
+tasks.register('liveTest', Test) {
+    description = 'Runs the tests that call live external services such as CelesTrak.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'live'
+    }
+    workingDir = rootProject.projectDir
+    jvmArgs '-Duser.timezone=UTC'
 }
