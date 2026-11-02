@@ -9,7 +9,7 @@ runs:
       run: echo "value=$(date +%Y-%m)" >> "$GITHUB_OUTPUT"
 
     - id: cache
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: orekit-data
         key: orekit-data-${{ steps.month.outputs.value }}
