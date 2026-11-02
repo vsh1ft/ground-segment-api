@@ -1,9 +1,12 @@
 spring:
   main:
     banner-mode: off
+  docker:
+    compose:
+      lifecycle-management: start-only
 
 groundstation:
-  orekit-data-path: orekit-data   # relative to the project root
+  orekit-data-path: orekit-data
 
   station:
     name: Vilnius
@@ -14,7 +17,7 @@ groundstation:
   time-zone: Europe/Vilnius
 
   forecast:
-    satellite: 25544   # ISS
+    satellite: 25544
     duration: 1d
 
   pass-detection:
@@ -22,6 +25,6 @@ groundstation:
     max-check-s: 30.0
     threshold-s: 0.001
 
-  tles:
-    - line1: "1 25544U 98067A   26304.17644455  .00006183  00000-0  11976-3 0  9996"
-      line2: "2 25544  51.6332 347.1486 0007016 330.4977  29.5614 15.49124187592838"
+  celestrak:
+    base-url: https://celestrak.org
+    refresh: 2h

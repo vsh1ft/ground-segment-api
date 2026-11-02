@@ -19,6 +19,12 @@ repositories {
 
 dependencies {
     implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-restclient'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
+    implementation 'org.springframework.boot:spring-boot-starter-flyway'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+    runtimeOnly 'org.postgresql:postgresql'
+    developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
     implementation 'org.orekit:orekit:13.1.9'
 
     compileOnly 'org.projectlombok:lombok'
@@ -28,9 +34,9 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-// orekit-data lives in the project root, shared by all modules
 bootRun {
     workingDir = rootProject.projectDir
+    jvmArgs '-Duser.timezone=UTC'
 }
 
 test {

@@ -1,29 +1,25 @@
 package lt.vsh1ft.groundstation.orekit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.File;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
-import java.util.NoSuchElementException;
 
 import lt.vsh1ft.groundstation.pass.GroundStation;
 import lt.vsh1ft.groundstation.pass.NoradId;
 import lt.vsh1ft.groundstation.pass.Pass;
-import lt.vsh1ft.groundstation.tle.StaticTleSource;
-import lt.vsh1ft.groundstation.tle.TleLines;
-import lt.vsh1ft.groundstation.tle.TleProperties;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.orekit.propagation.analytical.tle.TLE;
 
 class OrekitPassPredictorIntegrationTest {
 
     private static final NoradId ISS = new NoradId(25544);
-    private static final TleLines ISS_TLE = new TleLines(
-            "1 25544U 98067A   26304.17644455  .00006183  00000-0  11976-3 0  9996",
-            "2 25544  51.6332 347.1486 0007016 330.4977  29.5614 15.49124187592838");
+    private static final String ISS_LINE_1 =
+            "1 25544U 98067A   26304.17644455  .00006183  00000-0  11976-3 0  9996";
+    private static final String ISS_LINE_2 =
+            "2 25544  51.6332 347.1486 0007016 330.4977  29.5614 15.49124187592838";
     private static final Instant EPOCH = Instant.parse("2026-10-31T04:14:04Z");
     private static final GroundStation VILNIUS = new GroundStation("Vilnius", 54.67519, 25.23422, 114.0);
     private static final double MIN_ELEVATION_DEG = 5.0;
@@ -33,8 +29,9 @@ class OrekitPassPredictorIntegrationTest {
     @BeforeAll
     static void setUp() {
         new OrekitDataLoader(new File("orekit-data"));
+        final var issTle = new TLE(ISS_LINE_1, ISS_LINE_2);
         predictor = new OrekitPassPredictor(
-                new StaticTleSource(new TleProperties(List.of(ISS_TLE))),
+                _ -> issTle,
                 new PassDetectionProperties(MIN_ELEVATION_DEG, 30.0, 1.0e-3));
     }
 
@@ -49,7 +46,6 @@ class OrekitPassPredictorIntegrationTest {
             assertThat(pass.start()).isAfterOrEqualTo(EPOCH);
             assertThat(pass.end()).isBeforeOrEqualTo(EPOCH.plus(Duration.ofDays(1)));
         }
-        // ~one orbit (92 min) between passes
         for (int i = 1; i < passes.size(); i++) {
             assertThat(Duration.between(passes.get(i - 1).start(), passes.get(i).start()))
                     .isGreaterThan(Duration.ofMinutes(80));
@@ -70,12 +66,5 @@ class OrekitPassPredictorIntegrationTest {
         final var passes = predictor.predict(ISS, VILNIUS, from, Duration.ofHours(6));
 
         assertThat(passes).allSatisfy(pass -> assertThat(pass.start()).isAfterOrEqualTo(from));
-    }
-
-    @Test
-    void unknownSatelliteIsReported() {
-        assertThatThrownBy(() -> predictor.predict(new NoradId(99999), VILNIUS, EPOCH, Duration.ofHours(1)))
-                .isInstanceOf(NoSuchElementException.class)
-                .hasMessageContaining("99999");
     }
 }

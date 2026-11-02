@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Stateful: one instance per prediction. Passes cut off by the start or end of the window are dropped. */
 public final class PassAssembler {
 
     private final List<Pass> passes = new ArrayList<>();

@@ -1,7 +1,7 @@
 # groundstation
 
-Predicts satellite passes over a ground station. The `orbit_service` module propagates a TLE with
-[Orekit](https://www.orekit.org/) (SGP4) and prints each pass: when the satellite rises above the minimum
+Predicts satellite passes over a ground station. The `orbit_service` module downloads the latest orbital elements
+from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates them with [Orekit](https://www.orekit.org/) (SGP4) and prints each pass: when the satellite rises above the minimum
 elevation, its highest point, and when it sets, in UTC and local time.
 
 ```
@@ -16,6 +16,8 @@ Pass
 ## Requirements
 
 - JDK 25. Gradle downloads it automatically if it isn't installed.
+- Docker. `bootRun` starts PostgreSQL from `compose.yaml` and leaves it running; downloaded TLEs are stored
+  there, so the app keeps working offline with the last one.
 - Orekit data (Earth orientation, leap seconds). Download
   [orekit-data-main.zip](https://gitlab.orekit.org/orekit/orekit-data/-/archive/main/orekit-data-main.zip),
   unzip it into the project root and rename the folder to `orekit-data`.
@@ -26,9 +28,8 @@ Pass
 ./gradlew :orbit_service:bootRun
 ```
 
-The station, satellite, forecast length, detection settings and TLEs are set in
-`orbit_service/src/main/resources/application.yml`. TLEs for low orbits go stale within days, so update them
-from [CelesTrak](https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=TLE) before running.
+The station, satellite, forecast length and detection settings are set in
+`orbit_service/src/main/resources/application.yml`. Running it needs internet access to reach CelesTrak.
 
 ## Tests
 
