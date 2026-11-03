@@ -5,6 +5,9 @@ spring:
     compose:
       lifecycle-management: start-only
 
+springdoc:
+  default-produces-media-type: application/json
+
 groundstation:
   orekit-data-path: orekit-data
 

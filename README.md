@@ -8,6 +8,10 @@ the station's minimum elevation, its highest point, and when it sets, in UTC.
 
 ## API
 
+Interactive documentation is served by the running app at
+[http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html), and the OpenAPI description at
+[http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs).
+
 ### Stations
 
 ```
