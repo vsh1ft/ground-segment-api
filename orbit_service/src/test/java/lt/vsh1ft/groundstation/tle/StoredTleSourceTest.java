@@ -30,7 +30,7 @@ class StoredTleSourceTest {
     @Test
     void unknownSatelliteWithNothingStoredIsNotFound() {
         given(repository.findFirstByNoradIdOrderByDownloadedAtDesc(99999)).willReturn(Optional.empty());
-        given(client.latest(SATELLITE)).willThrow(new UnknownSatelliteException(SATELLITE));
+        given(client.latest(SATELLITE)).willThrow(new SatelliteNotFoundException(SATELLITE));
 
         assertThatThrownBy(() -> source.latest(SATELLITE)).isInstanceOf(SatelliteNotFoundException.class);
     }
@@ -39,7 +39,7 @@ class StoredTleSourceTest {
     void satelliteThatCelestrakNoLongerKnowsIsNotFoundEvenWithStoredData() {
         final var stale = OmmFixtures.ISS.withDownloadedAt(Instant.parse("2026-10-01T00:00:00Z"));
         given(repository.findFirstByNoradIdOrderByDownloadedAtDesc(99999)).willReturn(Optional.of(stale));
-        given(client.latest(SATELLITE)).willThrow(new UnknownSatelliteException(SATELLITE));
+        given(client.latest(SATELLITE)).willThrow(new SatelliteNotFoundException(SATELLITE));
 
         assertThatThrownBy(() -> source.latest(SATELLITE)).isInstanceOf(SatelliteNotFoundException.class);
     }

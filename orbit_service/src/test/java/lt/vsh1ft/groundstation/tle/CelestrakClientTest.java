@@ -7,6 +7,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import lt.vsh1ft.groundstation.pass.NoradId;
+import lt.vsh1ft.groundstation.pass.SatelliteNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -27,22 +28,20 @@ class CelestrakClientTest {
         server.expect(requestTo(URL)).andRespond(
                 withStatus(HttpStatus.NOT_FOUND).contentType(MediaType.TEXT_PLAIN).body("No GP data found"));
 
-        assertThatThrownBy(() -> client.latest(UNKNOWN)).isInstanceOf(UnknownSatelliteException.class);
+        assertThatThrownBy(() -> client.latest(UNKNOWN)).isInstanceOf(SatelliteNotFoundException.class);
     }
 
     @Test
     void emptyListMeansTheSatelliteIsUnknown() {
         server.expect(requestTo(URL)).andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
-        assertThatThrownBy(() -> client.latest(UNKNOWN)).isInstanceOf(UnknownSatelliteException.class);
+        assertThatThrownBy(() -> client.latest(UNKNOWN)).isInstanceOf(SatelliteNotFoundException.class);
     }
 
     @Test
     void serverErrorIsAFailureNotAnUnknownSatellite() {
         server.expect(requestTo(URL)).andRespond(withServerError());
 
-        assertThatThrownBy(() -> client.latest(UNKNOWN))
-                .isInstanceOf(CelestrakException.class)
-                .isNotInstanceOf(UnknownSatelliteException.class);
+        assertThatThrownBy(() -> client.latest(UNKNOWN)).isInstanceOf(CelestrakException.class);
     }
 }

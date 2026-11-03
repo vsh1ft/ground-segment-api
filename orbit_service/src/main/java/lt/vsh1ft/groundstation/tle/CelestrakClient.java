@@ -4,6 +4,7 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.groundstation.pass.NoradId;
+import lt.vsh1ft.groundstation.pass.SatelliteNotFoundException;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
@@ -19,7 +20,7 @@ public class CelestrakClient {
     public StoredOmm latest(NoradId satellite) {
         return fetch(satellite).stream()
                 .findFirst()
-                .orElseThrow(() -> new UnknownSatelliteException(satellite));
+                .orElseThrow(() -> new SatelliteNotFoundException(satellite));
     }
 
     private List<StoredOmm> fetch(NoradId satellite) {
@@ -30,7 +31,7 @@ public class CelestrakClient {
                     .body(new ParameterizedTypeReference<List<StoredOmm>>() {});
             return response == null ? List.of() : response;
         } catch (HttpClientErrorException.NotFound e) {
-            throw new UnknownSatelliteException(satellite);
+            throw new SatelliteNotFoundException(satellite, e);
         } catch (RestClientException e) {
             throw new CelestrakException("CelesTrak request for " + satellite + " failed: " + e.getMessage(), e);
         }

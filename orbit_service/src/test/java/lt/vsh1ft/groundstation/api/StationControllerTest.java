@@ -107,8 +107,8 @@ class StationControllerTest {
                           "instance": "/stations",
                           "errors": [
                             {"field": "altitudeM", "message": "must not be null"},
-                            {"field": "latitudeDeg", "message": "must be less than or equal to 90"},
-                            {"field": "minElevationDeg", "message": "must be greater than or equal to -5"},
+                            {"field": "latitudeDeg", "message": "must be between -90 and 90"},
+                            {"field": "minElevationDeg", "message": "must be between -5 and 90"},
                             {"field": "name", "message": "must not be blank"}
                           ]
                         }

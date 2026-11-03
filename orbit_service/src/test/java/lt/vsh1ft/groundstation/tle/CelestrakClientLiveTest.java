@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 
 import lt.vsh1ft.groundstation.orekit.OrekitDataLoader;
 import lt.vsh1ft.groundstation.pass.NoradId;
+import lt.vsh1ft.groundstation.pass.SatelliteNotFoundException;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,6 @@ class CelestrakClientLiveTest {
     @Test
     void unknownSatelliteIsReportedAsUnknown() {
         assertThatThrownBy(() -> client.latest(new NoradId(99999)))
-                .isInstanceOf(UnknownSatelliteException.class);
+                .isInstanceOf(SatelliteNotFoundException.class);
     }
 }

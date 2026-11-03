@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lt.vsh1ft.groundstation.pass.NoradId;
 import lt.vsh1ft.groundstation.pass.OrbitDataUnavailableException;
-import lt.vsh1ft.groundstation.pass.SatelliteNotFoundException;
 import org.orekit.errors.OrekitException;
 import org.orekit.propagation.analytical.tle.TLE;
 import org.springframework.stereotype.Component;
@@ -29,8 +28,6 @@ public class StoredTleSource implements TleSource {
         }
         try {
             return downloadAndSave(satellite);
-        } catch (UnknownSatelliteException e) {
-            throw new SatelliteNotFoundException(satellite, e);
         } catch (CelestrakException e) {
             return stored.map(previous -> fallBackTo(previous, e))
                     .orElseThrow(() -> new OrbitDataUnavailableException(
