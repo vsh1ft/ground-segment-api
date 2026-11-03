@@ -1,3 +1,13 @@
+buildscript {
+    dependencies {
+        constraints {
+            classpath('org.apache.commons:commons-lang3:3.18.0') {
+                because 'CVE-2025-48924: commons-compress in the Spring Boot Gradle plugin brings in 3.16.0'
+            }
+        }
+    }
+}
+
 plugins {
     id 'java'
     id 'org.springframework.boot' version '4.1.2'
