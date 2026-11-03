@@ -1,18 +1,30 @@
 # ground-segment-api
 
 A ground-segment backend for satellite passes, tracking and telemetry, built API first. It's in an early
-stage: today it predicts satellite passes over a ground station. The `orbit_service` module downloads the latest orbital elements
-from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates them with [Orekit](https://www.orekit.org/) (SGP4) and prints each pass: when the satellite rises above the minimum
-elevation, its highest point, and when it sets, in UTC and local time.
+stage: today it predicts satellite passes over a ground station. The `orbit_service` module downloads the latest
+orbital elements from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates them with
+[Orekit](https://www.orekit.org/) (SGP4) and serves the passes over HTTP: when the satellite rises above the
+minimum elevation, its highest point, and when it sets, in UTC.
 
 ```
-5 passes over Vilnius
-Pass
-  begins  2026-11-02 19:56:46 UTC (2026-11-02 21:56:46 EET)
-  highest 2026-11-02 19:58:12 UTC (2026-11-02 21:58:12 EET)  elevation 6.2 deg
-  ends    2026-11-02 19:59:38 UTC (2026-11-02 21:59:38 EET)
-...
+$ curl 'http://localhost:8080/passes?satellite=25544&duration=PT12H'
+{
+  "satellite": 25544,
+  "station": "Vilnius",
+  "passes": [
+    {
+      "start": "2026-11-02T19:56:46.676Z",
+      "peak": {"time": "2026-11-02T19:58:12.161Z", "elevationDeg": 6.2},
+      "end": "2026-11-02T19:59:38.080Z"
+    }
+  ]
+}
 ```
+
+`satellite` is the NORAD catalog number and is required. `duration` is an ISO-8601 duration, 1 day by default and
+at most 7 days. Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for
+invalid parameters, 404 for a satellite CelesTrak doesn't know, 503 when CelesTrak can't be reached and nothing is
+stored for the satellite yet.
 
 ## Requirements
 
@@ -29,8 +41,9 @@ Pass
 ./gradlew :orbit_service:bootRun
 ```
 
-The station, satellite, forecast length and detection settings are set in
-`orbit_service/src/main/resources/application.yml`. Running it needs internet access to reach CelesTrak.
+The service listens on port 8080. The station and the detection settings are
+set in `orbit_service/src/main/resources/application.yml`. Downloading orbital elements needs internet access to
+reach CelesTrak.
 
 ## Tests
 

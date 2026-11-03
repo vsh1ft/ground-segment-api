@@ -14,12 +14,6 @@ groundstation:
     longitude-deg: 25.23422
     altitude-m: 114
 
-  time-zone: Europe/Vilnius
-
-  forecast:
-    satellite: 25544
-    duration: 1d
-
   pass-detection:
     min-elevation-deg: 5.0
     max-check-s: 30.0

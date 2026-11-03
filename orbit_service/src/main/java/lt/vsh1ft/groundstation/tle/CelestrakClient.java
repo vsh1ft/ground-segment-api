@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.groundstation.pass.NoradId;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
@@ -18,7 +19,7 @@ public class CelestrakClient {
     public StoredOmm latest(NoradId satellite) {
         return fetch(satellite).stream()
                 .findFirst()
-                .orElseThrow(() -> new CelestrakException("CelesTrak returned no OMM for " + satellite));
+                .orElseThrow(() -> new UnknownSatelliteException(satellite));
     }
 
     private List<StoredOmm> fetch(NoradId satellite) {
@@ -28,6 +29,8 @@ public class CelestrakClient {
                     .retrieve()
                     .body(new ParameterizedTypeReference<List<StoredOmm>>() {});
             return response == null ? List.of() : response;
+        } catch (HttpClientErrorException.NotFound e) {
+            throw new UnknownSatelliteException(satellite);
         } catch (RestClientException e) {
             throw new CelestrakException("CelesTrak request for " + satellite + " failed: " + e.getMessage(), e);
         }

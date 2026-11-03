@@ -10,12 +10,15 @@ import lt.vsh1ft.groundstation.tle.StoredOmmRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 @SpringBootTest
+@AutoConfigureMockMvc
 @Import({PostgresTestcontainer.class, GroundStationApplicationTest.OfflineCelestrak.class})
 class GroundStationApplicationTest {
 
@@ -35,10 +38,15 @@ class GroundStationApplicationTest {
     }
 
     @Autowired
+    private MockMvcTester mvc;
+
+    @Autowired
     private StoredOmmRepository repository;
 
     @Test
-    void startupForecastStoresTheDownloadedOmm() {
+    void passRequestDownloadsAndStoresTheOmm() {
+        assertThat(mvc.get().uri("/passes?satellite=25544")).hasStatusOk();
+
         final var stored = repository.findFirstByNoradIdOrderByDownloadedAtDesc(25544);
 
         assertThat(stored).hasValueSatisfying(omm -> {

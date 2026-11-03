@@ -2,6 +2,7 @@ package lt.vsh1ft.groundstation.pass;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -11,11 +12,9 @@ import org.springframework.stereotype.Service;
 public class PassForecastService {
 
     private final PassPredictor predictor;
-    private final PassReporter reporter;
     private final Clock clock;
 
-    public void forecast(NoradId satellite, GroundStation station, Duration duration) {
-        final var passes = predictor.predict(satellite, station, clock.instant(), duration);
-        reporter.report(station, passes);
+    public List<Pass> forecast(NoradId satellite, GroundStation station, Duration duration) {
+        return predictor.predict(satellite, station, clock.instant(), duration);
     }
 }

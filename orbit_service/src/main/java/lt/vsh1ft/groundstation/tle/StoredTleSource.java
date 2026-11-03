@@ -1,11 +1,12 @@
 package lt.vsh1ft.groundstation.tle;
 
 import java.time.Clock;
-import java.util.NoSuchElementException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lt.vsh1ft.groundstation.pass.NoradId;
+import lt.vsh1ft.groundstation.pass.OrbitDataUnavailableException;
+import lt.vsh1ft.groundstation.pass.SatelliteNotFoundException;
 import org.orekit.errors.OrekitException;
 import org.orekit.propagation.analytical.tle.TLE;
 import org.springframework.stereotype.Component;
@@ -28,9 +29,12 @@ public class StoredTleSource implements TleSource {
         }
         try {
             return downloadAndSave(satellite);
+        } catch (UnknownSatelliteException e) {
+            throw new SatelliteNotFoundException(satellite, e);
         } catch (CelestrakException e) {
             return stored.map(previous -> fallBackTo(previous, e))
-                    .orElseThrow(() -> new NoSuchElementException("No orbit data for NORAD ID " + satellite, e));
+                    .orElseThrow(() -> new OrbitDataUnavailableException(
+                            "No stored orbit data for NORAD ID " + satellite + " and CelesTrak is unavailable", e));
         }
     }
 

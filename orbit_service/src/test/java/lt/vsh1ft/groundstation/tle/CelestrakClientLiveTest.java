@@ -1,6 +1,7 @@
 package lt.vsh1ft.groundstation.tle;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.File;
 import java.time.Duration;
@@ -35,5 +36,11 @@ class CelestrakClientLiveTest {
         assertThat(omm.objectId()).isEqualTo("1998-067A");
         assertThat(omm.epoch()).isAfter(LocalDateTime.now(ZoneOffset.UTC).minus(Duration.ofDays(7)));
         assertThat(OmmTleConverter.toTle(omm).getSatelliteNumber()).isEqualTo(25544);
+    }
+
+    @Test
+    void unknownSatelliteIsReportedAsUnknown() {
+        assertThatThrownBy(() -> client.latest(new NoradId(99999)))
+                .isInstanceOf(UnknownSatelliteException.class);
     }
 }

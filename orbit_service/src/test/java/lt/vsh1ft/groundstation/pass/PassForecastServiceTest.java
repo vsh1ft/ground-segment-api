@@ -18,21 +18,18 @@ class PassForecastServiceTest {
     private static final GroundStation VILNIUS = new GroundStation("Vilnius", 54.67519, 25.23422, 114.0);
 
     @Test
-    void forecastStartsNowAndReportsWhatThePredictorFound() {
+    void forecastStartsNowAndReturnsWhatThePredictorFound() {
         final var pass = new Pass(NOW.plusSeconds(600), NOW.plusSeconds(1200), new Pass.Peak(NOW.plusSeconds(900), 42.0));
         final var requestedStarts = new ArrayList<Instant>();
-        final var reported = new ArrayList<List<Pass>>();
-
         final PassPredictor predictor = (_, _, from, _) -> {
             requestedStarts.add(from);
             return List.of(pass);
         };
-        final PassReporter reporter = (_, passes) -> reported.add(passes);
-        final var service = new PassForecastService(predictor, reporter, Clock.fixed(NOW, ZoneOffset.UTC));
+        final var service = new PassForecastService(predictor, Clock.fixed(NOW, ZoneOffset.UTC));
 
-        service.forecast(ISS, VILNIUS, Duration.ofDays(1));
+        final var passes = service.forecast(ISS, VILNIUS, Duration.ofDays(1));
 
         assertThat(requestedStarts).containsExactly(NOW);
-        assertThat(reported).containsExactly(List.of(pass));
+        assertThat(passes).containsExactly(pass);
     }
 }
