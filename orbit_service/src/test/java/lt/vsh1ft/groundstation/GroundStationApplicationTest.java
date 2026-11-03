@@ -10,11 +10,13 @@ import lt.vsh1ft.groundstation.tle.StoredOmmRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 @SpringBootTest
@@ -44,11 +46,21 @@ class GroundStationApplicationTest {
     private StoredOmmRepository repository;
 
     @Test
-    void passRequestDownloadsAndStoresTheOmm() {
-        assertThat(mvc.get().uri("/passes?satellite=25544")).hasStatusOk();
+    void passesAreServedForAStationCreatedOverTheApi() {
+        final var created = mvc.post().uri("/stations").contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"name": "Vilnius", "latitudeDeg": 54.67519, "longitudeDeg": 25.23422, "altitudeM": 114,
+                         "minElevationDeg": 5}
+                        """)
+                .exchange();
+        assertThat(created).hasStatus(HttpStatus.CREATED);
+        final var stationUri = created.getResponse().getHeader("Location");
+        final var stationId = stationUri.substring(stationUri.lastIndexOf('/') + 1);
+
+        assertThat(mvc.get().uri("/passes?satellite=25544&station=" + stationId)).hasStatusOk()
+                .bodyJson().extractingPath("$.station").isEqualTo(stationId);
 
         final var stored = repository.findFirstByNoradIdOrderByDownloadedAtDesc(25544);
-
         assertThat(stored).hasValueSatisfying(omm -> {
             assertThat(omm.epoch()).isEqualTo(OmmFixtures.ISS.epoch());
             assertThat(omm.downloadedAt()).isNotNull();

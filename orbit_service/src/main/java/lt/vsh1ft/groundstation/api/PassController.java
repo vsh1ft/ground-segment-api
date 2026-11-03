@@ -1,16 +1,11 @@
 package lt.vsh1ft.groundstation.api;
 
-import java.time.Duration;
-
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lt.vsh1ft.groundstation.GroundStationProperties;
 import lt.vsh1ft.groundstation.pass.NoradId;
 import lt.vsh1ft.groundstation.pass.PassForecastService;
-import org.hibernate.validator.constraints.time.DurationMax;
-import org.hibernate.validator.constraints.time.DurationMin;
+import lt.vsh1ft.groundstation.station.StationService;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -18,16 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class PassController {
 
     private final PassForecastService service;
-    private final GroundStationProperties properties;
+    private final StationService stations;
 
     @GetMapping("/passes")
-    public PassesResponse passes(@RequestParam @Positive int satellite,
-                                 @RequestParam(defaultValue = "P1D")
-                                 @DurationMin(nanos = 0, inclusive = false) @DurationMax(days = 7) Duration duration) {
-        final var noradId = new NoradId(satellite);
-        final var station = properties.station();
+    public PassesResponse passes(@Valid PassQuery query) {
+        final var satellite = new NoradId(query.satellite());
+        final var station = stations.get(query.station());
 
-        final var passes = service.forecast(noradId, station, duration);
-        return PassesResponse.of(noradId, station, passes);
+        final var passes = service.forecast(satellite, station.toGroundStation(), query.duration());
+        return PassesResponse.of(satellite, station, passes);
     }
 }

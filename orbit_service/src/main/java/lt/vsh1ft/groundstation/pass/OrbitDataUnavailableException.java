@@ -1,6 +1,8 @@
 package lt.vsh1ft.groundstation.pass;
 
-public class OrbitDataUnavailableException extends RuntimeException {
+import lt.vsh1ft.groundstation.error.UnavailableException;
+
+public class OrbitDataUnavailableException extends UnavailableException {
 
     public OrbitDataUnavailableException(String message, Throwable cause) {
         super(message, cause);

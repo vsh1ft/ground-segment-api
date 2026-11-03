@@ -15,7 +15,7 @@ class PassForecastServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-10-31T12:00:00Z");
     private static final NoradId ISS = new NoradId(25544);
-    private static final GroundStation VILNIUS = new GroundStation("Vilnius", 54.67519, 25.23422, 114.0);
+    private static final GroundStation VILNIUS = new GroundStation("Vilnius", 54.67519, 25.23422, 114.0, 5.0);
 
     @Test
     void forecastStartsNowAndReturnsWhatThePredictorFound() {

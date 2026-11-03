@@ -1,16 +1,42 @@
 # ground-segment-api
 
 A ground-segment backend for satellite passes, tracking and telemetry, built API first. It's in an early
-stage: today it predicts satellite passes over a ground station. The `orbit_service` module downloads the latest
-orbital elements from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates them with
-[Orekit](https://www.orekit.org/) (SGP4) and serves the passes over HTTP: when the satellite rises above the
-minimum elevation, its highest point, and when it sets, in UTC.
+stage: today it keeps a list of ground stations and predicts satellite passes over them. The `orbit_service`
+module downloads the latest orbital elements from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates
+them with [Orekit](https://www.orekit.org/) (SGP4) and serves the passes over HTTP: when the satellite rises above
+the station's minimum elevation, its highest point, and when it sets, in UTC.
+
+## API
+
+### Stations
 
 ```
-$ curl 'http://localhost:8080/passes?satellite=25544&duration=PT12H'
+$ curl -i -X POST http://localhost:8080/stations -H 'Content-Type: application/json' -d '{
+    "name": "Vilnius", "latitudeDeg": 54.67519, "longitudeDeg": 25.23422, "altitudeM": 114,
+    "minElevationDeg": 5}'
+HTTP/1.1 201
+Location: http://localhost:8080/stations/3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42
+{"id": "3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42"}
+```
+
+| Method and path | Result |
+|---|---|
+| `GET /stations` | all stations, by name |
+| `GET /stations/{id}` | one station |
+| `POST /stations` | creates a station, 201 with its `id` and `Location` |
+| `PUT /stations/{id}` | replaces a station, 204 |
+| `DELETE /stations/{id}` | deletes a station, 204 |
+
+All fields are required. Names are unique (409 otherwise); latitude is -90 to 90, longitude -180 to 180 and the
+minimum elevation -5 to 90 degrees.
+
+### Passes
+
+```
+$ curl 'http://localhost:8080/passes?satellite=25544&station=3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42&duration=PT12H'
 {
   "satellite": 25544,
-  "station": "Vilnius",
+  "station": "3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42",
   "passes": [
     {
       "start": "2026-11-02T19:56:46.676Z",
@@ -21,10 +47,28 @@ $ curl 'http://localhost:8080/passes?satellite=25544&duration=PT12H'
 }
 ```
 
-`satellite` is the NORAD catalog number and is required. `duration` is an ISO-8601 duration, 1 day by default and
-at most 7 days. Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for
-invalid parameters, 404 for a satellite CelesTrak doesn't know, 503 when CelesTrak can't be reached and nothing is
-stored for the satellite yet.
+`satellite` is the NORAD catalog number and `station` a station ID; both are required. `duration` is an ISO-8601
+duration, 1 day by default and at most 7 days.
+
+### Errors
+
+Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for invalid
+parameters or fields, 404 for an unknown station or a satellite CelesTrak doesn't know, 409 for a duplicate station
+name, 503 when CelesTrak can't be reached and nothing is stored for the satellite yet. A 400 lists every invalid
+field:
+
+```
+{
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Invalid request content.",
+  "instance": "/stations",
+  "errors": [
+    {"field": "latitudeDeg", "message": "must be less than or equal to 90"},
+    {"field": "name", "message": "must not be blank"}
+  ]
+}
+```
 
 ## Requirements
 
@@ -41,8 +85,8 @@ stored for the satellite yet.
 ./gradlew :orbit_service:bootRun
 ```
 
-The service listens on port 8080. The station and the detection settings are
-set in `orbit_service/src/main/resources/application.yml`. Downloading orbital elements needs internet access to
+The service listens on port 8080. Event detection and CelesTrak settings are in
+`orbit_service/src/main/resources/application.yml`. Downloading orbital elements needs internet access to
 reach CelesTrak.
 
 ## Tests

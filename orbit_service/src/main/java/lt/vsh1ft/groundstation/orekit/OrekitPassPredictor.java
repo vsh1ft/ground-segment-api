@@ -42,10 +42,11 @@ public class OrekitPassPredictor implements PassPredictor {
     public List<Pass> predict(NoradId satellite, GroundStation station, Instant from, Duration duration) {
         final var propagator = TLEPropagator.selectExtrapolator(tleSource.latest(satellite));
         final var stationFrame = toFrame(station);
+        final var visibility = visibilityDetector(stationFrame, station.minElevationDeg());
         final var assembler = new PassAssembler();
 
-        propagator.addEventDetector(acquisitionDetector(stationFrame, assembler::onAcquisition));
-        propagator.addEventDetector(lossDetector(stationFrame, assembler::onLoss));
+        propagator.addEventDetector(acquisitionDetector(visibility, assembler::onAcquisition));
+        propagator.addEventDetector(lossDetector(visibility, assembler::onLoss));
         propagator.addEventDetector(maximumDetector(stationFrame, assembler::onMaximum));
 
         final var start = new AbsoluteDate(from);
@@ -54,27 +55,27 @@ public class OrekitPassPredictor implements PassPredictor {
         return assembler.passes();
     }
 
-    private EventDetector acquisitionDetector(TopocentricFrame stationFrame, Consumer<Instant> onAcquisition) {
+    private static EventDetector acquisitionDetector(ElevationDetector visibility, Consumer<Instant> onAcquisition) {
         return new EventSlopeFilter<>(
-                visibilityDetector(stationFrame).withHandler((state, _, _) -> {
+                visibility.withHandler((state, _, _) -> {
                     onAcquisition.accept(state.getDate().toInstant());
                     return Action.CONTINUE;
                 }),
                 FilterType.TRIGGER_ONLY_INCREASING_EVENTS);
     }
 
-    private EventDetector lossDetector(TopocentricFrame stationFrame, Consumer<Instant> onLoss) {
+    private static EventDetector lossDetector(ElevationDetector visibility, Consumer<Instant> onLoss) {
         return new EventSlopeFilter<>(
-                visibilityDetector(stationFrame).withHandler((state, _, _) -> {
+                visibility.withHandler((state, _, _) -> {
                     onLoss.accept(state.getDate().toInstant());
                     return Action.CONTINUE;
                 }),
                 FilterType.TRIGGER_ONLY_DECREASING_EVENTS);
     }
 
-    private ElevationDetector visibilityDetector(TopocentricFrame stationFrame) {
+    private ElevationDetector visibilityDetector(TopocentricFrame stationFrame, double minElevationDeg) {
         return new ElevationDetector(detection.maxCheckS(), detection.thresholdS(), stationFrame)
-                .withConstantElevation(FastMath.toRadians(detection.minElevationDeg()));
+                .withConstantElevation(FastMath.toRadians(minElevationDeg));
     }
 
     private EventDetector maximumDetector(TopocentricFrame stationFrame, ObjDoubleConsumer<Instant> onMaximum) {

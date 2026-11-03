@@ -21,8 +21,9 @@ class OrekitPassPredictorIntegrationTest {
     private static final String ISS_LINE_2 =
             "2 25544  51.6332 347.1486 0007016 330.4977  29.5614 15.49124187592838";
     private static final Instant EPOCH = Instant.parse("2026-10-31T04:14:04Z");
-    private static final GroundStation VILNIUS = new GroundStation("Vilnius", 54.67519, 25.23422, 114.0);
     private static final double MIN_ELEVATION_DEG = 5.0;
+    private static final GroundStation VILNIUS =
+            new GroundStation("Vilnius", 54.67519, 25.23422, 114.0, MIN_ELEVATION_DEG);
 
     private static OrekitPassPredictor predictor;
 
@@ -32,7 +33,7 @@ class OrekitPassPredictorIntegrationTest {
         final var issTle = new TLE(ISS_LINE_1, ISS_LINE_2);
         predictor = new OrekitPassPredictor(
                 _ -> issTle,
-                new PassDetectionProperties(MIN_ELEVATION_DEG, 30.0, 1.0e-3));
+                new PassDetectionProperties(30.0, 1.0e-3));
     }
 
     @Test
