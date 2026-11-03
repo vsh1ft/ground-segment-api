@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'lt.vsh1ft'
-version = '0.3.0-SNAPSHOT'
+version = rootProject.version
 
 java {
     toolchain {

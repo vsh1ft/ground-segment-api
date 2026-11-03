@@ -3,7 +3,7 @@ plugins {
 }
 
 group = 'lt.vsh1ft'
-version = '0.3.0-SNAPSHOT'
+version = new groovy.json.JsonSlurper().parse(file('version.json')).version
 
 repositories {
     mavenCentral()
