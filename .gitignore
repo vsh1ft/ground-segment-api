@@ -50,4 +50,4 @@ PLAN.md
 # Unused leftovers: Orekit now comes from Maven Central, the root project has no code
 /lib/
 /orbit_service/lib/
-/src/
+/src/.venv/

@@ -99,6 +99,16 @@ reach CelesTrak.
 ./gradlew :orbit_service:test
 ```
 
+Pass predictions are checked against [Skyfield](https://rhodesmill.org/skyfield/), an independent SGP4
+implementation: for a fixed ISS element set over Vilnius, rise, peak and set must agree within 1 second and the
+peak elevation within 0.01 degrees (they agree within about 20 ms). The reference values come from
+`tools/reference/skyfield_passes.py`:
+
+```
+python -m venv .venv && .venv/bin/pip install skyfield   # on Windows: .venv\Scripts\pip
+.venv/bin/python tools/reference/skyfield_passes.py
+```
+
 ## License
 
 Apache License 2.0, see [LICENSE](LICENSE).
