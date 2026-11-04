@@ -9,6 +9,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 
+import lt.vsh1ft.groundstation.shared.NoradId;
 import org.junit.jupiter.api.Test;
 
 class PassForecastServiceTest {

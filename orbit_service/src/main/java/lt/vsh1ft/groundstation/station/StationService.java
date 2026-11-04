@@ -5,13 +5,14 @@ import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.groundstation.pass.GroundStation;
+import lt.vsh1ft.groundstation.pass.GroundStationSource;
 import org.springframework.data.jdbc.core.JdbcAggregateOperations;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class StationService {
+public class StationService implements GroundStationSource {
 
     private final StationRepository repository;
     private final JdbcAggregateOperations aggregates;
@@ -22,6 +23,11 @@ public class StationService {
 
     public Station get(UUID id) {
         return repository.findById(id).orElseThrow(() -> new StationNotFoundException(id));
+    }
+
+    @Override
+    public GroundStation byId(UUID id) {
+        return get(id).toGroundStation();
     }
 
     @Transactional

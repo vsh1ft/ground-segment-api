@@ -106,6 +106,29 @@ field:
 }
 ```
 
+## Architecture
+
+`orbit_service` is a modular monolith built with [Spring Modulith](https://spring.io/projects/spring-modulith).
+Each top-level package under `lt.vsh1ft.groundstation` is a module; its sub-packages are internal to it.
+
+```
+station ──► pass ──► catalog ──► elements ──► shared
+              └─────────────────────►┘
+```
+
+| Module | Responsibility |
+|---|---|
+| `station` | ground stations: storage and `/stations` |
+| `pass` | pass prediction and `/passes`; Orekit propagation in the internal `pass.orekit` package |
+| `catalog` | the satellite catalog and `/satellites` |
+| `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
+| `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
+
+`pass` finds stations through its `GroundStationSource` interface, which `station` implements, so no two modules
+depend on each other. `ModularityTest` fails the build on dependency cycles or on access to another module's
+internals, and writes PlantUML module diagrams to `build/spring-modulith-docs`. The running app describes its
+modules at [http://localhost:8080/actuator/modulith](http://localhost:8080/actuator/modulith).
+
 ## Requirements
 
 - JDK 25. Gradle downloads it automatically if it isn't installed.

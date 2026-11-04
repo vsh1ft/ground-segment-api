@@ -2,7 +2,7 @@ package lt.vsh1ft.groundstation.station;
 
 import java.util.UUID;
 
-import lt.vsh1ft.groundstation.error.NotFoundException;
+import lt.vsh1ft.groundstation.shared.NotFoundException;
 
 public class StationNotFoundException extends NotFoundException {
 

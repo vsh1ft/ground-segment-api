@@ -2,11 +2,11 @@ package lt.vsh1ft.groundstation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import lt.vsh1ft.groundstation.pass.NoradId;
-import lt.vsh1ft.groundstation.tle.CelestrakClient;
-import lt.vsh1ft.groundstation.tle.OmmFixtures;
-import lt.vsh1ft.groundstation.tle.StoredOmm;
-import lt.vsh1ft.groundstation.tle.StoredOmmRepository;
+import lt.vsh1ft.groundstation.elements.CelestrakClient;
+import lt.vsh1ft.groundstation.elements.OmmFixtures;
+import lt.vsh1ft.groundstation.elements.StoredOmm;
+import lt.vsh1ft.groundstation.elements.StoredOmmRepository;
+import lt.vsh1ft.groundstation.shared.NoradId;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

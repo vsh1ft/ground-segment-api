@@ -1,6 +1,6 @@
 package lt.vsh1ft.groundstation.station;
 
-import lt.vsh1ft.groundstation.error.ConflictException;
+import lt.vsh1ft.groundstation.shared.ConflictException;
 
 public class StationNameTakenException extends ConflictException {
 

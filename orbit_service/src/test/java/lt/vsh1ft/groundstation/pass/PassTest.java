@@ -1,7 +1,7 @@
 package lt.vsh1ft.groundstation.pass;
 
-import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.time.Instant;
 
