@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lt.vsh1ft.groundstation.pass.NoradId;
 import lt.vsh1ft.groundstation.pass.OrbitDataUnavailableException;
-import org.orekit.errors.OrekitException;
 import org.orekit.propagation.analytical.tle.TLE;
 import org.springframework.stereotype.Component;
 
@@ -15,7 +14,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class StoredTleSource implements TleSource {
 
-    private final CelestrakClient client;
+    private final OmmDownloader downloader;
     private final CelestrakProperties properties;
     private final StoredOmmRepository repository;
     private final Clock clock;
@@ -36,19 +35,10 @@ public class StoredTleSource implements TleSource {
     }
 
     private TLE downloadAndSave(NoradId satellite) {
-        final var downloaded = client.latest(satellite).withDownloadedAt(clock.instant());
-        final var tle = toUsableTle(downloaded);
+        final var downloaded = downloader.download(satellite);
         save(downloaded);
         log.info("Downloaded the OMM for {} from CelesTrak, epoch {}", satellite, downloaded.epoch());
-        return tle;
-    }
-
-    private static TLE toUsableTle(StoredOmm downloaded) {
-        try {
-            return OmmTleConverter.toTle(downloaded);
-        } catch (OrekitException | IllegalArgumentException e) {
-            throw new CelestrakException("Unusable OMM for " + downloaded.noradId() + ": " + e.getMessage(), e);
-        }
+        return OmmTleConverter.toTle(downloaded);
     }
 
     private void save(StoredOmm downloaded) {

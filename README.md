@@ -1,7 +1,8 @@
 # ground-segment-api
 
 A ground-segment backend for satellite passes, tracking and telemetry, built API first. It's in an early
-stage: today it keeps a list of ground stations and predicts satellite passes over them. The `orbit_service`
+stage: today it keeps a catalog of satellites and a list of ground stations, and predicts passes of the catalog
+satellites over the stations. The `orbit_service`
 module downloads the latest orbital elements from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates
 them with [Orekit](https://www.orekit.org/) (SGP4) and serves the passes over HTTP: when the satellite rises above
 the station's minimum elevation, its highest point, and when it sets, in UTC.
@@ -11,6 +12,36 @@ the station's minimum elevation, its highest point, and when it sets, in UTC.
 Interactive documentation is served by the running app at
 [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html), and the OpenAPI description at
 [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs).
+
+### Satellites
+
+Passes are predicted only for satellites in the catalog. Adding one downloads its current orbital elements from
+CelesTrak and takes its name and international designator from there.
+
+```
+$ curl -i -X POST http://localhost:8080/satellites/25544
+HTTP/1.1 201
+Location: http://localhost:8080/satellites/25544
+
+$ curl 'http://localhost:8080/satellites?search=iss'
+{
+  "content": [
+    {"noradId": 25544, "name": "ISS (ZARYA)", "internationalDesignator": "1998-067A",
+     "addedAt": "2026-11-04T10:15:30Z", "latestEpoch": "2026-11-04T06:12:45.123Z"}
+  ],
+  "page": {"size": 20, "number": 0, "totalElements": 1, "totalPages": 1}
+}
+```
+
+| Method and path | Result |
+|---|---|
+| `GET /satellites?search=&page=&size=` | one page of catalog satellites, by name |
+| `GET /satellites/{noradId}` | one satellite |
+| `POST /satellites/{noradId}` | adds a satellite from CelesTrak, 201 with `Location` |
+| `DELETE /satellites/{noradId}` | removes a satellite and its stored elements, 204 |
+
+`search` matches part of the name, ignoring case, or a NORAD catalog number exactly. `page` starts at 0; `size` is
+20 by default and at most 100.
 
 ### Stations
 
@@ -51,14 +82,15 @@ $ curl 'http://localhost:8080/passes?satellite=25544&station=3f2a9c1e-7b4d-4e8a-
 }
 ```
 
-`satellite` is the NORAD catalog number and `station` a station ID; both are required. `duration` is an ISO-8601
+`satellite` is the NORAD catalog number of a catalog satellite and `station` a station ID; both are required. `duration` is an ISO-8601
 duration, 1 day by default and at most 7 days.
 
 ### Errors
 
 Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for invalid
-parameters or fields, 404 for an unknown station or a satellite CelesTrak doesn't know, 409 for a duplicate station
-name, 503 when CelesTrak can't be reached and nothing is stored for the satellite yet. A 400 lists every invalid
+parameters or fields, 404 for an unknown station, a satellite outside the catalog or one CelesTrak doesn't know,
+409 for a duplicate station name or a satellite already in the catalog, 503 when CelesTrak can't be reached and
+nothing is stored for the satellite yet. A 400 lists every invalid
 field:
 
 ```

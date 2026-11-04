@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.Duration;
@@ -16,6 +17,8 @@ import lt.vsh1ft.groundstation.pass.OrbitDataUnavailableException;
 import lt.vsh1ft.groundstation.pass.Pass;
 import lt.vsh1ft.groundstation.pass.PassForecastService;
 import lt.vsh1ft.groundstation.pass.SatelliteNotFoundException;
+import lt.vsh1ft.groundstation.satellite.SatelliteNotInCatalogException;
+import lt.vsh1ft.groundstation.satellite.SatelliteService;
 import lt.vsh1ft.groundstation.station.Station;
 import lt.vsh1ft.groundstation.station.StationNotFoundException;
 import lt.vsh1ft.groundstation.station.StationService;
@@ -45,6 +48,9 @@ class PassControllerTest {
 
     @MockitoBean
     private StationService stations;
+
+    @MockitoBean
+    private SatelliteService satellites;
 
     @BeforeEach
     void knownStation() {
@@ -171,6 +177,16 @@ class PassControllerTest {
 
         assertThat(mvc.get().uri("/passes?satellite=25544&station=" + unknown)).hasStatus(HttpStatus.NOT_FOUND)
                 .bodyJson().extractingPath("$.detail").isEqualTo("No station with ID " + unknown);
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void satelliteOutsideTheCatalogIsNotFound() {
+        final var unknown = new NoradId(99999);
+        willThrow(new SatelliteNotInCatalogException(unknown)).given(satellites).ensureInCatalog(unknown);
+
+        assertThat(mvc.get().uri("/passes?satellite=99999&station=" + VILNIUS_ID)).hasStatus(HttpStatus.NOT_FOUND)
+                .bodyJson().extractingPath("$.detail").isEqualTo("No satellite with NORAD ID 99999 in the catalog");
         verifyNoInteractions(service);
     }
 

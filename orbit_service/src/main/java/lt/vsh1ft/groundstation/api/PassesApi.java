@@ -18,7 +18,7 @@ public interface PassesApi {
     @GetMapping("/passes")
     @Operation(
             summary = "Predict passes",
-            description = "Predicts every pass of the satellite over the station, starting now. A pass begins when "
+            description = "Predicts every pass of a catalog satellite over the station, starting now. A pass begins when "
                     + "the satellite rises above the station's minimum elevation and ends when it sets below it. "
                     + "Orbital elements are downloaded from CelesTrak at most every couple of hours; if CelesTrak "
                     + "can't be reached, the last stored elements are used.")
@@ -31,12 +31,12 @@ public interface PassesApi {
                              "instance": "/passes",
                              "errors": [{"field": "duration", "message": "must be shorter than or equal to 7 days"}]}
                             """)))
-    @ApiResponse(responseCode = "404", description = "Unknown station, or a satellite CelesTrak has no orbit data for",
+    @ApiResponse(responseCode = "404", description = "Unknown station, or a satellite that is not in the catalog",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class),
                     examples = @ExampleObject(value = """
-                            {"title": "Not Found", "status": 404, "detail": "No orbit data for NORAD ID 99999",
-                             "instance": "/passes"}
+                            {"title": "Not Found", "status": 404,
+                             "detail": "No satellite with NORAD ID 99999 in the catalog", "instance": "/passes"}
                             """)))
     @ApiResponse(responseCode = "503", description = "CelesTrak can't be reached and no orbit data is stored yet",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,

@@ -11,10 +11,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.context.jdbc.Sql;
 
 @DataJdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(PostgresTestcontainer.class)
+@Sql(statements = "INSERT INTO satellite VALUES (25544, 'ISS (ZARYA)', '1998-067A', '2026-11-01T00:00:00Z')")
 class StoredOmmRepositoryTest {
 
     private static final Instant MORNING = Instant.parse("2026-11-02T08:00:00Z");
@@ -44,6 +46,14 @@ class StoredOmmRepositoryTest {
 
         assertThat(repository.findByNoradIdAndEpoch(25544, OmmFixtures.ISS.epoch())).contains(saved);
         assertThat(repository.findByNoradIdAndEpoch(99999, OmmFixtures.ISS.epoch())).isEmpty();
+    }
+
+    @Test
+    void ommOfASatelliteOutsideTheCatalogIsRejected() {
+        final var unknown = new StoredOmm(null, 99999, "UNKNOWN", "2026-001A", OmmFixtures.ISS.epoch(),
+                15.0, 0.001, 51.6, 0, 0, 0, 0, "U", 1, 1, 0, 0, 0, MORNING);
+
+        assertThatThrownBy(() -> repository.save(unknown)).hasStackTraceContaining("omm_satellite_fk");
     }
 
     @Test

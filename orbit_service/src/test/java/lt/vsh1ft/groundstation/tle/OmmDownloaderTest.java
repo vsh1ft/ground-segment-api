@@ -1,0 +1,49 @@
+package lt.vsh1ft.groundstation.tle;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
+
+import java.io.File;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+
+import lt.vsh1ft.groundstation.orekit.OrekitDataLoader;
+import lt.vsh1ft.groundstation.pass.NoradId;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+
+class OmmDownloaderTest {
+
+    private static final NoradId ISS = new NoradId(25544);
+    private static final Instant NOW = Instant.parse("2026-11-04T12:00:00Z");
+
+    private final CelestrakClient client = mock(CelestrakClient.class);
+    private final OmmDownloader downloader = new OmmDownloader(client, Clock.fixed(NOW, ZoneOffset.UTC));
+
+    @BeforeAll
+    static void loadOrekitData() {
+        new OrekitDataLoader(new File("orekit-data"));
+    }
+
+    @Test
+    void downloadedOmmIsStampedWithTheDownloadTime() {
+        given(client.latest(ISS)).willReturn(OmmFixtures.ISS);
+
+        assertThat(downloader.download(ISS)).isEqualTo(OmmFixtures.ISS.withDownloadedAt(NOW));
+    }
+
+    @Test
+    void ommThatCannotBeTurnedIntoATleIsRejected() {
+        final var malformed = new StoredOmm(null, 25544, "ISS (ZARYA)", "not-a-designator",
+                OmmFixtures.ISS.epoch(), 15.49, 0.0007, 51.63, 339.17, 336.88, 23.18, 0, "U", 999, 59308,
+                0.0001, 5.9e-5, 0, null);
+        given(client.latest(ISS)).willReturn(malformed);
+
+        assertThatThrownBy(() -> downloader.download(ISS))
+                .isInstanceOf(CelestrakException.class)
+                .hasMessageStartingWith("Unusable OMM for 25544");
+    }
+}

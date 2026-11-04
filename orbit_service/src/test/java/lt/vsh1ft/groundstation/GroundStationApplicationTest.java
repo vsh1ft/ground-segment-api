@@ -46,7 +46,11 @@ class GroundStationApplicationTest {
     private StoredOmmRepository repository;
 
     @Test
-    void passesAreServedForAStationCreatedOverTheApi() {
+    void passesAreServedForASatelliteAndStationAddedOverTheApi() {
+        assertThat(mvc.post().uri("/satellites/25544")).hasStatus(HttpStatus.CREATED);
+        assertThat(mvc.get().uri("/satellites?search=iss")).hasStatusOk()
+                .bodyJson().extractingPath("$.content[0].noradId").isEqualTo(25544);
+
         final var created = mvc.post().uri("/stations").contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"name": "Vilnius", "latitudeDeg": 54.67519, "longitudeDeg": 25.23422, "altitudeM": 114,

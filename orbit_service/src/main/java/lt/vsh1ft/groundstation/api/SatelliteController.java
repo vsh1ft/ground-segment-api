@@ -1,0 +1,39 @@
+package lt.vsh1ft.groundstation.api;
+
+import lombok.RequiredArgsConstructor;
+import lt.vsh1ft.groundstation.pass.NoradId;
+import lt.vsh1ft.groundstation.satellite.SatelliteService;
+import lt.vsh1ft.groundstation.satellite.SatelliteSummary;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.web.PagedModel;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.util.UriComponentsBuilder;
+
+@RestController
+@RequiredArgsConstructor
+public class SatelliteController implements SatellitesApi {
+
+    private final SatelliteService service;
+
+    @Override
+    public PagedModel<SatelliteSummary> search(SatelliteQuery query) {
+        return new PagedModel<>(service.search(query.search(), PageRequest.of(query.page(), query.size())));
+    }
+
+    @Override
+    public SatelliteSummary get(int noradId) {
+        return service.get(new NoradId(noradId));
+    }
+
+    @Override
+    public ResponseEntity<Void> add(int noradId, UriComponentsBuilder uri) {
+        service.add(new NoradId(noradId));
+        return ResponseEntity.created(uri.path("/satellites/{noradId}").build(noradId)).build();
+    }
+
+    @Override
+    public void delete(int noradId) {
+        service.delete(new NoradId(noradId));
+    }
+}

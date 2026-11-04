@@ -21,11 +21,12 @@ class StoredTleSourceTest {
 
     private final CelestrakClient client = mock(CelestrakClient.class);
     private final StoredOmmRepository repository = mock(StoredOmmRepository.class);
+    private final Clock clock = Clock.fixed(Instant.parse("2026-11-03T12:00:00Z"), ZoneOffset.UTC);
     private final StoredTleSource source = new StoredTleSource(
-            client,
+            new OmmDownloader(client, clock),
             new CelestrakProperties("https://celestrak.org", Duration.ofHours(2), Duration.ofSeconds(5), Duration.ofSeconds(10)),
             repository,
-            Clock.fixed(Instant.parse("2026-11-03T12:00:00Z"), ZoneOffset.UTC));
+            clock);
 
     @Test
     void unknownSatelliteWithNothingStoredIsNotFound() {
