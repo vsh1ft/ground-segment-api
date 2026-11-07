@@ -15,8 +15,12 @@ Interactive documentation is served by the running app at
 
 ### Satellites
 
-Passes are predicted only for satellites in the catalog. Adding one downloads its current orbital elements from
-CelesTrak and takes its name and international designator from there.
+Passes are predicted only for satellites in the catalog. A background job fills and refreshes it from CelesTrak:
+every 4 hours it imports the `amateur`, `weather` and `stations` groups (about 190 satellites) and downloads new
+orbital elements for every other catalog satellite. After a restart it continues the schedule from the last
+download, so restarting doesn't download again early; with an empty database it runs right away. Name and international
+designator follow CelesTrak, so a renamed satellite is found by its new name. Any other satellite can be added by
+its NORAD catalog number; a deleted group satellite comes back at the next refresh.
 
 ```
 $ curl -i -X POST http://localhost:8080/satellites/25544
@@ -72,6 +76,7 @@ $ curl 'http://localhost:8080/passes?satellite=25544&station=3f2a9c1e-7b4d-4e8a-
 {
   "satellite": 25544,
   "station": "3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42",
+  "elementsEpoch": "2026-11-02T06:12:45.123Z",
   "passes": [
     {
       "start": "2026-11-02T19:56:46.676Z",
@@ -83,14 +88,16 @@ $ curl 'http://localhost:8080/passes?satellite=25544&station=3f2a9c1e-7b4d-4e8a-
 ```
 
 `satellite` is the NORAD catalog number of a catalog satellite and `station` a station ID; both are required. `duration` is an ISO-8601
-duration, 1 day by default and at most 7 days.
+duration, 1 day by default and at most 7 days. Passes are predicted from the newest stored orbital elements;
+`elementsEpoch` is their epoch. SGP4 accuracy drops the further a pass is from it, roughly 1-3 km per day in low
+Earth orbit.
 
 ### Errors
 
 Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for invalid
 parameters or fields, 404 for an unknown station, a satellite outside the catalog or one CelesTrak doesn't know,
-409 for a duplicate station name or a satellite already in the catalog, 503 when CelesTrak can't be reached and
-nothing is stored for the satellite yet. A 400 lists every invalid
+409 for a duplicate station name or a satellite already in the catalog, 503 when a satellite can't be added
+because CelesTrak can't be reached. A 400 lists every invalid
 field:
 
 ```
@@ -120,7 +127,7 @@ station ──► pass ──► catalog ──► elements ──► shared
 |---|---|
 | `station` | ground stations: storage and `/stations` |
 | `pass` | pass prediction and `/passes`; Orekit propagation in the internal `pass.orekit` package |
-| `catalog` | the satellite catalog and `/satellites` |
+| `catalog` | the satellite catalog, `/satellites` and the scheduled refresh from CelesTrak |
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
 
@@ -132,8 +139,8 @@ modules at [http://localhost:8080/actuator/modulith](http://localhost:8080/actua
 ## Requirements
 
 - JDK 25. Gradle downloads it automatically if it isn't installed.
-- Docker. `bootRun` starts PostgreSQL from `compose.yaml` and leaves it running; downloaded TLEs are stored
-  there, so the app keeps working offline with the last one.
+- Docker. `bootRun` starts PostgreSQL from `compose.yaml` and leaves it running; downloaded orbital elements are
+  stored there, so passes are still predicted while CelesTrak can't be reached.
 - Orekit data (Earth orientation, leap seconds). Download
   [orekit-data-main.zip](https://gitlab.orekit.org/orekit/orekit-data/-/archive/main/orekit-data-main.zip),
   unzip it into the project root and rename the folder to `orekit-data`.
@@ -144,9 +151,9 @@ modules at [http://localhost:8080/actuator/modulith](http://localhost:8080/actua
 ./gradlew :orbit_service:bootRun
 ```
 
-The service listens on port 8080. Event detection and CelesTrak settings are in
-`orbit_service/src/main/resources/application.yml`. Downloading orbital elements needs internet access to
-reach CelesTrak.
+The service listens on port 8080. Event detection, catalog refresh (`groundstation.catalog.refresh`: interval and
+groups) and CelesTrak settings are in `orbit_service/src/main/resources/application.yml`. Downloading
+orbital elements needs internet access to reach CelesTrak.
 
 ## Tests
 

@@ -16,11 +16,17 @@ public record PassesResponse(
         @Schema(description = "ID of the station", example = "3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42")
         UUID station,
 
+        @Schema(description = "Epoch of the orbital elements the prediction is based on (UTC). Accuracy degrades "
+                + "the further the passes are from it, roughly 1-3 km per day for low Earth orbit",
+                example = "2026-11-01T18:56:25.712Z")
+        Instant elementsEpoch,
+
         @Schema(description = "Passes in time order")
         List<PassView> passes) {
 
-    static PassesResponse of(NoradId satellite, UUID station, List<Pass> passes) {
-        return new PassesResponse(satellite.value(), station, passes.stream().map(PassView::of).toList());
+    static PassesResponse of(NoradId satellite, UUID station, PassForecast forecast) {
+        return new PassesResponse(satellite.value(), station, truncatedToMillis(forecast.elementsEpoch()),
+                forecast.passes().stream().map(PassView::of).toList());
     }
 
     @Schema(description = "One pass: from rising above the station's minimum elevation to setting below it")

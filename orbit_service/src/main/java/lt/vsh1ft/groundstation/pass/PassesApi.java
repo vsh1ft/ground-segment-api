@@ -20,8 +20,8 @@ public interface PassesApi {
             summary = "Predict passes",
             description = "Predicts every pass of a catalog satellite over the station, starting now. A pass begins when "
                     + "the satellite rises above the station's minimum elevation and ends when it sets below it. "
-                    + "Orbital elements are downloaded from CelesTrak at most every couple of hours; if CelesTrak "
-                    + "can't be reached, the last stored elements are used.")
+                    + "The prediction uses the newest stored orbital elements, which a background job refreshes from "
+                    + "CelesTrak every few hours; `elementsEpoch` tells how old they are.")
     @ApiResponse(responseCode = "200", description = "Passes in time order; empty if there are none in the window")
     @ApiResponse(responseCode = "400", description = "A parameter is missing or invalid; `errors` names each one",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
@@ -38,7 +38,7 @@ public interface PassesApi {
                             {"title": "Not Found", "status": 404,
                              "detail": "No satellite with NORAD ID 99999 in the catalog", "instance": "/passes"}
                             """)))
-    @ApiResponse(responseCode = "503", description = "CelesTrak can't be reached and no orbit data is stored yet",
+    @ApiResponse(responseCode = "503", description = "No orbital elements are stored for the satellite",
             content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
                     schema = @Schema(implementation = ProblemDetail.class)))
     PassesResponse passes(@Valid @ParameterObject PassQuery query);

@@ -16,6 +16,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
@@ -29,6 +30,9 @@ class CatalogModuleTest {
 
     @MockitoBean
     private OmmDownloader downloader;
+
+    @MockitoBean
+    private TaskScheduler scheduler;
 
     @Test
     void satelliteIsAddedFoundAndRemovedOverHttp() {

@@ -1,14 +1,15 @@
 package lt.vsh1ft.groundstation.catalog;
 
+import java.util.List;
 import java.util.regex.Pattern;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lt.vsh1ft.groundstation.elements.CelestrakException;
+import lt.vsh1ft.groundstation.elements.OmmArchive;
 import lt.vsh1ft.groundstation.elements.OmmDownloader;
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
 import lt.vsh1ft.groundstation.elements.StoredOmm;
-import lt.vsh1ft.groundstation.elements.StoredOmmRepository;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -30,7 +31,7 @@ public class SatelliteService {
 
     private final SatelliteRepository satellites;
     private final SatelliteSummaryRepository summaries;
-    private final StoredOmmRepository elements;
+    private final OmmArchive elements;
     private final OmmDownloader downloader;
     private final JdbcAggregateOperations aggregates;
     private final TransactionOperations transactions;
@@ -64,6 +65,22 @@ public class SatelliteService {
             elements.save(omm);
         });
         log.info("Added {} ({}) to the catalog, epoch {}", omm.objectName(), satellite, omm.epoch());
+    }
+
+    public void store(StoredOmm latest) {
+        transactions.executeWithoutResult(_ -> {
+            satellites.findById(latest.noradId()).ifPresentOrElse(
+                    existing -> satellites.save(existing.renamedFrom(latest)),
+                    () -> {
+                        aggregates.insert(Satellite.from(latest));
+                        log.info("Added {} ({}) to the catalog", latest.objectName(), latest.noradId());
+                    });
+            elements.save(latest);
+        });
+    }
+
+    public List<NoradId> all() {
+        return satellites.findAll().stream().map(satellite -> new NoradId(satellite.noradId())).toList();
     }
 
     @Transactional

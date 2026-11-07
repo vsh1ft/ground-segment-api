@@ -2,7 +2,6 @@ package lt.vsh1ft.groundstation.pass.orekit;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.ObjDoubleConsumer;
@@ -10,8 +9,8 @@ import java.util.function.ObjDoubleConsumer;
 import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.groundstation.elements.TleSource;
 import lt.vsh1ft.groundstation.pass.GroundStation;
-import lt.vsh1ft.groundstation.pass.Pass;
 import lt.vsh1ft.groundstation.pass.PassAssembler;
+import lt.vsh1ft.groundstation.pass.PassForecast;
 import lt.vsh1ft.groundstation.pass.PassPredictor;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.hipparchus.ode.events.Action;
@@ -39,8 +38,9 @@ public class OrekitPassPredictor implements PassPredictor {
     private final PassDetectionProperties detection;
 
     @Override
-    public List<Pass> predict(NoradId satellite, GroundStation station, Instant from, Duration duration) {
-        final var propagator = TLEPropagator.selectExtrapolator(tleSource.latest(satellite));
+    public PassForecast predict(NoradId satellite, GroundStation station, Instant from, Duration duration) {
+        final var tle = tleSource.latest(satellite);
+        final var propagator = TLEPropagator.selectExtrapolator(tle);
         final var stationFrame = toFrame(station);
         final var visibility = visibilityDetector(stationFrame, station.minElevationDeg());
         final var assembler = new PassAssembler();
@@ -52,7 +52,7 @@ public class OrekitPassPredictor implements PassPredictor {
         final var start = new AbsoluteDate(from);
         propagator.propagate(start, start.shiftedBy(duration.toNanos(), TimeUnit.NANOSECONDS));
 
-        return assembler.passes();
+        return new PassForecast(tle.getDate().toInstant(), assembler.passes());
     }
 
     private static EventDetector acquisitionDetector(ElevationDetector visibility, Consumer<Instant> onAcquisition) {

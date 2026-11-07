@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 class PassForecastServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-10-31T12:00:00Z");
+    private static final Instant ELEMENTS_EPOCH = Instant.parse("2026-10-31T04:14:04Z");
     private static final NoradId ISS = new NoradId(25544);
     private static final GroundStation VILNIUS = new GroundStation("Vilnius", 54.67519, 25.23422, 114.0, 5.0);
 
@@ -24,13 +25,13 @@ class PassForecastServiceTest {
         final var requestedStarts = new ArrayList<Instant>();
         final PassPredictor predictor = (_, _, from, _) -> {
             requestedStarts.add(from);
-            return List.of(pass);
+            return new PassForecast(ELEMENTS_EPOCH, List.of(pass));
         };
         final var service = new PassForecastService(predictor, Clock.fixed(NOW, ZoneOffset.UTC));
 
-        final var passes = service.forecast(ISS, VILNIUS, Duration.ofDays(1));
+        final var forecast = service.forecast(ISS, VILNIUS, Duration.ofDays(1));
 
         assertThat(requestedStarts).containsExactly(NOW);
-        assertThat(passes).containsExactly(pass);
+        assertThat(forecast).isEqualTo(new PassForecast(ELEMENTS_EPOCH, List.of(pass)));
     }
 }

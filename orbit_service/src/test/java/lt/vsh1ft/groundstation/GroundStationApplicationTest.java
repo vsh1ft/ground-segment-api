@@ -1,6 +1,12 @@
 package lt.vsh1ft.groundstation;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+
+import java.time.Duration;
+import java.time.Instant;
 
 import lt.vsh1ft.groundstation.elements.CelestrakClient;
 import lt.vsh1ft.groundstation.elements.OmmFixtures;
@@ -17,6 +23,9 @@ import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.test.context.bean.override.mockito.MockReset;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
 @SpringBootTest
@@ -45,6 +54,14 @@ class GroundStationApplicationTest {
     @Autowired
     private StoredOmmRepository repository;
 
+    @MockitoBean(reset = MockReset.NONE)
+    private TaskScheduler scheduler;
+
+    @Test
+    void catalogRefreshIsScheduledAtStartup() {
+        verify(scheduler).scheduleWithFixedDelay(any(Runnable.class), any(Instant.class), eq(Duration.ofHours(4)));
+    }
+
     @Test
     void passesAreServedForASatelliteAndStationAddedOverTheApi() {
         assertThat(mvc.post().uri("/satellites/25544")).hasStatus(HttpStatus.CREATED);
@@ -64,7 +81,7 @@ class GroundStationApplicationTest {
         assertThat(mvc.get().uri("/passes?satellite=25544&station=" + stationId)).hasStatusOk()
                 .bodyJson().extractingPath("$.station").isEqualTo(stationId);
 
-        final var stored = repository.findFirstByNoradIdOrderByDownloadedAtDesc(25544);
+        final var stored = repository.findFirstByNoradIdOrderByEpochDesc(25544);
         assertThat(stored).hasValueSatisfying(omm -> {
             assertThat(omm.epoch()).isEqualTo(OmmFixtures.ISS.epoch());
             assertThat(omm.downloadedAt()).isNotNull();

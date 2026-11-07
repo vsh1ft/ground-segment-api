@@ -21,8 +21,12 @@ groundstation:
     max-check-s: 30.0
     threshold-s: 0.001
 
+  catalog:
+    refresh:
+      interval: 4h
+      groups: amateur, weather, stations
+
   celestrak:
     base-url: https://celestrak.org
-    refresh: 2h
     connect-timeout: 5s
     read-timeout: 10s

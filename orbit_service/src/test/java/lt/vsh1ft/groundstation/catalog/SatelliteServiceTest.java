@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
 import lt.vsh1ft.groundstation.elements.CelestrakException;
+import lt.vsh1ft.groundstation.elements.OmmArchive;
 import lt.vsh1ft.groundstation.elements.OmmDownloader;
 import lt.vsh1ft.groundstation.elements.OmmFixtures;
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
@@ -27,7 +28,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @DataJdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({PostgresTestcontainer.class, SatelliteService.class})
+@Import({PostgresTestcontainer.class, SatelliteService.class, OmmArchive.class})
 class SatelliteServiceTest {
 
     private static final Instant DOWNLOADED_AT = Instant.parse("2026-11-04T10:00:00Z");
@@ -62,7 +63,7 @@ class SatelliteServiceTest {
 
         service.add(ISS);
 
-        assertThat(elements.findFirstByNoradIdOrderByDownloadedAtDesc(25544))
+        assertThat(elements.findFirstByNoradIdOrderByEpochDesc(25544))
                 .hasValueSatisfying(omm -> assertThat(omm.epoch()).isEqualTo(OmmFixtures.ISS.epoch()));
     }
 
@@ -114,12 +115,36 @@ class SatelliteServiceTest {
         service.delete(ISS);
 
         assertThatThrownBy(() -> service.get(ISS)).isInstanceOf(SatelliteNotInCatalogException.class);
-        assertThat(elements.findFirstByNoradIdOrderByDownloadedAtDesc(25544)).isEmpty();
+        assertThat(elements.findFirstByNoradIdOrderByEpochDesc(25544)).isEmpty();
     }
 
     @Test
     void deletingASatelliteOutsideTheCatalogIsNotFound() {
         assertThatThrownBy(() -> service.delete(UNKNOWN)).isInstanceOf(SatelliteNotInCatalogException.class);
+    }
+
+    @Test
+    void storedSatelliteOutsideTheCatalogIsAdded() {
+        service.store(OmmFixtures.ISS.withDownloadedAt(DOWNLOADED_AT));
+
+        assertThat(service.get(ISS).name()).isEqualTo("ISS (ZARYA)");
+        assertThat(service.all()).containsExactly(ISS);
+    }
+
+    @Test
+    void storedSatelliteAlreadyInTheCatalogTakesTheNewNameButKeepsWhenItWasAdded() {
+        celestrakKnows(OmmFixtures.ISS);
+        service.add(ISS);
+        final var later = DOWNLOADED_AT.plusSeconds(4 * 3600);
+
+        service.store(renamed(OmmFixtures.ISS, ISS, "ISS", "1998-067A").withDownloadedAt(later));
+
+        assertThat(service.get(ISS)).satisfies(summary -> {
+            assertThat(summary.name()).isEqualTo("ISS");
+            assertThat(summary.addedAt()).isEqualTo(DOWNLOADED_AT);
+        });
+        assertThat(elements.findFirstByNoradIdOrderByEpochDesc(25544))
+                .hasValueSatisfying(omm -> assertThat(omm.downloadedAt()).isEqualTo(later));
     }
 
     @Test

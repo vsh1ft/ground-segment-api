@@ -12,4 +12,8 @@ record Satellite(@Id Integer noradId, String name, String internationalDesignato
     static Satellite from(StoredOmm omm) {
         return new Satellite(omm.noradId(), omm.objectName(), omm.objectId(), omm.downloadedAt());
     }
+
+    Satellite renamedFrom(StoredOmm omm) {
+        return new Satellite(noradId, omm.objectName(), omm.objectId(), addedAt);
+    }
 }

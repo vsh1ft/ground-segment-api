@@ -15,7 +15,6 @@ import java.util.UUID;
 import lt.vsh1ft.groundstation.catalog.SatelliteNotInCatalogException;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
-import lt.vsh1ft.groundstation.elements.SatelliteNotFoundException;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.station.StationNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +31,7 @@ class PassControllerTest {
 
     private static final NoradId ISS = new NoradId(25544);
     private static final Instant AOS = Instant.parse("2026-11-02T19:56:46Z");
+    private static final Instant ELEMENTS_EPOCH = Instant.parse("2026-11-01T18:56:25.712736Z");
     private static final UUID VILNIUS_ID = UUID.fromString("3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42");
     private static final GroundStation VILNIUS = new GroundStation("Vilnius", 54.67519, 25.23422, 114.0, 5.0);
     private static final String ISS_OVER_VILNIUS = "/passes?satellite=25544&station=" + VILNIUS_ID;
@@ -56,7 +56,7 @@ class PassControllerTest {
     @Test
     void passesAreReturnedInUtc() {
         final var pass = new Pass(AOS, AOS.plusSeconds(172), new Pass.Peak(AOS.plusSeconds(86), 6.2));
-        given(service.forecast(ISS, VILNIUS, Duration.ofHours(12))).willReturn(List.of(pass));
+        given(service.forecast(ISS, VILNIUS, Duration.ofHours(12))).willReturn(forecastOf(pass));
 
         final var response = mvc.get().uri(ISS_OVER_VILNIUS + "&duration=PT12H").exchange();
 
@@ -65,6 +65,7 @@ class PassControllerTest {
                         {
                           "satellite": 25544,
                           "station": "3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42",
+                          "elementsEpoch": "2026-11-01T18:56:25.712Z",
                           "passes": [{
                             "start": "2026-11-02T19:56:46Z",
                             "peak": {"time": "2026-11-02T19:58:12Z", "elevationDeg": 6.2},
@@ -78,7 +79,7 @@ class PassControllerTest {
     void timesAreTruncatedToMilliseconds() {
         final var aos = Instant.parse("2026-11-03T20:43:05.676060570Z");
         final var pass = new Pass(aos, aos.plusSeconds(300), new Pass.Peak(aos.plusSeconds(150), 18.6));
-        given(service.forecast(eq(ISS), any(), any())).willReturn(List.of(pass));
+        given(service.forecast(eq(ISS), any(), any())).willReturn(forecastOf(pass));
 
         assertThat(mvc.get().uri(ISS_OVER_VILNIUS)).hasStatusOk().bodyJson()
                 .isLenientlyEqualTo("""
@@ -89,7 +90,7 @@ class PassControllerTest {
     @Test
     void elevationIsRoundedToHundredthsOfADegree() {
         final var pass = new Pass(AOS, AOS.plusSeconds(300), new Pass.Peak(AOS.plusSeconds(150), 43.08517791061351));
-        given(service.forecast(eq(ISS), any(), any())).willReturn(List.of(pass));
+        given(service.forecast(eq(ISS), any(), any())).willReturn(forecastOf(pass));
 
         assertThat(mvc.get().uri(ISS_OVER_VILNIUS)).hasStatusOk()
                 .bodyJson().extractingPath("$.passes[0].peak.elevationDeg").isEqualTo(43.09);
@@ -97,7 +98,7 @@ class PassControllerTest {
 
     @Test
     void durationDefaultsToOneDay() {
-        given(service.forecast(eq(ISS), any(), eq(Duration.ofDays(1)))).willReturn(List.of());
+        given(service.forecast(eq(ISS), any(), eq(Duration.ofDays(1)))).willReturn(forecastOf());
 
         assertThat(mvc.get().uri(ISS_OVER_VILNIUS)).hasStatusOk()
                 .bodyJson().extractingPath("$.passes").asArray().isEmpty();
@@ -187,21 +188,16 @@ class PassControllerTest {
     }
 
     @Test
-    void satelliteWithoutOrbitDataIsNotFound() {
-        given(service.forecast(eq(new NoradId(99999)), any(), any()))
-                .willThrow(new SatelliteNotFoundException(new NoradId(99999), null));
-
-        assertThat(mvc.get().uri("/passes?satellite=99999&station=" + VILNIUS_ID)).hasStatus(HttpStatus.NOT_FOUND)
-                .bodyJson().extractingPath("$.detail").isEqualTo("No orbit data for NORAD ID 99999");
-    }
-
-    @Test
-    void satelliteWithoutStoredDataWhileCelestrakIsDownIsServiceUnavailable() {
+    void satelliteWithoutStoredElementsIsServiceUnavailable() {
         given(service.forecast(eq(ISS), any(), any()))
-                .willThrow(new OrbitDataUnavailableException("CelesTrak is unavailable", null));
+                .willThrow(new OrbitDataUnavailableException("No orbit data stored for NORAD ID 25544"));
 
         assertThat(mvc.get().uri(ISS_OVER_VILNIUS)).hasStatus(HttpStatus.SERVICE_UNAVAILABLE)
-                .bodyJson().extractingPath("$.detail").isEqualTo("CelesTrak is unavailable");
+                .bodyJson().extractingPath("$.detail").isEqualTo("No orbit data stored for NORAD ID 25544");
+    }
+
+    private static PassForecast forecastOf(Pass... passes) {
+        return new PassForecast(ELEMENTS_EPOCH, List.of(passes));
     }
 
     private void assertBadRequestProblem(String uri, String errors) {

@@ -1,6 +1,6 @@
 package lt.vsh1ft.groundstation.catalog;
 
-import org.springframework.data.repository.CrudRepository;
+import org.springframework.data.repository.ListCrudRepository;
 
-interface SatelliteRepository extends CrudRepository<Satellite, Integer> {
+interface SatelliteRepository extends ListCrudRepository<Satellite, Integer> {
 }

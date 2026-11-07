@@ -33,11 +33,11 @@ class StoredOmmRepositoryTest {
     }
 
     @Test
-    void latestDownloadComesFirst() {
-        repository.save(OmmFixtures.ISS.withDownloadedAt(MORNING));
-        final var newer = repository.save(withEpochOneDayLater(OmmFixtures.ISS).withDownloadedAt(EVENING));
+    void newestEpochComesFirstWhateverTheDownloadOrder() {
+        final var newer = repository.save(withEpochOneDayLater(OmmFixtures.ISS).withDownloadedAt(MORNING));
+        repository.save(OmmFixtures.ISS.withDownloadedAt(EVENING));
 
-        assertThat(repository.findFirstByNoradIdOrderByDownloadedAtDesc(25544)).contains(newer);
+        assertThat(repository.findFirstByNoradIdOrderByEpochDesc(25544)).contains(newer);
     }
 
     @Test

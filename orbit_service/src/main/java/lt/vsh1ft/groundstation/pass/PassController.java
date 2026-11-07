@@ -19,7 +19,7 @@ public class PassController implements PassesApi {
         satellites.ensureInCatalog(satellite);
         final var station = stations.byId(query.station());
 
-        final var passes = service.forecast(satellite, station, query.duration());
-        return PassesResponse.of(satellite, query.station(), passes);
+        final var forecast = service.forecast(satellite, station, query.duration());
+        return PassesResponse.of(satellite, query.station(), forecast);
     }
 }

@@ -14,25 +14,35 @@ import org.springframework.web.client.RestClientException;
 @RequiredArgsConstructor
 public class CelestrakClient {
 
+    private static final ParameterizedTypeReference<List<StoredOmm>> OMM_LIST = new ParameterizedTypeReference<>() {};
+
     private final RestClient celestrakRestClient;
 
     public StoredOmm latest(NoradId satellite) {
-        return fetch(satellite).stream()
-                .findFirst()
-                .orElseThrow(() -> new SatelliteNotFoundException(satellite));
-    }
-
-    private List<StoredOmm> fetch(NoradId satellite) {
         try {
-            final var response = celestrakRestClient.get()
-                    .uri("/NORAD/elements/gp.php?CATNR={id}&FORMAT=JSON", satellite.value())
-                    .retrieve()
-                    .body(new ParameterizedTypeReference<List<StoredOmm>>() {});
-            return response == null ? List.of() : response;
+            return fetch("CATNR", String.valueOf(satellite.value())).stream()
+                    .findFirst()
+                    .orElseThrow(() -> new SatelliteNotFoundException(satellite));
         } catch (HttpClientErrorException.NotFound e) {
             throw new SatelliteNotFoundException(satellite, e);
         } catch (RestClientException e) {
             throw new CelestrakException("CelesTrak request for " + satellite + " failed: " + e.getMessage(), e);
         }
+    }
+
+    public List<StoredOmm> group(String group) {
+        try {
+            return fetch("GROUP", group);
+        } catch (RestClientException e) {
+            throw new CelestrakException("CelesTrak request for group " + group + " failed: " + e.getMessage(), e);
+        }
+    }
+
+    private List<StoredOmm> fetch(String query, String value) {
+        final var response = celestrakRestClient.get()
+                .uri("/NORAD/elements/gp.php?{query}={value}&FORMAT=JSON", query, value)
+                .retrieve()
+                .body(OMM_LIST);
+        return response == null ? List.of() : response;
     }
 }

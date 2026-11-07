@@ -49,7 +49,7 @@ class OrekitPassPredictorIntegrationTest {
 
     @Test
     void issPassesOverVilniusArePhysicallyPlausible() {
-        final var passes = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1));
+        final var passes = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1)).passes();
 
         assertThat(passes).hasSizeBetween(3, 10);
         for (Pass pass : passes) {
@@ -66,7 +66,7 @@ class OrekitPassPredictorIntegrationTest {
 
     @Test
     void issPassesOverVilniusMatchSkyfieldWithinOneSecond() {
-        final var passes = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1));
+        final var passes = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1)).passes();
 
         assertThat(passes).hasSameSizeAs(SKYFIELD_PASSES);
         for (int i = 0; i < passes.size(); i++) {
@@ -80,6 +80,13 @@ class OrekitPassPredictorIntegrationTest {
     }
 
     @Test
+    void forecastCarriesTheEpochOfTheElementsItUsed() {
+        final var forecast = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofHours(1));
+
+        assertThat(forecast.elementsEpoch()).isCloseTo(EPOCH, within(1, ChronoUnit.SECONDS));
+    }
+
+    @Test
     void repeatedPredictionsGiveTheSameResult() {
         final var first = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1));
         final var second = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1));
@@ -90,7 +97,7 @@ class OrekitPassPredictorIntegrationTest {
     @Test
     void laterWindowOnlyContainsPassesInsideIt() {
         final var from = EPOCH.plus(Duration.ofHours(12));
-        final var passes = predictor.predict(ISS, VILNIUS, from, Duration.ofHours(6));
+        final var passes = predictor.predict(ISS, VILNIUS, from, Duration.ofHours(6)).passes();
 
         assertThat(passes).allSatisfy(pass -> assertThat(pass.start()).isAfterOrEqualTo(from));
     }
