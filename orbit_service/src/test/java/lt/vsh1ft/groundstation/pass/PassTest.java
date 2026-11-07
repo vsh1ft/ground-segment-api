@@ -26,6 +26,12 @@ class PassTest {
     }
 
     @Test
+    void peakBeforeTheStartOfThePassIsRejected() {
+        assertThatIllegalArgumentException()
+                .isThrownBy(() -> new Pass(TCA, LOS, new Pass.Peak(AOS, 36.9)));
+    }
+
+    @Test
     void passWithoutPeakIsRejected() {
         assertThatNullPointerException().isThrownBy(() -> new Pass(AOS, LOS, null));
     }
@@ -33,5 +39,10 @@ class PassTest {
     @Test
     void peakElevationAbove90DegreesIsRejected() {
         assertThatIllegalArgumentException().isThrownBy(() -> new Pass.Peak(TCA, 90.5));
+    }
+
+    @Test
+    void peakElevationBelowMinus90DegreesIsRejected() {
+        assertThatIllegalArgumentException().isThrownBy(() -> new Pass.Peak(TCA, -90.5));
     }
 }

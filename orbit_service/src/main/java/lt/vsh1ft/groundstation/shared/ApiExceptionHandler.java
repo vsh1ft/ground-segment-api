@@ -58,8 +58,7 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     private String message(MessageSourceResolvable error) {
-        final var messages = getMessageSource();
-        return messages == null ? error.getDefaultMessage() : messages.getMessage(error, LocaleContextHolder.getLocale());
+        return getMessageSource().getMessage(error, LocaleContextHolder.getLocale());
     }
 
     record InvalidField(String field, String message) {

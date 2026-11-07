@@ -68,6 +68,17 @@ class PassAssemblerTest {
     }
 
     @Test
+    void lowerSecondMaximumDoesNotReplaceThePeak() {
+        assembler.onAcquisition(at(0));
+        assembler.onMaximum(at(2), 45.0);
+        assembler.onMaximum(at(5), 30.0);
+        assembler.onLoss(at(8));
+
+        assertThat(assembler.passes()).singleElement()
+                .extracting(Pass::peak).isEqualTo(new Pass.Peak(at(2), 45.0));
+    }
+
+    @Test
     void passWithoutAnyMaximumIsDropped() {
         assembler.onAcquisition(at(0));
         assembler.onLoss(at(1));

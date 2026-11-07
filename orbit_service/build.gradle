@@ -10,6 +10,7 @@ buildscript {
 
 plugins {
     id 'java'
+    id 'jacoco'
     id 'org.springframework.boot' version '4.1.2'
     id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -63,6 +64,10 @@ dependencies {
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
+jacoco {
+    toolVersion = '0.8.16'
+}
+
 springBoot {
     buildInfo()
 }
@@ -76,6 +81,35 @@ test {
         excludeTags 'live'
     }
     workingDir = rootProject.projectDir
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'CLASS'
+            excludes = ['lt.vsh1ft.groundstation.GroundStationApplication']
+            limit {
+                counter = 'LINE'
+                minimum = 1.0
+            }
+            limit {
+                counter = 'BRANCH'
+                minimum = 1.0
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
 }
 
 tasks.register('liveTest', Test) {

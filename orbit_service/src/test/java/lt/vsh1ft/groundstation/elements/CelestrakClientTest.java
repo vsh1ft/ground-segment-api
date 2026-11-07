@@ -25,6 +25,14 @@ class CelestrakClientTest {
     private final CelestrakClient client = new CelestrakClient(builder.build());
 
     @Test
+    void latestElementsOfASatelliteAreReturned() {
+        server.expect(requestTo("https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=JSON"))
+                .andRespond(withSuccess("[" + omm("ISS (ZARYA)", "1998-067A", 25544) + "]", MediaType.APPLICATION_JSON));
+
+        assertThat(client.latest(new NoradId(25544))).extracting(StoredOmm::objectName).isEqualTo("ISS (ZARYA)");
+    }
+
+    @Test
     void notFoundMeansTheSatelliteIsUnknown() {
         server.expect(requestTo(URL)).andRespond(
                 withStatus(HttpStatus.NOT_FOUND).contentType(MediaType.TEXT_PLAIN).body("No GP data found"));
@@ -35,6 +43,13 @@ class CelestrakClientTest {
     @Test
     void emptyListMeansTheSatelliteIsUnknown() {
         server.expect(requestTo(URL)).andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client.latest(UNKNOWN)).isInstanceOf(SatelliteNotFoundException.class);
+    }
+
+    @Test
+    void emptyResponseMeansTheSatelliteIsUnknown() {
+        server.expect(requestTo(URL)).andRespond(withSuccess());
 
         assertThatThrownBy(() -> client.latest(UNKNOWN)).isInstanceOf(SatelliteNotFoundException.class);
     }

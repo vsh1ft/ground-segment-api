@@ -161,6 +161,8 @@ orbital elements needs internet access to reach CelesTrak.
 ./gradlew :orbit_service:test
 ```
 
+A JaCoCo coverage report is written to `orbit_service/build/reports/jacoco/test/html/index.html` after each test run.
+
 Pass predictions are checked against [Skyfield](https://rhodesmill.org/skyfield/), an independent SGP4
 implementation: for a fixed ISS element set over Vilnius, rise, peak and set must agree within 1 second and the
 peak elevation within 0.01 degrees (they agree within about 20 ms). The reference values come from
