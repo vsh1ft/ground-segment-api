@@ -6,6 +6,16 @@ All notable changes to this project are documented in this file. The format is b
 [release-please](https://github.com/googleapis/release-please) from
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.3.0](https://github.com/vsh1ft/ground-segment-api/compare/v0.2.0...v0.3.0) (2026-11-07)
+
+
+### Added
+
+* add satellite catalog with search and paging ([b8340f3](https://github.com/vsh1ft/ground-segment-api/commit/b8340f33f841c6ffc75444cf8b618ecb65feb0be))
+* refresh the catalog from CelesTrak groups on a schedule ([71872c0](https://github.com/vsh1ft/ground-segment-api/commit/71872c07fdfb5427a4296df29c87f6a4f37fa6ef))
+* serve the stored orbital element history of a satellite ([f87ee48](https://github.com/vsh1ft/ground-segment-api/commit/f87ee48f9caff438c70c6e7867e62c2cd6fb8bb5))
+* sync satellite transmitters from the SatNOGS DB ([69f0d30](https://github.com/vsh1ft/ground-segment-api/commit/69f0d30439e730e7084725e4f979e1dbea0d9afc))
+
 ## [0.2.0](https://github.com/vsh1ft/ground-segment-api/compare/f979c42...v0.2.0) (2026-11-03)
 
 First HTTP API: ground stations and satellite pass predictions.
