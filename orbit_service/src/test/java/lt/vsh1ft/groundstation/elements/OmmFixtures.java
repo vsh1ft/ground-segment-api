@@ -9,6 +9,14 @@ public final class OmmFixtures {
             15.49143202, 0.0007095, 51.6332, 339.1679, 336.8847, 23.1822,
             0, "U", 999, 59308, 0.00011503, 5.925e-5, 0, null);
 
+    public static StoredOmm withEpochDaysLater(StoredOmm omm, int days) {
+        return new StoredOmm(null, omm.noradId(), omm.objectName(), omm.objectId(), omm.epoch().plusDays(days),
+                omm.meanMotion(), omm.eccentricity(), omm.inclination(), omm.raOfAscNode(),
+                omm.argOfPericenter(), omm.meanAnomaly(), omm.ephemerisType(), omm.classificationType(),
+                omm.elementSetNo(), omm.revAtEpoch(), omm.bstar(), omm.meanMotionDot(), omm.meanMotionDdot(),
+                omm.downloadedAt());
+    }
+
     private OmmFixtures() {
     }
 }

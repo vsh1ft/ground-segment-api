@@ -55,6 +55,11 @@ public class SatelliteService {
         return summaries.findAll(pageable);
     }
 
+    public Page<ElementSet> elementHistory(NoradId satellite, Pageable page) {
+        ensureInCatalog(satellite);
+        return elements.history(satellite, page).map(ElementSet::from);
+    }
+
     public void add(NoradId satellite) {
         if (satellites.existsById(satellite.value())) {
             throw new SatelliteAlreadyInCatalogException(satellite);

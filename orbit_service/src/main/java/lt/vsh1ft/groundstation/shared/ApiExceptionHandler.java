@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.FieldError;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -49,8 +51,12 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
             HandlerMethodValidationException e, @NonNull HttpHeaders headers, @NonNull HttpStatusCode status, @NonNull WebRequest request) {
         addErrors(e.getBody(), e.getParameterValidationResults().stream()
                 .flatMap(result -> result.getResolvableErrors().stream()
-                        .map(error -> new InvalidField(result.getMethodParameter().getParameterName(), message(error)))));
+                        .map(error -> new InvalidField(field(result, error), message(error)))));
         return super.handleHandlerMethodValidationException(e, headers, status, request);
+    }
+
+    private static String field(ParameterValidationResult result, MessageSourceResolvable error) {
+        return error instanceof FieldError fieldError ? fieldError.getField() : result.getMethodParameter().getParameterName();
     }
 
     private static void addErrors(ProblemDetail body, Stream<InvalidField> errors) {

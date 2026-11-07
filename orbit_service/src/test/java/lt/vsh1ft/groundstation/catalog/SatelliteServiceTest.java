@@ -148,6 +148,24 @@ class SatelliteServiceTest {
     }
 
     @Test
+    void elementHistoryIsNewestFirstAndOnlyForThatSatellite() {
+        addIssNoaaAndMeteor();
+        service.store(OmmFixtures.withEpochDaysLater(OmmFixtures.ISS, 1).withDownloadedAt(DOWNLOADED_AT));
+
+        final var history = service.elementHistory(ISS, FIRST_PAGE);
+
+        final var epoch = OmmFixtures.ISS.epoch();
+        assertThat(history.getContent()).extracting(ElementSet::epoch).containsExactly(
+                epoch.plusDays(1).toInstant(ZoneOffset.UTC), epoch.toInstant(ZoneOffset.UTC));
+    }
+
+    @Test
+    void elementHistoryOfASatelliteOutsideTheCatalogIsNotFound() {
+        assertThatThrownBy(() -> service.elementHistory(UNKNOWN, FIRST_PAGE))
+                .isInstanceOf(SatelliteNotInCatalogException.class);
+    }
+
+    @Test
     void searchWithoutATermPagesThroughEverySatelliteByName() {
         addIssNoaaAndMeteor();
 

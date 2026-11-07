@@ -33,6 +33,10 @@ class SatelliteControllerTest {
              "addedAt": "2026-11-04T10:15:30Z", "latestEpoch": "2026-11-04T06:12:45.123Z"}
             """;
 
+    private static final ElementSet ISS_ELEMENTS = new ElementSet(Instant.parse("2026-11-01T18:56:25.712736Z"),
+            15.49143202, 0.0007095, 51.6332, 339.1679, 336.8847, 23.1822, 0.00011503, 5.925e-5, 0, 999, 59308,
+            Instant.parse("2026-11-04T10:00:00Z"));
+
     @Autowired
     private MockMvcTester mvc;
 
@@ -95,6 +99,51 @@ class SatelliteControllerTest {
                         {"errors": [{"field": "noradId", "message": "must be greater than 0"}]}
                         """);
         verifyNoInteractions(service);
+    }
+
+    @Test
+    void elementHistoryReturnsOnePageWithPagingMetadata() {
+        given(service.elementHistory(ISS, PageRequest.of(1, 1)))
+                .willReturn(new PageImpl<>(List.of(ISS_ELEMENTS), PageRequest.of(1, 1), 2));
+
+        assertThat(mvc.get().uri("/satellites/25544/elements?page=1&size=1")).hasStatusOk().bodyJson()
+                .isStrictlyEqualTo("""
+                        {"content": [{"epoch": "2026-11-01T18:56:25.712736Z", "meanMotion": 15.49143202,
+                                      "eccentricity": 0.0007095, "inclination": 51.6332, "raOfAscNode": 339.1679,
+                                      "argOfPericenter": 336.8847, "meanAnomaly": 23.1822, "bstar": 0.00011503,
+                                      "meanMotionDot": 5.925e-5, "meanMotionDdot": 0, "elementSetNo": 999,
+                                      "revAtEpoch": 59308, "downloadedAt": "2026-11-04T10:00:00Z"}],
+                         "page": {"size": 1, "number": 1, "totalElements": 2, "totalPages": 2}}
+                        """);
+    }
+
+    @Test
+    void elementHistoryDefaultsToTheFirstPageOfTwenty() {
+        given(service.elementHistory(ISS, PageRequest.of(0, 20)))
+                .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+
+        assertThat(mvc.get().uri("/satellites/25544/elements")).hasStatusOk()
+                .bodyJson().extractingPath("$.page.size").isEqualTo(20);
+    }
+
+    @Test
+    void invalidElementHistoryPagingIsABadRequestNamingEveryParameter() {
+        final var response = mvc.get().uri("/satellites/25544/elements?page=-1&size=0").exchange();
+
+        assertThat(response).hasStatus(HttpStatus.BAD_REQUEST).hasContentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .bodyJson().isLenientlyEqualTo("""
+                        {"errors": [{"field": "page", "message": "must be greater than or equal to 0"},
+                                    {"field": "size", "message": "must be greater than or equal to 1"}]}
+                        """);
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void elementHistoryOfASatelliteOutsideTheCatalogIsNotFound() {
+        given(service.elementHistory(ISS, PageRequest.of(0, 20))).willThrow(new SatelliteNotInCatalogException(ISS));
+
+        assertThat(mvc.get().uri("/satellites/25544/elements")).hasStatus(HttpStatus.NOT_FOUND)
+                .bodyJson().extractingPath("$.detail").isEqualTo("No satellite with NORAD ID 25544 in the catalog");
     }
 
     @Test

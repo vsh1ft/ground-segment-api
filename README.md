@@ -41,11 +41,29 @@ $ curl 'http://localhost:8080/satellites?search=iss'
 |---|---|
 | `GET /satellites?search=&page=&size=` | one page of catalog satellites, by name |
 | `GET /satellites/{noradId}` | one satellite |
+| `GET /satellites/{noradId}/elements?page=&size=` | one page of the satellite's stored orbital elements, newest epoch first |
 | `POST /satellites/{noradId}` | adds a satellite from CelesTrak, 201 with `Location` |
 | `DELETE /satellites/{noradId}` | removes a satellite and its stored elements, 204 |
 
 `search` matches part of the name, ignoring case, or a NORAD catalog number exactly. `page` starts at 0; `size` is
 20 by default and at most 100.
+
+Every element set the refresh downloads is kept, one per epoch, so `/elements` shows how the orbit was updated over
+time. Each entry has the SGP4 mean elements (`meanMotion` in revolutions per day, angles in degrees, `bstar`,
+`meanMotionDot`, `meanMotionDdot`), `elementSetNo`, `revAtEpoch`, and when it was last downloaded:
+
+```
+$ curl 'http://localhost:8080/satellites/25544/elements?size=1'
+{
+  "content": [
+    {"epoch": "2026-11-01T18:56:25.712736Z", "meanMotion": 15.49143202, "eccentricity": 0.0007095,
+     "inclination": 51.6332, "raOfAscNode": 339.1679, "argOfPericenter": 336.8847, "meanAnomaly": 23.1822,
+     "bstar": 0.00011503, "meanMotionDot": 5.925e-5, "meanMotionDdot": 0, "elementSetNo": 999,
+     "revAtEpoch": 59308, "downloadedAt": "2026-11-04T10:00:00Z"}
+  ],
+  "page": {"size": 1, "number": 0, "totalElements": 12, "totalPages": 12}
+}
+```
 
 ### Stations
 

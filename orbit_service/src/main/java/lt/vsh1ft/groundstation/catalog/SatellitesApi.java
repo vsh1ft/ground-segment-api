@@ -56,6 +56,23 @@ public interface SatellitesApi {
     SatelliteSummary get(@Parameter(description = "NORAD catalog number", example = "25544")
                          @PathVariable @Positive int noradId);
 
+    @GetMapping("/{noradId}/elements")
+    @Operation(summary = "Get the stored orbital elements of a catalog satellite",
+            description = "Returns one page of the satellite's stored element sets, newest epoch first. These are "
+                    + "the CCSDS OMM mean elements that passes are predicted from with SGP4; the background refresh "
+                    + "adds a set whenever CelesTrak publishes a newer epoch.")
+    @ApiResponse(responseCode = "200", description = "One page of element sets with paging metadata")
+    @ApiResponse(responseCode = "400", description = "A parameter is invalid; `errors` names each one",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "404", description = "The satellite is not in the catalog",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(value = NOT_IN_CATALOG_EXAMPLE)))
+    PagedModel<ElementSet> elements(@Parameter(description = "NORAD catalog number", example = "25544")
+                                    @PathVariable @Positive int noradId,
+                                    @Valid @ParameterObject ElementsQuery query);
+
     @PostMapping("/{noradId}")
     @Operation(summary = "Add a satellite to the catalog",
             description = "Downloads the satellite's current orbital elements from CelesTrak and adds it to the "

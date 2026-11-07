@@ -40,6 +40,8 @@ class CatalogModuleTest {
                 .willReturn(OmmFixtures.ISS.withDownloadedAt(Instant.parse("2026-11-04T10:00:00Z")));
 
         assertThat(mvc.post().uri("/satellites/25544")).hasStatus(HttpStatus.CREATED);
+        assertThat(mvc.get().uri("/satellites/25544/elements")).hasStatusOk()
+                .bodyJson().extractingPath("$.content[0].epoch").isEqualTo("2026-11-01T18:56:25.712736Z");
         assertThat(mvc.get().uri("/satellites?search=zarya")).hasStatusOk()
                 .bodyJson().extractingPath("$.content[0].noradId").isEqualTo(25544);
         assertThat(mvc.post().uri("/satellites/25544")).hasStatus(HttpStatus.CONFLICT);

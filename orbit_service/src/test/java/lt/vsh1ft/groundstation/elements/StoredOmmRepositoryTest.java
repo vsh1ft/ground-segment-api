@@ -34,7 +34,7 @@ class StoredOmmRepositoryTest {
 
     @Test
     void newestEpochComesFirstWhateverTheDownloadOrder() {
-        final var newer = repository.save(withEpochOneDayLater(OmmFixtures.ISS).withDownloadedAt(MORNING));
+        final var newer = repository.save(OmmFixtures.withEpochDaysLater(OmmFixtures.ISS, 1).withDownloadedAt(MORNING));
         repository.save(OmmFixtures.ISS.withDownloadedAt(EVENING));
 
         assertThat(repository.findFirstByNoradIdOrderByEpochDesc(25544)).contains(newer);
@@ -62,13 +62,5 @@ class StoredOmmRepositoryTest {
 
         assertThatThrownBy(() -> repository.save(OmmFixtures.ISS.withDownloadedAt(EVENING)))
                 .hasStackTraceContaining("duplicate key value violates unique constraint");
-    }
-
-    private static StoredOmm withEpochOneDayLater(StoredOmm omm) {
-        return new StoredOmm(null, omm.noradId(), omm.objectName(), omm.objectId(), omm.epoch().plusDays(1),
-                omm.meanMotion(), omm.eccentricity(), omm.inclination(), omm.raOfAscNode(),
-                omm.argOfPericenter(), omm.meanAnomaly(), omm.ephemerisType(), omm.classificationType(),
-                omm.elementSetNo(), omm.revAtEpoch(), omm.bstar(), omm.meanMotionDot(), omm.meanMotionDdot(),
-                omm.downloadedAt());
     }
 }

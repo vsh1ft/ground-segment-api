@@ -25,6 +25,11 @@ public class SatelliteController implements SatellitesApi {
     }
 
     @Override
+    public PagedModel<ElementSet> elements(int noradId, ElementsQuery query) {
+        return new PagedModel<>(service.elementHistory(new NoradId(noradId), PageRequest.of(query.page(), query.size())));
+    }
+
+    @Override
     public ResponseEntity<Void> add(int noradId, UriComponentsBuilder uri) {
         service.add(new NoradId(noradId));
         return ResponseEntity.created(uri.path("/satellites/{noradId}").build(noradId)).build();
