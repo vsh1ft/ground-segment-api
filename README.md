@@ -197,7 +197,7 @@ modules at [http://localhost:8080/actuator/modulith](http://localhost:8080/actua
 ./gradlew :orbit_service:bootRun
 ```
 
-The service listens on port 8080. Event detection, catalog refresh (`groundstation.catalog.refresh`: interval and
+The service listens on port 8080. Event detection, catalog refresh (`groundstation.catalog.refresh`: interval, at least 2 h, and
 groups), transmitter sync (`groundstation.radio.sync.interval`), CelesTrak and SatNOGS settings are in
 `orbit_service/src/main/resources/application.yml`. Downloading orbital elements and transmitters needs internet
 access to reach CelesTrak and the SatNOGS DB.
