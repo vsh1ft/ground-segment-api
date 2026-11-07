@@ -1,0 +1,20 @@
+- id: STN-010
+  text: >-
+    The service shall let ground stations be created, read, listed by name, replaced and deleted over the API.
+  verification: T
+
+- id: STN-020
+  text: >-
+    The service shall reject a ground station whose name is already used by another station.
+  verification: T
+
+- id: STN-030
+  text: >-
+    The service shall require every station field and accept latitudes from -90 to 90 degrees, longitudes from
+    -180 to 180 degrees and minimum elevations from -5 to 90 degrees.
+  verification: T
+
+- id: STN-040
+  text: >-
+    The service shall answer a request to read, replace or delete an unknown ground station with 404.
+  verification: T

@@ -6,6 +6,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 
 import java.time.Instant;
 
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -20,6 +21,7 @@ class SatnogsClientTest {
     private final SatnogsClient client = new SatnogsClient(builder.build());
 
     @Test
+    @Requirement("IF-020")
     void transmittersAreReadFromTheSatnogsJson() {
         server.expect(requestTo(URL)).andRespond(withSuccess("""
                 [{"uuid": "ZJxCeQmih9zDfYNVrB4wRN", "description": "Mode V APRS", "alive": true,

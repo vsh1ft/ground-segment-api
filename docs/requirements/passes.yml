@@ -1,0 +1,47 @@
+- id: PASS-010
+  text: >-
+    The service shall predict the passes of a catalog satellite over a station for a window of 1 day by
+    default and at most 7 days, using the stored element set with the newest epoch and reporting that epoch.
+  verification: T
+
+- id: PASS-020
+  text: >-
+    Predicted pass start, peak and end times shall agree with an independent SGP4 implementation (Skyfield)
+    within 1 second.
+  verification: T
+
+- id: PASS-030
+  text: >-
+    Each pass shall have a start, a peak with its time and elevation, and an end; passes that are already in
+    progress at the start of the window or still in progress at its end shall be left out.
+  verification: T
+
+- id: PASS-040
+  text: >-
+    Pass times shall be returned in UTC truncated to milliseconds and elevations rounded to hundredths of a
+    degree.
+  verification: T
+
+- id: PASS-050
+  text: >-
+    The service shall answer a pass request for a satellite outside the catalog or an unknown station with 404,
+    and for a satellite without stored orbital elements with 503.
+  verification: T
+
+- id: PASS-060
+  text: >-
+    A pass shall begin when the satellite rises above the station's minimum elevation and end when it sets
+    below it, so its peak elevation is never below that minimum.
+  verification: T
+
+- id: PASS-070
+  text: >-
+    Predicting the same window from the same element set shall give the same passes, and a prediction shall
+    contain only passes that lie inside its window.
+  verification: T
+
+- id: PERF-010
+  text: >-
+    The service shall predict the passes of a satellite over a station for the longest window of 7 days within
+    2 seconds.
+  verification: T

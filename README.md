@@ -210,6 +210,13 @@ access to reach CelesTrak and the SatNOGS DB.
 
 A JaCoCo coverage report is written to `orbit_service/build/reports/jacoco/test/html/index.html` after each test run.
 
+Requirements are listed in [`docs/requirements/`](docs/requirements), one YAML file per area (catalog, passes,
+radio, interfaces, operations, ...), each requirement with an ID such as `CAT-050` and
+an ECSS verification method: T (test), A (analysis), I (inspection) or R (review of design). Tests name the
+requirements they verify with `@Requirement("CAT-050")`, and every test run writes a traceability matrix to
+`orbit_service/build/reports/requirements/traceability.md`. `./gradlew check` fails when a requirement verified by
+test has no passing test or a test names an unknown requirement.
+
 Pass predictions are checked against [Skyfield](https://rhodesmill.org/skyfield/), an independent SGP4
 implementation: for a fixed ISS element set over Vilnius, rise, peak and set must agree within 1 second and the
 peak elevation within 0.01 degrees (they agree within about 20 ms). The reference values come from

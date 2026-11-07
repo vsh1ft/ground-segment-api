@@ -17,6 +17,7 @@ import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.station.StationNotFoundException;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +55,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("PASS-040")
     void passesAreReturnedInUtc() {
         final var pass = new Pass(AOS, AOS.plusSeconds(172), new Pass.Peak(AOS.plusSeconds(86), 6.2));
         given(service.forecast(ISS, VILNIUS, Duration.ofHours(12))).willReturn(forecastOf(pass));
@@ -76,6 +78,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("PASS-040")
     void timesAreTruncatedToMilliseconds() {
         final var aos = Instant.parse("2026-11-03T20:43:05.676060570Z");
         final var pass = new Pass(aos, aos.plusSeconds(300), new Pass.Peak(aos.plusSeconds(150), 18.6));
@@ -88,6 +91,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("PASS-040")
     void elevationIsRoundedToHundredthsOfADegree() {
         final var pass = new Pass(AOS, AOS.plusSeconds(300), new Pass.Peak(AOS.plusSeconds(150), 43.08517791061351));
         given(service.forecast(eq(ISS), any(), any())).willReturn(forecastOf(pass));
@@ -97,6 +101,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("PASS-010")
     void durationDefaultsToOneDay() {
         given(service.forecast(eq(ISS), any(), eq(Duration.ofDays(1)))).willReturn(forecastOf());
 
@@ -105,6 +110,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("API-010")
     void missingSatelliteIsABadRequest() {
         assertBadRequestProblem("/passes?station=" + VILNIUS_ID, """
                 [{"field": "satellite", "message": "must not be null"}]
@@ -112,6 +118,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("API-010")
     void missingStationIsABadRequest() {
         assertBadRequestProblem("/passes?satellite=25544", """
                 [{"field": "station", "message": "must not be null"}]
@@ -119,6 +126,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("API-010")
     void satelliteThatIsNotANumberIsABadRequest() {
         assertBadRequestProblem("/passes?satellite=abc&station=" + VILNIUS_ID, """
                 [{"field": "satellite", "message": "invalid value"}]
@@ -126,6 +134,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("API-010")
     void stationThatIsNotAUuidIsABadRequest() {
         assertBadRequestProblem("/passes?satellite=25544&station=vilnius", """
                 [{"field": "station", "message": "invalid value"}]
@@ -133,6 +142,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("API-030")
     void zeroSatelliteIsABadRequest() {
         assertBadRequestProblem("/passes?satellite=0&station=" + VILNIUS_ID, """
                 [{"field": "satellite", "message": "must be greater than 0"}]
@@ -140,6 +150,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("PASS-010")
     void durationLongerThanSevenDaysIsABadRequest() {
         assertBadRequestProblem(ISS_OVER_VILNIUS + "&duration=PT169H", """
                 [{"field": "duration", "message": "must be shorter than or equal to 7 days"}]
@@ -147,6 +158,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("API-010")
     void zeroDurationIsABadRequest() {
         assertBadRequestProblem(ISS_OVER_VILNIUS + "&duration=PT0S", """
                 [{"field": "duration", "message": "must be longer than 0"}]
@@ -154,6 +166,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("API-010")
     void negativeDurationIsABadRequest() {
         assertBadRequestProblem(ISS_OVER_VILNIUS + "&duration=-PT1H", """
                 [{"field": "duration", "message": "must be longer than 0"}]
@@ -161,6 +174,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("API-010")
     void everyInvalidParameterIsReported() {
         assertBadRequestProblem("/passes?satellite=0&duration=P8D", """
                 [{"field": "duration", "message": "must be shorter than or equal to 7 days"}, {"field": "satellite", "message": "must be greater than 0"}, {"field": "station", "message": "must not be null"}]
@@ -168,6 +182,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("PASS-050")
     void unknownStationIsNotFound() {
         final var unknown = UUID.fromString("00000000-0000-0000-0000-000000000001");
         given(stations.byId(unknown)).willThrow(new StationNotFoundException(unknown));
@@ -178,6 +193,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("PASS-050")
     void satelliteOutsideTheCatalogIsNotFound() {
         final var unknown = new NoradId(99999);
         willThrow(new SatelliteNotInCatalogException(unknown)).given(satellites).ensureInCatalog(unknown);
@@ -188,6 +204,7 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("PASS-050")
     void satelliteWithoutStoredElementsIsServiceUnavailable() {
         given(service.forecast(eq(ISS), any(), any()))
                 .willThrow(new OrbitDataUnavailableException("No orbit data stored for NORAD ID 25544"));

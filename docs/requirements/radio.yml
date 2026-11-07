@@ -1,0 +1,23 @@
+- id: RAD-010
+  text: >-
+    The service shall sync the transmitters of catalog satellites from the SatNOGS DB after a catalog refresh,
+    at most once per configurable interval, 24 hours by default.
+  verification: T
+
+- id: RAD-020
+  text: >-
+    Stored transmitters shall mirror the SatNOGS DB, so transmitters it no longer lists are removed; a failed
+    sync shall keep the transmitters stored before.
+  verification: T
+
+- id: RAD-030
+  text: >-
+    The service shall list the transmitters of a catalog satellite sorted by downlink frequency in hertz,
+    optionally only those with a given status.
+  verification: T
+
+- id: RAD-040
+  text: >-
+    A SatNOGS DB entry with an unknown or missing transmitter type or status shall be skipped and the other
+    entries kept.
+  verification: T

@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.time.Instant;
 
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 
 class SatnogsTransmitterTest {
@@ -24,6 +25,7 @@ class SatnogsTransmitterTest {
     }
 
     @Test
+    @Requirement("RAD-040")
     void unknownTypeIsRejected() {
         final var satnogs = withTypeAndStatus("Repeater", "active");
 
@@ -31,6 +33,7 @@ class SatnogsTransmitterTest {
     }
 
     @Test
+    @Requirement("RAD-040")
     void missingStatusIsRejected() {
         final var satnogs = withTypeAndStatus("Transmitter", null);
 

@@ -6,6 +6,7 @@ import java.time.Instant;
 
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest;
@@ -30,6 +31,7 @@ class OmmArchiveTest {
     private StoredOmmRepository repository;
 
     @Test
+    @Requirement("ELM-010")
     void newEpochIsKeptAlongsideTheOlderOnes() {
         archive.save(OmmFixtures.ISS.withDownloadedAt(MORNING));
         archive.save(OmmFixtures.withEpochDaysLater(OmmFixtures.ISS, 1).withDownloadedAt(EVENING));
@@ -39,6 +41,7 @@ class OmmArchiveTest {
     }
 
     @Test
+    @Requirement("ELM-010")
     void sameEpochDownloadedAgainOnlyUpdatesTheDownloadTime() {
         archive.save(OmmFixtures.ISS.withDownloadedAt(MORNING));
         archive.save(OmmFixtures.ISS.withDownloadedAt(EVENING));
@@ -56,6 +59,7 @@ class OmmArchiveTest {
     }
 
     @Test
+    @Requirement("ELM-020")
     void historyIsNewestEpochFirstOnePageAtATime() {
         archive.save(OmmFixtures.ISS.withDownloadedAt(MORNING));
         archive.save(OmmFixtures.withEpochDaysLater(OmmFixtures.ISS, 2).withDownloadedAt(MORNING));

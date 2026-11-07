@@ -20,6 +20,7 @@ import java.util.Optional;
 import lt.vsh1ft.groundstation.catalog.CatalogRefreshed;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.web.client.ResourceAccessException;
@@ -41,6 +42,7 @@ class TransmitterSyncTest {
             new TransmitterSyncProperties(INTERVAL), Clock.fixed(NOW, ZoneOffset.UTC));
 
     @Test
+    @Requirement("RAD-010")
     void firstSyncStoresTheTransmittersOfCatalogSatellitesOnly() {
         given(transmitters.lastSync()).willReturn(Optional.empty());
         given(catalog.all()).willReturn(List.of(new NoradId(25544), new NoradId(33591)));
@@ -53,6 +55,7 @@ class TransmitterSyncTest {
     }
 
     @Test
+    @Requirement("RAD-010")
     void syncWaitsUntilTheIntervalHasPassed() {
         given(transmitters.lastSync()).willReturn(Optional.of(NOW.minus(Duration.ofHours(23))));
 
@@ -63,6 +66,7 @@ class TransmitterSyncTest {
     }
 
     @Test
+    @Requirement("RAD-010")
     void syncRunsAgainOnceTheIntervalHasPassed() {
         given(transmitters.lastSync()).willReturn(Optional.of(NOW.minus(INTERVAL)));
         given(catalog.all()).willReturn(List.of(new NoradId(25544)));
@@ -74,6 +78,7 @@ class TransmitterSyncTest {
     }
 
     @Test
+    @Requirement("RAD-040")
     void transmitterWithAnUnknownTypeIsSkipped() {
         given(transmitters.lastSync()).willReturn(Optional.empty());
         given(catalog.all()).willReturn(List.of(new NoradId(25544)));
@@ -85,6 +90,7 @@ class TransmitterSyncTest {
     }
 
     @Test
+    @Requirement("RAD-020")
     void failedDownloadKeepsTheStoredTransmitters() {
         given(transmitters.lastSync()).willReturn(Optional.empty());
         given(catalog.all()).willReturn(List.of(new NoradId(25544)));

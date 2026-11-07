@@ -11,6 +11,7 @@ import lt.vsh1ft.groundstation.PostgresTestcontainer;
 import lt.vsh1ft.groundstation.catalog.SatelliteNotInCatalogException;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest;
@@ -38,6 +39,7 @@ class TransmitterServiceTest {
     private SatelliteService catalog;
 
     @Test
+    @Requirement("RAD-030")
     void transmittersAreSortedByDownlinkFrequencyWithoutDownlinkLast() {
         service.replaceAll(List.of(
                 transmitter("uhf", 25544, 437800000L, TransmitterStatus.ACTIVE, MORNING),
@@ -50,6 +52,7 @@ class TransmitterServiceTest {
     }
 
     @Test
+    @Requirement("RAD-030")
     void statusFilterKeepsOnlyMatchingTransmitters() {
         service.replaceAll(List.of(
                 transmitter("uhf", 25544, 437800000L, TransmitterStatus.ACTIVE, MORNING),
@@ -60,6 +63,7 @@ class TransmitterServiceTest {
     }
 
     @Test
+    @Requirement("RAD-020")
     void replacingRemovesTransmittersSatnogsNoLongerLists() {
         service.replaceAll(List.of(
                 transmitter("uhf", 25544, 437800000L, TransmitterStatus.ACTIVE, MORNING),
@@ -84,6 +88,7 @@ class TransmitterServiceTest {
     }
 
     @Test
+    @Requirement("CAT-090")
     void satelliteOutsideTheCatalogIsNotFound() {
         willThrow(new SatelliteNotInCatalogException(ISS)).given(catalog).ensureInCatalog(ISS);
 

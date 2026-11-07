@@ -8,6 +8,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -25,6 +26,7 @@ class CelestrakClientTest {
     private final CelestrakClient client = new CelestrakClient(builder.build());
 
     @Test
+    @Requirement("IF-010")
     void latestElementsOfASatelliteAreReturned() {
         server.expect(requestTo("https://celestrak.org/NORAD/elements/gp.php?CATNR=25544&FORMAT=JSON"))
                 .andRespond(withSuccess("[" + omm("ISS (ZARYA)", "1998-067A", 25544) + "]", MediaType.APPLICATION_JSON));
@@ -33,6 +35,7 @@ class CelestrakClientTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void notFoundMeansTheSatelliteIsUnknown() {
         server.expect(requestTo(URL)).andRespond(
                 withStatus(HttpStatus.NOT_FOUND).contentType(MediaType.TEXT_PLAIN).body("No GP data found"));
@@ -41,6 +44,7 @@ class CelestrakClientTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void emptyListMeansTheSatelliteIsUnknown() {
         server.expect(requestTo(URL)).andRespond(withSuccess("[]", MediaType.APPLICATION_JSON));
 
@@ -48,6 +52,7 @@ class CelestrakClientTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void emptyResponseMeansTheSatelliteIsUnknown() {
         server.expect(requestTo(URL)).andRespond(withSuccess());
 
@@ -55,6 +60,7 @@ class CelestrakClientTest {
     }
 
     @Test
+    @Requirement("IF-010")
     void groupIsDownloadedInOneRequest() {
         server.expect(requestTo(GROUP_URL)).andRespond(withSuccess(
                 "[" + omm("ISS (ZARYA)", "1998-067A", 25544) + "," + omm("NOAA 19", "2009-005A", 33591) + "]",
@@ -72,6 +78,7 @@ class CelestrakClientTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void serverErrorIsAFailureNotAnUnknownSatellite() {
         server.expect(requestTo(URL)).andRespond(withServerError());
 

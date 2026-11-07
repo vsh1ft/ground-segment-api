@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import java.time.Instant;
 
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 
 class PassTest {
@@ -14,34 +15,40 @@ class PassTest {
     private static final Instant LOS = Instant.parse("2026-10-31T23:13:05Z");
 
     @Test
+    @Requirement("PASS-030")
     void passEndingBeforeItStartsIsRejected() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> new Pass(LOS, AOS, new Pass.Peak(TCA, 36.9)));
     }
 
     @Test
+    @Requirement("PASS-030")
     void peakAfterTheEndOfThePassIsRejected() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> new Pass(AOS, TCA, new Pass.Peak(LOS, 36.9)));
     }
 
     @Test
+    @Requirement("PASS-030")
     void peakBeforeTheStartOfThePassIsRejected() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> new Pass(TCA, LOS, new Pass.Peak(AOS, 36.9)));
     }
 
     @Test
+    @Requirement("PASS-030")
     void passWithoutPeakIsRejected() {
         assertThatNullPointerException().isThrownBy(() -> new Pass(AOS, LOS, null));
     }
 
     @Test
+    @Requirement("PASS-030")
     void peakElevationAbove90DegreesIsRejected() {
         assertThatIllegalArgumentException().isThrownBy(() -> new Pass.Peak(TCA, 90.5));
     }
 
     @Test
+    @Requirement("PASS-030")
     void peakElevationBelowMinus90DegreesIsRejected() {
         assertThatIllegalArgumentException().isThrownBy(() -> new Pass.Peak(TCA, -90.5));
     }

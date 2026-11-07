@@ -1,0 +1,16 @@
+- id: IF-010
+  text: >-
+    The service shall read orbital elements from CelesTrak as CCSDS Orbit Mean-Elements Messages (OMM) in JSON,
+    for a single satellite and for a whole group.
+  verification: T
+
+- id: IF-020
+  text: >-
+    The service shall read satellite transmitters from the SatNOGS DB transmitter API in JSON.
+  verification: T
+
+- id: IF-030
+  text: >-
+    Served element sets shall keep the full epoch precision of the source, in UTC, with mean motion in
+    revolutions per day and angles in degrees.
+  verification: T

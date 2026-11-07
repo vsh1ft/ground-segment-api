@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
 import lt.vsh1ft.groundstation.pass.GroundStation;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest;
@@ -26,6 +27,7 @@ class StationServiceTest {
     private StationService service;
 
     @Test
+    @Requirement("STN-010")
     void createdStationGetsAnIdAndCanBeReadBack() {
         final var created = service.create(VILNIUS);
 
@@ -35,6 +37,7 @@ class StationServiceTest {
     }
 
     @Test
+    @Requirement("STN-010")
     void stationsAreListedByName() {
         service.create(VILNIUS);
         service.create(KAUNAS);
@@ -43,6 +46,7 @@ class StationServiceTest {
     }
 
     @Test
+    @Requirement("STN-020")
     void secondStationWithTheSameNameIsRejected() {
         service.create(VILNIUS);
 
@@ -50,6 +54,7 @@ class StationServiceTest {
     }
 
     @Test
+    @Requirement("STN-010")
     void updateReplacesEveryField() {
         final var created = service.create(VILNIUS);
 
@@ -59,6 +64,7 @@ class StationServiceTest {
     }
 
     @Test
+    @Requirement("STN-020")
     void updateMayKeepTheStationsOwnName() {
         final var created = service.create(VILNIUS);
         final var lowerHorizon = new GroundStation("Vilnius", 54.67519, 25.23422, 114.0, 0.0);
@@ -69,6 +75,7 @@ class StationServiceTest {
     }
 
     @Test
+    @Requirement("STN-020")
     void updateToAnotherStationsNameIsRejected() {
         service.create(VILNIUS);
         final var kaunas = service.create(KAUNAS);
@@ -77,11 +84,13 @@ class StationServiceTest {
     }
 
     @Test
+    @Requirement("STN-040")
     void updatingAnUnknownStationIsNotFound() {
         assertThatThrownBy(() -> service.update(UNKNOWN, VILNIUS)).isInstanceOf(StationNotFoundException.class);
     }
 
     @Test
+    @Requirement("STN-010")
     void deletedStationIsGone() {
         final var created = service.create(VILNIUS);
 
@@ -91,6 +100,7 @@ class StationServiceTest {
     }
 
     @Test
+    @Requirement("STN-040")
     void deletingAnUnknownStationIsNotFound() {
         assertThatThrownBy(() -> service.delete(UNKNOWN)).isInstanceOf(StationNotFoundException.class);
     }

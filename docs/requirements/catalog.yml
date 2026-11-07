@@ -1,0 +1,59 @@
+- id: CAT-010
+  text: >-
+    The service shall add a satellite to the catalog by its NORAD catalog number, taking its name and
+    international designator from CelesTrak and storing its current orbital elements.
+  verification: T
+
+- id: CAT-020
+  text: >-
+    The service shall refuse to add a satellite that is already in the catalog (409), that CelesTrak does not
+    know (404) or while CelesTrak cannot be reached (503).
+  verification: T
+
+- id: CAT-030
+  text: >-
+    The service shall search the catalog by part of the satellite name, ignoring case, or by exact NORAD
+    catalog number, returning pages sorted by name of 20 satellites by default and at most 100.
+  verification: T
+
+- id: CAT-040
+  text: >-
+    The service shall remove a satellite from the catalog together with its stored orbital elements and
+    transmitters.
+  verification: T
+
+- id: CAT-050
+  text: >-
+    The service shall refresh the catalog from CelesTrak at a configurable interval, 4 hours by default:
+    importing the configured CelesTrak groups and downloading new orbital elements for every other catalog
+    satellite.
+  verification: T
+
+- id: CAT-060
+  text: >-
+    After a restart, the service shall continue the refresh schedule from the last download, refreshing
+    immediately when nothing was downloaded yet or the last download is older than the interval.
+  verification: T
+
+- id: CAT-070
+  text: >-
+    A failed download or store of one group or satellite shall not stop the refresh of the others, and a
+    satellite CelesTrak no longer knows shall stay in the catalog.
+  verification: T
+
+- id: CAT-080
+  text: >-
+    A refresh shall update the name and designator of a catalog satellite to CelesTrak's current values and
+    keep the time it was added to the catalog.
+  verification: T
+
+- id: CAT-090
+  text: >-
+    The service shall return a single catalog satellite by its NORAD catalog number, and answer requests to
+    read, remove, or list the orbital elements or transmitters of a satellite outside the catalog with 404.
+  verification: T
+
+- id: CAT-100
+  text: >-
+    Each catalog satellite shall show the epoch of its newest stored element set.
+  verification: T

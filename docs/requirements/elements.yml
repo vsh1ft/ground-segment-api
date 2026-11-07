@@ -1,0 +1,22 @@
+- id: ELM-010
+  text: >-
+    The service shall keep every downloaded element set, one per satellite and epoch; downloading the same epoch
+    again shall only update its download time.
+  verification: T
+
+- id: ELM-020
+  text: >-
+    The service shall serve the stored element sets of a catalog satellite, newest epoch first, in pages of 20
+    by default and at most 100.
+  verification: T
+
+- id: ELM-030
+  text: >-
+    The service shall reject element sets that cannot be converted to a TLE for SGP4 and keep the rest of a
+    downloaded group.
+  verification: T
+
+- id: ELM-040
+  text: >-
+    The TLE converted from an element set shall match the TLE CelesTrak publishes for the same element set.
+  verification: T

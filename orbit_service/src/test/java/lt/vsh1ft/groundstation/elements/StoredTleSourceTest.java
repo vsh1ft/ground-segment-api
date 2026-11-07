@@ -13,6 +13,7 @@ import java.util.Optional;
 
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.shared.OrekitDataLoader;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -29,6 +30,7 @@ class StoredTleSourceTest {
     }
 
     @Test
+    @Requirement("PASS-010")
     void newestStoredElementsAreUsed() {
         given(repository.findFirstByNoradIdOrderByEpochDesc(25544)).willReturn(Optional.of(OmmFixtures.ISS));
 
@@ -40,6 +42,7 @@ class StoredTleSourceTest {
     }
 
     @Test
+    @Requirement("PASS-050")
     void satelliteWithNothingStoredIsUnavailable() {
         given(repository.findFirstByNoradIdOrderByEpochDesc(25544)).willReturn(Optional.empty());
 

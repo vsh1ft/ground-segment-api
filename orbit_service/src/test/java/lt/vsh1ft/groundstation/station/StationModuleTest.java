@@ -7,6 +7,7 @@ import java.util.UUID;
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
 import lt.vsh1ft.groundstation.pass.GroundStation;
 import lt.vsh1ft.groundstation.pass.GroundStationSource;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -28,6 +29,7 @@ class StationModuleTest {
     private GroundStationSource stations;
 
     @Test
+    @Requirement("STN-010")
     void stationCreatedOverHttpIsAvailableToPassPrediction() {
         final var created = mvc.post().uri("/stations").contentType(MediaType.APPLICATION_JSON)
                 .content("""

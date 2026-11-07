@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 import lt.vsh1ft.groundstation.pass.GroundStation;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -40,6 +41,7 @@ class StationControllerTest {
     private StationService service;
 
     @Test
+    @Requirement("STN-010")
     void stationsAreListed() {
         given(service.all()).willReturn(List.of(STORED_VILNIUS));
 
@@ -48,6 +50,7 @@ class StationControllerTest {
     }
 
     @Test
+    @Requirement("STN-010")
     void stationIsReturnedById() {
         given(service.get(VILNIUS_ID)).willReturn(STORED_VILNIUS);
 
@@ -56,6 +59,7 @@ class StationControllerTest {
     }
 
     @Test
+    @Requirement("STN-040")
     void unknownStationIsNotFound() {
         given(service.get(VILNIUS_ID)).willThrow(new StationNotFoundException(VILNIUS_ID));
 
@@ -64,6 +68,7 @@ class StationControllerTest {
     }
 
     @Test
+    @Requirement("STN-010")
     void createReturnsOnlyTheNewIdAndItsLocation() {
         given(service.create(VILNIUS)).willReturn(STORED_VILNIUS);
 
@@ -78,6 +83,7 @@ class StationControllerTest {
     }
 
     @Test
+    @Requirement("STN-020")
     void duplicateNameIsAConflict() {
         given(service.create(VILNIUS)).willThrow(new StationNameTakenException("Vilnius"));
 
@@ -87,6 +93,7 @@ class StationControllerTest {
     }
 
     @Test
+    @Requirement({"STN-030", "API-010"})
     void invalidStationIsABadRequestNamingEveryField() {
         final var response = mvc.post().uri("/stations").contentType(MediaType.APPLICATION_JSON)
                 .content("""
@@ -113,6 +120,7 @@ class StationControllerTest {
     }
 
     @Test
+    @Requirement("STN-010")
     void stationIsReplacedWithoutResponseBody() {
         final var response = mvc.put().uri("/stations/{id}", VILNIUS_ID)
                 .contentType(MediaType.APPLICATION_JSON).content(VILNIUS_JSON).exchange();
@@ -122,12 +130,14 @@ class StationControllerTest {
     }
 
     @Test
+    @Requirement("STN-010")
     void stationIsDeleted() {
         assertThat(mvc.delete().uri("/stations/{id}", VILNIUS_ID)).hasStatus(HttpStatus.NO_CONTENT);
         verify(service).delete(VILNIUS_ID);
     }
 
     @Test
+    @Requirement("STN-040")
     void deletingAnUnknownStationIsNotFound() {
         willThrow(new StationNotFoundException(VILNIUS_ID)).given(service).delete(VILNIUS_ID);
 

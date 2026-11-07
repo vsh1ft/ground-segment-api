@@ -18,6 +18,7 @@ import lt.vsh1ft.groundstation.elements.SatelliteNotFoundException;
 import lt.vsh1ft.groundstation.elements.StoredOmm;
 import lt.vsh1ft.groundstation.elements.StoredOmmRepository;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest;
@@ -48,6 +49,7 @@ class SatelliteServiceTest {
     private OmmDownloader downloader;
 
     @Test
+    @Requirement({"CAT-010", "CAT-100"})
     void addedSatelliteTakesNameAndDesignatorFromCelestrak() {
         celestrakKnows(OmmFixtures.ISS);
 
@@ -58,6 +60,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-010")
     void addedSatelliteHasItsFirstElementsStored() {
         celestrakKnows(OmmFixtures.ISS);
 
@@ -68,6 +71,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void satelliteAlreadyInTheCatalogIsAConflict() {
         celestrakKnows(OmmFixtures.ISS);
         service.add(ISS);
@@ -77,6 +81,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void satelliteCelestrakDoesNotKnowIsNotFoundAndNotAdded() {
         given(downloader.download(UNKNOWN)).willThrow(new SatelliteNotFoundException(UNKNOWN));
 
@@ -85,6 +90,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void satelliteCannotBeAddedWhileCelestrakIsDown() {
         given(downloader.download(ISS)).willThrow(new CelestrakException("CelesTrak request for 25544 failed"));
 
@@ -93,6 +99,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-090")
     void satelliteOutsideTheCatalogIsNotFound() {
         assertThatThrownBy(() -> service.get(UNKNOWN)).isInstanceOf(SatelliteNotInCatalogException.class)
                 .hasMessage("No satellite with NORAD ID 99999 in the catalog");
@@ -108,6 +115,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-040")
     void deletedSatelliteIsRemovedWithItsElements() {
         celestrakKnows(OmmFixtures.ISS);
         service.add(ISS);
@@ -119,11 +127,13 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-090")
     void deletingASatelliteOutsideTheCatalogIsNotFound() {
         assertThatThrownBy(() -> service.delete(UNKNOWN)).isInstanceOf(SatelliteNotInCatalogException.class);
     }
 
     @Test
+    @Requirement("CAT-050")
     void storedSatelliteOutsideTheCatalogIsAdded() {
         service.store(OmmFixtures.ISS.withDownloadedAt(DOWNLOADED_AT));
 
@@ -132,6 +142,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-080")
     void storedSatelliteAlreadyInTheCatalogTakesTheNewNameButKeepsWhenItWasAdded() {
         celestrakKnows(OmmFixtures.ISS);
         service.add(ISS);
@@ -148,6 +159,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("ELM-020")
     void elementHistoryIsNewestFirstAndOnlyForThatSatellite() {
         addIssNoaaAndMeteor();
         service.store(OmmFixtures.withEpochDaysLater(OmmFixtures.ISS, 1).withDownloadedAt(DOWNLOADED_AT));
@@ -160,12 +172,14 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-090")
     void elementHistoryOfASatelliteOutsideTheCatalogIsNotFound() {
         assertThatThrownBy(() -> service.elementHistory(UNKNOWN, FIRST_PAGE))
                 .isInstanceOf(SatelliteNotInCatalogException.class);
     }
 
     @Test
+    @Requirement("CAT-030")
     void searchWithoutATermPagesThroughEverySatelliteByName() {
         addIssNoaaAndMeteor();
 
@@ -179,6 +193,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-030")
     void searchMatchesPartOfTheNameIgnoringCase() {
         addIssNoaaAndMeteor();
 
@@ -187,6 +202,7 @@ class SatelliteServiceTest {
     }
 
     @Test
+    @Requirement("CAT-030")
     void numericSearchMatchesTheNoradIdExactly() {
         addIssNoaaAndMeteor();
 

@@ -9,6 +9,7 @@ import lt.vsh1ft.groundstation.PostgresTestcontainer;
 import lt.vsh1ft.groundstation.elements.OmmDownloader;
 import lt.vsh1ft.groundstation.elements.OmmFixtures;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -35,6 +36,7 @@ class CatalogModuleTest {
     private TaskScheduler scheduler;
 
     @Test
+    @Requirement({"CAT-010", "CAT-030", "CAT-040"})
     void satelliteIsAddedFoundAndRemovedOverHttp() {
         given(downloader.download(new NoradId(25544)))
                 .willReturn(OmmFixtures.ISS.withDownloadedAt(Instant.parse("2026-11-04T10:00:00Z")));

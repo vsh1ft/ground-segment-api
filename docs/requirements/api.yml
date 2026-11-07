@@ -1,0 +1,15 @@
+- id: API-010
+  text: >-
+    Errors shall be returned as RFC 9457 problem details, and a bad request shall name every invalid parameter
+    or field.
+  verification: T
+
+- id: API-020
+  text: >-
+    The API shall be described by an OpenAPI document and browsable in Swagger UI.
+  verification: I
+
+- id: API-030
+  text: >-
+    The service shall accept only positive NORAD catalog numbers and answer any other value with 400.
+  verification: T

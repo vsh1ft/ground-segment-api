@@ -1,0 +1,16 @@
+- id: ARC-010
+  text: >-
+    Modules shall not depend on each other in cycles and shall use only each other's public API.
+  verification: T
+
+- id: QA-010
+  text: >-
+    Every production class except the application entry point shall have 100 % line and branch coverage,
+    enforced by the build.
+  verification: I
+
+- id: QA-020
+  text: >-
+    The build shall fail when a requirement verified by test has no passing traced test or a test names an
+    unknown requirement.
+  verification: I

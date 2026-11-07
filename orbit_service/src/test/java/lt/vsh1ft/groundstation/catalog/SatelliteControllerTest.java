@@ -12,6 +12,7 @@ import java.util.List;
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
 import lt.vsh1ft.groundstation.elements.SatelliteNotFoundException;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -44,6 +45,7 @@ class SatelliteControllerTest {
     private SatelliteService service;
 
     @Test
+    @Requirement("CAT-030")
     void searchReturnsOnePageWithPagingMetadata() {
         given(service.search("iss", PageRequest.of(1, 1)))
                 .willReturn(new PageImpl<>(List.of(ISS_SUMMARY), PageRequest.of(1, 1), 3));
@@ -56,6 +58,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("CAT-030")
     void searchDefaultsToTheFirstPageOfTwenty() {
         given(service.search(null, PageRequest.of(0, 20))).willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
 
@@ -64,6 +67,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement({"CAT-030", "API-010"})
     void invalidPagingIsABadRequestNamingEveryParameter() {
         final var response = mvc.get().uri("/satellites?page=-1&size=101").exchange();
 
@@ -76,6 +80,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement({"CAT-090", "CAT-100"})
     void satelliteIsReturnedByNoradId() {
         given(service.get(ISS)).willReturn(ISS_SUMMARY);
 
@@ -83,6 +88,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("CAT-090")
     void satelliteOutsideTheCatalogIsNotFound() {
         given(service.get(ISS)).willThrow(new SatelliteNotInCatalogException(ISS));
 
@@ -91,6 +97,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("API-030")
     void zeroNoradIdIsABadRequest() {
         final var response = mvc.get().uri("/satellites/0").exchange();
 
@@ -102,6 +109,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement({"ELM-020", "IF-030"})
     void elementHistoryReturnsOnePageWithPagingMetadata() {
         given(service.elementHistory(ISS, PageRequest.of(1, 1)))
                 .willReturn(new PageImpl<>(List.of(ISS_ELEMENTS), PageRequest.of(1, 1), 2));
@@ -118,6 +126,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("ELM-020")
     void elementHistoryDefaultsToTheFirstPageOfTwenty() {
         given(service.elementHistory(ISS, PageRequest.of(0, 20)))
                 .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
@@ -127,6 +136,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement({"ELM-020", "API-010"})
     void invalidElementHistoryPagingIsABadRequestNamingEveryParameter() {
         final var response = mvc.get().uri("/satellites/25544/elements?page=-1&size=0").exchange();
 
@@ -139,6 +149,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("CAT-090")
     void elementHistoryOfASatelliteOutsideTheCatalogIsNotFound() {
         given(service.elementHistory(ISS, PageRequest.of(0, 20))).willThrow(new SatelliteNotInCatalogException(ISS));
 
@@ -147,6 +158,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("CAT-010")
     void addedSatelliteHasALocationAndNoBody() {
         final var response = mvc.post().uri("/satellites/25544").exchange();
 
@@ -157,6 +169,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void addingASatelliteAlreadyInTheCatalogIsAConflict() {
         willThrow(new SatelliteAlreadyInCatalogException(ISS)).given(service).add(ISS);
 
@@ -165,6 +178,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void addingASatelliteCelestrakDoesNotKnowIsNotFound() {
         willThrow(new SatelliteNotFoundException(ISS)).given(service).add(ISS);
 
@@ -173,6 +187,7 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("CAT-020")
     void addingWhileCelestrakIsDownIsServiceUnavailable() {
         willThrow(new OrbitDataUnavailableException("CelesTrak is unavailable", null)).given(service).add(ISS);
 
@@ -180,12 +195,14 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement("CAT-040")
     void satelliteIsDeleted() {
         assertThat(mvc.delete().uri("/satellites/25544")).hasStatus(HttpStatus.NO_CONTENT);
         verify(service).delete(ISS);
     }
 
     @Test
+    @Requirement("CAT-090")
     void deletingASatelliteOutsideTheCatalogIsNotFound() {
         willThrow(new SatelliteNotInCatalogException(ISS)).given(service).delete(ISS);
 

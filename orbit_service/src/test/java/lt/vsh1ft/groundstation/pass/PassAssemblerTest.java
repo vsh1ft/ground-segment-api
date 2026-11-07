@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.Instant;
 
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 
 class PassAssemblerTest {
@@ -17,6 +18,7 @@ class PassAssemblerTest {
     }
 
     @Test
+    @Requirement("PASS-030")
     void acquisitionMaximumLossMakesOnePass() {
         assembler.onAcquisition(at(0));
         assembler.onMaximum(at(4), 36.9);
@@ -26,6 +28,7 @@ class PassAssemblerTest {
     }
 
     @Test
+    @Requirement("PASS-030")
     void passAlreadyInProgressAtStartIsSkipped() {
         assembler.onMaximum(at(1), 20.0);
         assembler.onLoss(at(3));
@@ -37,6 +40,7 @@ class PassAssemblerTest {
     }
 
     @Test
+    @Requirement("PASS-030")
     void passStillInProgressAtEndIsSkipped() {
         assembler.onAcquisition(at(0));
         assembler.onMaximum(at(4), 13.9);
@@ -45,6 +49,7 @@ class PassAssemblerTest {
     }
 
     @Test
+    @Requirement("PASS-030")
     void maximaBetweenPassesAreIgnored() {
         assembler.onMaximum(at(-40), -12.0);
         assembler.onAcquisition(at(0));
@@ -57,6 +62,7 @@ class PassAssemblerTest {
     }
 
     @Test
+    @Requirement("PASS-030")
     void whenAPassHasTwoMaximaTheHigherOneIsThePeak() {
         assembler.onAcquisition(at(0));
         assembler.onMaximum(at(2), 30.0);
@@ -68,6 +74,7 @@ class PassAssemblerTest {
     }
 
     @Test
+    @Requirement("PASS-030")
     void lowerSecondMaximumDoesNotReplaceThePeak() {
         assembler.onAcquisition(at(0));
         assembler.onMaximum(at(2), 45.0);
@@ -79,6 +86,7 @@ class PassAssemblerTest {
     }
 
     @Test
+    @Requirement("PASS-030")
     void passWithoutAnyMaximumIsDropped() {
         assembler.onAcquisition(at(0));
         assembler.onLoss(at(1));
@@ -87,6 +95,7 @@ class PassAssemblerTest {
     }
 
     @Test
+    @Requirement("PASS-030")
     void consecutivePassesAreKeptInOrder() {
         assembler.onAcquisition(at(0));
         assembler.onMaximum(at(4), 13.9);
@@ -99,6 +108,7 @@ class PassAssemblerTest {
     }
 
     @Test
+    @Requirement("PASS-030")
     void noEventsMeansNoPasses() {
         assertThat(assembler.passes()).isEmpty();
     }

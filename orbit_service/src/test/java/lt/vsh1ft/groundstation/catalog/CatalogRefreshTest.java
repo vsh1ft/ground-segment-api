@@ -22,6 +22,7 @@ import lt.vsh1ft.groundstation.elements.OmmFixtures;
 import lt.vsh1ft.groundstation.elements.SatelliteNotFoundException;
 import lt.vsh1ft.groundstation.elements.StoredOmm;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.TaskScheduler;
@@ -45,6 +46,7 @@ class CatalogRefreshTest {
             Clock.fixed(NOW, ZoneOffset.UTC), events);
 
     @Test
+    @Requirement("CAT-060")
     void firstRefreshRunsRightAwayWhenNothingWasDownloadedYet() {
         given(archive.lastDownload()).willReturn(Optional.empty());
 
@@ -54,6 +56,7 @@ class CatalogRefreshTest {
     }
 
     @Test
+    @Requirement("CAT-060")
     void firstRefreshAfterARestartWaitsForTheRestOfTheInterval() {
         given(archive.lastDownload()).willReturn(Optional.of(NOW.minus(Duration.ofHours(1))));
 
@@ -63,6 +66,7 @@ class CatalogRefreshTest {
     }
 
     @Test
+    @Requirement("CAT-060")
     void firstRefreshRunsRightAwayWhenTheLastDownloadIsOlderThanTheInterval() {
         given(archive.lastDownload()).willReturn(Optional.of(NOW.minus(Duration.ofHours(5))));
 
@@ -72,6 +76,7 @@ class CatalogRefreshTest {
     }
 
     @Test
+    @Requirement("CAT-050")
     void everySatelliteOfEveryGroupIsStored() {
         given(downloader.downloadGroup("stations")).willReturn(List.of(ISS));
         given(downloader.downloadGroup("weather")).willReturn(List.of(NOAA_19));
@@ -83,6 +88,7 @@ class CatalogRefreshTest {
     }
 
     @Test
+    @Requirement("CAT-050")
     void catalogSatelliteOutsideTheGroupsIsDownloadedOnItsOwn() {
         given(downloader.downloadGroup("stations")).willReturn(List.of(ISS));
         given(downloader.downloadGroup("weather")).willReturn(List.of());
@@ -96,6 +102,7 @@ class CatalogRefreshTest {
     }
 
     @Test
+    @Requirement("CAT-070")
     void failingGroupDoesNotStopTheOthers() {
         given(downloader.downloadGroup("stations")).willThrow(new CelestrakException("CelesTrak is down"));
         given(downloader.downloadGroup("weather")).willReturn(List.of(NOAA_19));
@@ -106,6 +113,7 @@ class CatalogRefreshTest {
     }
 
     @Test
+    @Requirement("CAT-070")
     void satelliteThatFailsToStoreDoesNotStopTheRest() {
         given(downloader.downloadGroup("stations")).willReturn(List.of(ISS, NOAA_19));
         given(downloader.downloadGroup("weather")).willReturn(List.of());
@@ -117,6 +125,7 @@ class CatalogRefreshTest {
     }
 
     @Test
+    @Requirement("CAT-070")
     void satelliteCelestrakNoLongerKnowsStaysInTheCatalog() {
         given(downloader.downloadGroup(any())).willReturn(List.of());
         given(catalog.all()).willReturn(List.of(noradId(METEOR_M2_3), noradId(NOAA_19)));
@@ -130,6 +139,7 @@ class CatalogRefreshTest {
     }
 
     @Test
+    @Requirement("RAD-010")
     void finishedRefreshIsAnnouncedEvenWhenSomethingFailed() {
         given(downloader.downloadGroup(any())).willThrow(new CelestrakException("CelesTrak is down"));
 

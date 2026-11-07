@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.File;
 
 import lt.vsh1ft.groundstation.shared.OrekitDataLoader;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -19,6 +20,7 @@ class OmmTleConverterTest {
     }
 
     @Test
+    @Requirement("ELM-040")
     void tleMatchesTheTlePublishedForTheSameElementSet() {
         final var tle = OmmTleConverter.toTle(OmmFixtures.ISS);
 

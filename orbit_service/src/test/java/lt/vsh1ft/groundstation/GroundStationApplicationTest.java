@@ -13,6 +13,7 @@ import lt.vsh1ft.groundstation.elements.OmmFixtures;
 import lt.vsh1ft.groundstation.elements.StoredOmm;
 import lt.vsh1ft.groundstation.elements.StoredOmmRepository;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,11 +59,20 @@ class GroundStationApplicationTest {
     private TaskScheduler scheduler;
 
     @Test
+    @Requirement("CAT-050")
     void catalogRefreshIsScheduledAtStartup() {
         verify(scheduler).scheduleWithFixedDelay(any(Runnable.class), any(Instant.class), eq(Duration.ofHours(4)));
     }
 
     @Test
+    @Requirement("OPS-050")
+    void healthEndpointReportsTheServiceAsUp() {
+        assertThat(mvc.get().uri("/actuator/health")).hasStatusOk()
+                .bodyJson().extractingPath("$.status").isEqualTo("UP");
+    }
+
+    @Test
+    @Requirement("PASS-010")
     void passesAreServedForASatelliteAndStationAddedOverTheApi() {
         assertThat(mvc.post().uri("/satellites/25544")).hasStatus(HttpStatus.CREATED);
         assertThat(mvc.get().uri("/satellites?search=iss")).hasStatusOk()

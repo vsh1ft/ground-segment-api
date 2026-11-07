@@ -13,6 +13,7 @@ import lt.vsh1ft.groundstation.pass.GroundStation;
 import lt.vsh1ft.groundstation.pass.Pass;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.shared.OrekitDataLoader;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.orekit.propagation.analytical.tle.TLE;
@@ -48,6 +49,19 @@ class OrekitPassPredictorIntegrationTest {
     }
 
     @Test
+    @Requirement("PERF-010")
+    void sevenDayPredictionTakesLessThanTwoSeconds() {
+        predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofHours(1));
+        final var start = System.nanoTime();
+
+        final var passes = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(7)).passes();
+
+        assertThat(Duration.ofNanos(System.nanoTime() - start)).isLessThan(Duration.ofSeconds(2));
+        assertThat(passes).isNotEmpty();
+    }
+
+    @Test
+    @Requirement("PASS-060")
     void issPassesOverVilniusArePhysicallyPlausible() {
         final var passes = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1)).passes();
 
@@ -65,6 +79,7 @@ class OrekitPassPredictorIntegrationTest {
     }
 
     @Test
+    @Requirement({"PASS-020", "PASS-060"})
     void issPassesOverVilniusMatchSkyfieldWithinOneSecond() {
         final var passes = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1)).passes();
 
@@ -80,6 +95,7 @@ class OrekitPassPredictorIntegrationTest {
     }
 
     @Test
+    @Requirement("PASS-010")
     void forecastCarriesTheEpochOfTheElementsItUsed() {
         final var forecast = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofHours(1));
 
@@ -87,6 +103,7 @@ class OrekitPassPredictorIntegrationTest {
     }
 
     @Test
+    @Requirement("PASS-070")
     void repeatedPredictionsGiveTheSameResult() {
         final var first = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1));
         final var second = predictor.predict(ISS, VILNIUS, EPOCH, Duration.ofDays(1));
@@ -95,6 +112,7 @@ class OrekitPassPredictorIntegrationTest {
     }
 
     @Test
+    @Requirement("PASS-070")
     void laterWindowOnlyContainsPassesInsideIt() {
         final var from = EPOCH.plus(Duration.ofHours(12));
         final var passes = predictor.predict(ISS, VILNIUS, from, Duration.ofHours(6)).passes();

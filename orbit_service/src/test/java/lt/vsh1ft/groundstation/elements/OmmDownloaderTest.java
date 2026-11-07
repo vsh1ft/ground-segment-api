@@ -13,6 +13,7 @@ import java.util.List;
 
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.shared.OrekitDataLoader;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +42,7 @@ class OmmDownloaderTest {
     }
 
     @Test
+    @Requirement("ELM-030")
     void ommThatCannotBeTurnedIntoATleIsRejected() {
         given(client.latest(ISS)).willReturn(MALFORMED);
 
@@ -57,6 +59,7 @@ class OmmDownloaderTest {
     }
 
     @Test
+    @Requirement("ELM-030")
     void unusableOmmInAGroupIsSkippedAndTheRestKept() {
         given(client.group("stations")).willReturn(List.of(MALFORMED, OmmFixtures.ISS));
 

@@ -6,11 +6,13 @@ import static org.assertj.core.api.Assertions.assertThatIllegalArgumentException
 import java.time.Duration;
 import java.util.List;
 
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 
 class CatalogRefreshPropertiesTest {
 
     @Test
+    @Requirement("OPS-040")
     void intervalShorterThanTwoHoursIsRejected() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> new CatalogRefreshProperties(Duration.ofMinutes(119), List.of("stations")))
@@ -19,6 +21,7 @@ class CatalogRefreshPropertiesTest {
     }
 
     @Test
+    @Requirement("OPS-040")
     void intervalOfTwoHoursIsAccepted() {
         assertThat(new CatalogRefreshProperties(Duration.ofHours(2), List.of("stations")).interval())
                 .isEqualTo(Duration.ofHours(2));

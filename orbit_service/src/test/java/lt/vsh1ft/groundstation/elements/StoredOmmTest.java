@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDateTime;
 
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -18,6 +19,7 @@ class StoredOmmTest {
             """;
 
     @Test
+    @Requirement("IF-010")
     void celestrakJsonMapsToTheColumns() {
         final var omm = JsonMapper.builder().build().readValue(CELESTRAK_JSON, StoredOmm[].class)[0];
 

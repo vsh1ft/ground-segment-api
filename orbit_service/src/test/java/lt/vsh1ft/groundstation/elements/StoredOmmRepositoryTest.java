@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import java.time.Instant;
 
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jdbc.test.autoconfigure.DataJdbcTest;
@@ -33,6 +34,7 @@ class StoredOmmRepositoryTest {
     }
 
     @Test
+    @Requirement("PASS-010")
     void newestEpochComesFirstWhateverTheDownloadOrder() {
         final var newer = repository.save(OmmFixtures.withEpochDaysLater(OmmFixtures.ISS, 1).withDownloadedAt(MORNING));
         repository.save(OmmFixtures.ISS.withDownloadedAt(EVENING));
@@ -57,6 +59,7 @@ class StoredOmmRepositoryTest {
     }
 
     @Test
+    @Requirement("ELM-010")
     void sameSatelliteAndEpochCanBeStoredOnlyOnce() {
         repository.save(OmmFixtures.ISS.withDownloadedAt(MORNING));
 

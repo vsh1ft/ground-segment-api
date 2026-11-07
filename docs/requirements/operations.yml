@@ -1,0 +1,32 @@
+- id: OPS-010
+  text: >-
+    The service shall refuse to start without the Orekit data folder and say where to download it.
+  verification: T
+
+- id: OPS-020
+  text: >-
+    The service shall keep predicting passes from stored orbital elements while CelesTrak cannot be reached.
+  verification: R
+
+- id: OPS-030
+  text: >-
+    Requests to CelesTrak and the SatNOGS DB shall time out: after 5 seconds without a connection, and after
+    10 seconds (CelesTrak) or 30 seconds (SatNOGS DB) without a response.
+  verification: I
+
+- id: OPS-040
+  text: >-
+    The service shall refuse to start with a catalog refresh interval shorter than 2 hours, because CelesTrak
+    asks not to download the same data more often.
+  verification: T
+
+- id: OPS-050
+  text: >-
+    The service shall report its health, including its database connection, at /actuator/health.
+  verification: T
+
+- id: OPS-060
+  text: >-
+    The catalog, orbital elements, transmitters and stations shall be stored in PostgreSQL, so they survive a
+    restart of the service.
+  verification: R

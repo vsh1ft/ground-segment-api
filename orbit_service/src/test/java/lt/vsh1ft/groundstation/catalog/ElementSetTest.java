@@ -5,11 +5,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.time.Instant;
 
 import lt.vsh1ft.groundstation.elements.OmmFixtures;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 
 class ElementSetTest {
 
     @Test
+    @Requirement("IF-030")
     void storedOmmBecomesAnElementSetWithTheEpochInUtc() {
         final var downloadedAt = Instant.parse("2026-11-04T10:00:00Z");
 

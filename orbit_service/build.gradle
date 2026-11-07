@@ -62,7 +62,7 @@ dependencies {
     testImplementation 'org.springframework.modulith:spring-modulith-docs'
     testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
     testImplementation 'org.testcontainers:testcontainers-postgresql'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    testImplementation 'org.junit.platform:junit-platform-launcher'
 }
 
 jacoco {
@@ -82,7 +82,27 @@ test {
         excludeTags 'live'
     }
     workingDir = rootProject.projectDir
+    def requirements = rootProject.file('docs/requirements')
+    def traceability = layout.buildDirectory.dir('reports/requirements')
+    inputs.dir(requirements)
+    outputs.dir(traceability)
+    systemProperty 'groundstation.requirements.directory', requirements.absolutePath
+    systemProperty 'groundstation.requirements.report', traceability.get().asFile.absolutePath
     finalizedBy jacocoTestReport
+}
+
+tasks.register('verifyRequirements') {
+    description = 'Fails when a requirement verified by test has no passing test.'
+    group = 'verification'
+    dependsOn test
+    def violations = layout.buildDirectory.file('reports/requirements/violations.txt')
+    inputs.file(violations)
+    doLast {
+        def found = violations.get().asFile.readLines().findAll { !it.isBlank() }
+        if (found) {
+            throw new GradleException('Requirements not verified:\n  ' + found.join('\n  '))
+        }
+    }
 }
 
 jacocoTestReport {
@@ -110,7 +130,7 @@ jacocoTestCoverageVerification {
 }
 
 tasks.named('check') {
-    dependsOn jacocoTestCoverageVerification
+    dependsOn jacocoTestCoverageVerification, verifyRequirements
 }
 
 tasks.register('liveTest', Test) {

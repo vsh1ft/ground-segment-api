@@ -9,6 +9,7 @@ import java.util.List;
 
 import lt.vsh1ft.groundstation.catalog.SatelliteNotInCatalogException;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -32,6 +33,7 @@ class TransmitterControllerTest {
     private TransmitterService service;
 
     @Test
+    @Requirement("RAD-030")
     void transmittersOfASatelliteAreListed() {
         given(service.transmitters(ISS, null)).willReturn(List.of(ISS_APRS));
 
@@ -44,6 +46,7 @@ class TransmitterControllerTest {
     }
 
     @Test
+    @Requirement("RAD-030")
     void statusFilterIsPassedOn() {
         given(service.transmitters(ISS, TransmitterStatus.ACTIVE)).willReturn(List.of(ISS_APRS));
 
@@ -52,6 +55,7 @@ class TransmitterControllerTest {
     }
 
     @Test
+    @Requirement({"RAD-030", "API-010"})
     void unknownStatusIsABadRequest() {
         final var response = mvc.get().uri("/satellites/25544/transmitters?status=BROKEN").exchange();
 
@@ -60,6 +64,7 @@ class TransmitterControllerTest {
     }
 
     @Test
+    @Requirement("CAT-090")
     void satelliteOutsideTheCatalogIsNotFound() {
         given(service.transmitters(ISS, null)).willThrow(new SatelliteNotInCatalogException(ISS));
 
