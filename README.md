@@ -65,6 +65,31 @@ $ curl 'http://localhost:8080/satellites/25544/elements?size=1'
 }
 ```
 
+### Transmitters
+
+Radio transmitters of catalog satellites come from the [SatNOGS DB](https://db.satnogs.org): downlink and uplink
+frequencies in Hz, modulation and baud rate, so a radio amateur knows what to tune to. They are synced once a day,
+right after a catalog refresh, and mirror SatNOGS: entries SatNOGS removes are removed here too.
+
+```
+$ curl 'http://localhost:8080/satellites/25544/transmitters?status=ACTIVE'
+[
+  {"uuid": "ZJxCeQmih9zDfYNVrB4wRN", "description": "Mode V APRS", "type": "TRANSCEIVER", "status": "ACTIVE",
+   "uplinkLowHz": 145825000, "uplinkHighHz": null, "downlinkLowHz": 145825000, "downlinkHighHz": null,
+   "mode": "AFSK", "uplinkMode": "AFSK", "baud": 1200.0, "invert": false,
+   "updatedAt": "2019-06-16T08:49:33.586159Z"},
+  ...
+]
+```
+
+| Method and path | Result |
+|---|---|
+| `GET /satellites/{noradId}/transmitters?status=` | the satellite's transmitters, by downlink frequency |
+
+`status` is `ACTIVE` or `INACTIVE`; without it every transmitter is listed. `type` is `TRANSMITTER` (downlink
+only), `TRANSCEIVER` (uplink and downlink) or `TRANSPONDER` (a band relayed from `uplinkLowHz`-`uplinkHighHz` to
+`downlinkLowHz`-`downlinkHighHz`, mirrored when `invert` is true).
+
 ### Stations
 
 ```
@@ -139,6 +164,7 @@ Each top-level package under `lt.vsh1ft.groundstation` is a module; its sub-pack
 ```
 station ──► pass ──► catalog ──► elements ──► shared
               └─────────────────────►┘
+radio ─────────────► catalog
 ```
 
 | Module | Responsibility |
@@ -147,10 +173,12 @@ station ──► pass ──► catalog ──► elements ──► shared
 | `pass` | pass prediction and `/passes`; Orekit propagation in the internal `pass.orekit` package |
 | `catalog` | the satellite catalog, `/satellites` and the scheduled refresh from CelesTrak |
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
+| `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
 
 `pass` finds stations through its `GroundStationSource` interface, which `station` implements, so no two modules
-depend on each other. `ModularityTest` fails the build on dependency cycles or on access to another module's
+depend on each other. `catalog` publishes a `CatalogRefreshed` event after every refresh and `radio` listens
+to it, so `catalog` doesn't know `radio` exists. `ModularityTest` fails the build on dependency cycles or on access to another module's
 internals, and writes PlantUML module diagrams to `build/spring-modulith-docs`. The running app describes its
 modules at [http://localhost:8080/actuator/modulith](http://localhost:8080/actuator/modulith).
 
@@ -170,8 +198,9 @@ modules at [http://localhost:8080/actuator/modulith](http://localhost:8080/actua
 ```
 
 The service listens on port 8080. Event detection, catalog refresh (`groundstation.catalog.refresh`: interval and
-groups) and CelesTrak settings are in `orbit_service/src/main/resources/application.yml`. Downloading
-orbital elements needs internet access to reach CelesTrak.
+groups), transmitter sync (`groundstation.radio.sync.interval`), CelesTrak and SatNOGS settings are in
+`orbit_service/src/main/resources/application.yml`. Downloading orbital elements and transmitters needs internet
+access to reach CelesTrak and the SatNOGS DB.
 
 ## Tests
 

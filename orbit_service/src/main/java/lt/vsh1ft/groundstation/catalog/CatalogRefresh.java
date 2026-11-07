@@ -11,6 +11,7 @@ import lt.vsh1ft.groundstation.elements.OmmDownloader;
 import lt.vsh1ft.groundstation.elements.StoredOmm;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
@@ -26,6 +27,7 @@ class CatalogRefresh {
     private final CatalogRefreshProperties properties;
     private final TaskScheduler scheduler;
     private final Clock clock;
+    private final ApplicationEventPublisher events;
 
     @EventListener(ApplicationReadyEvent.class)
     public void schedule() {
@@ -43,6 +45,7 @@ class CatalogRefresh {
         properties.groups().forEach(run::importGroup);
         catalog.all().stream().filter(run::notStoredYet).forEach(run::refreshOne);
         log.info("Catalog refresh finished: {} satellites stored, {} failures", run.stored.size(), run.failures);
+        events.publishEvent(new CatalogRefreshed());
     }
 
     private final class Run {

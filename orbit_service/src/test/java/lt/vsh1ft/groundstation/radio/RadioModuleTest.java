@@ -1,0 +1,47 @@
+package lt.vsh1ft.groundstation.radio;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
+
+import java.time.Instant;
+import java.util.List;
+
+import lt.vsh1ft.groundstation.PostgresTestcontainer;
+import lt.vsh1ft.groundstation.catalog.CatalogRefreshed;
+import lt.vsh1ft.groundstation.shared.NoradId;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
+import org.springframework.modulith.test.ApplicationModuleTest;
+import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
+import org.springframework.modulith.test.Scenario;
+import org.springframework.scheduling.TaskScheduler;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.jdbc.Sql;
+
+@ApplicationModuleTest(BootstrapMode.ALL_DEPENDENCIES)
+@Import(PostgresTestcontainer.class)
+@Sql(statements = "INSERT INTO satellite VALUES (25544, 'ISS (ZARYA)', '1998-067A', '2026-11-01T00:00:00Z')")
+class RadioModuleTest {
+
+    @Autowired
+    private TransmitterService transmitters;
+
+    @MockitoBean
+    private SatnogsClient satnogs;
+
+    @MockitoBean
+    private TaskScheduler scheduler;
+
+    @Test
+    void finishedCatalogRefreshSyncsTheTransmitters(Scenario scenario) {
+        given(satnogs.transmitters()).willReturn(List.of(new SatnogsTransmitter("ZJxCeQmih9zDfYNVrB4wRN", 25544,
+                "Mode V APRS", "Transceiver", "active", 145825000L, null, 145825000L, null, "AFSK", "AFSK", 1200.0,
+                false, Instant.parse("2019-06-16T08:49:33.586159Z"))));
+
+        scenario.publish(new CatalogRefreshed())
+                .andWaitForStateChange(() -> transmitters.transmitters(new NoradId(25544), null), found -> !found.isEmpty())
+                .andVerify(found -> assertThat(found).extracting(TransmitterResponse::description)
+                        .containsExactly("Mode V APRS"));
+    }
+}

@@ -23,6 +23,7 @@ import lt.vsh1ft.groundstation.elements.SatelliteNotFoundException;
 import lt.vsh1ft.groundstation.elements.StoredOmm;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.TaskScheduler;
 
 class CatalogRefreshTest {
@@ -38,9 +39,10 @@ class CatalogRefreshTest {
     private final OmmArchive archive = mock(OmmArchive.class);
     private final SatelliteService catalog = mock(SatelliteService.class);
     private final TaskScheduler scheduler = mock(TaskScheduler.class);
+    private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
     private final CatalogRefresh refresh = new CatalogRefresh(downloader, archive, catalog,
             new CatalogRefreshProperties(INTERVAL, List.of("stations", "weather")), scheduler,
-            Clock.fixed(NOW, ZoneOffset.UTC));
+            Clock.fixed(NOW, ZoneOffset.UTC), events);
 
     @Test
     void firstRefreshRunsRightAwayWhenNothingWasDownloadedYet() {
@@ -125,6 +127,15 @@ class CatalogRefreshTest {
 
         verify(catalog).store(NOAA_19);
         verify(catalog, never()).delete(any());
+    }
+
+    @Test
+    void finishedRefreshIsAnnouncedEvenWhenSomethingFailed() {
+        given(downloader.downloadGroup(any())).willThrow(new CelestrakException("CelesTrak is down"));
+
+        refresh.refresh();
+
+        verify(events).publishEvent(new CatalogRefreshed());
     }
 
     private static NoradId noradId(StoredOmm omm) {

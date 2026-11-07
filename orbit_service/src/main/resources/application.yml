@@ -30,3 +30,12 @@ groundstation:
     base-url: https://celestrak.org
     connect-timeout: 5s
     read-timeout: 10s
+
+  radio:
+    sync:
+      interval: 24h
+
+  satnogs:
+    base-url: https://db.satnogs.org
+    connect-timeout: 5s
+    read-timeout: 30s
