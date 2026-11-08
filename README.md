@@ -1,8 +1,8 @@
 # ground-segment-api
 
 A ground-segment backend for satellite passes, tracking and telemetry, built API first. It's in an early
-stage: today it keeps a catalog of satellites and a list of ground stations, and predicts passes of the catalog
-satellites over the stations. The `orbit_service`
+stage: today it keeps a catalog of satellites and a list of ground stations, predicts passes of the catalog
+satellites over the stations, and archives telemetry from a simulated spacecraft. The `orbit_service`
 module downloads the latest orbital elements from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates
 them with [Orekit](https://www.orekit.org/) (SGP4) and serves the passes over HTTP: when the satellite rises above
 the station's minimum elevation, its highest point, and when it sets, in UTC.
@@ -135,6 +135,36 @@ duration, 1 day by default and at most 7 days. Passes are predicted from the new
 `elementsEpoch` is their epoch. SGP4 accuracy drops the further a pass is from it, roughly 1-3 km per day in low
 Earth orbit.
 
+### Telemetry
+
+```
+GET /satellites/99999/telemetry/packets?limit=20&from=2026-11-07T22:00:00Z&apid=100&service=3&subtype=25
+```
+
+The service connects to the spacecraft simulator over TCP and archives every telemetry packet it receives: CCSDS
+space packets with PUS-C secondary headers, laid out as described in the
+[TM link ICD](docs/icd/tm-link.md). A space packet doesn't say which spacecraft sent it, so the link is assigned
+a NORAD ID in the configuration (`groundstation.tmtc.link.norad-id`, 99999 for the simulator) and every packet is
+archived under it. The satellite doesn't have to be in the catalog.
+
+Packets are listed most recently archived first; `raw` is the whole packet in hex. Every filter is optional:
+`from` (inclusive) and `to` (exclusive) on the generation time, `apid`, `service` and `subtype`. For the next,
+older page pass `nextBefore` as `before`; it is `null` on the last page:
+
+```
+{
+  "packets": [
+    {"id": 8, "apid": 100, "sequenceCount": 24, "serviceType": 3, "messageSubtype": 25,
+     "generationTime": "2026-11-07T22:44:09.080399Z", "receptionTime": "2026-11-07T22:44:09.080401Z",
+     "raw": "0864C0180014200319001800008182085E1495011CF0009B01A9A5"}
+  ],
+  "nextBefore": null
+}
+```
+
+`generationTime` is the spacecraft's on-board time (TAI since 1958) converted to UTC. When the link is down the
+service retries every 5 seconds.
+
 ### Errors
 
 Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for invalid
@@ -165,6 +195,7 @@ Each top-level package under `lt.vsh1ft.groundstation` is a module; its sub-pack
 station ──► pass ──► catalog ──► elements ──► shared
               └─────────────────────►┘
 radio ─────────────► catalog
+tmtc                 (depends on no other module; uses the ccsds library)
 ```
 
 | Module | Responsibility |
@@ -174,7 +205,15 @@ radio ─────────────► catalog
 | `catalog` | the satellite catalog, `/satellites` and the scheduled refresh from CelesTrak |
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
 | `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
+| `tmtc` | telemetry: the TCP link to the spacecraft, the packet archive and `/satellites/{noradId}/telemetry/packets` |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
+
+Two more Gradle projects sit next to `orbit_service`:
+
+| Project | Responsibility |
+|---|---|
+| `ccsds` | plain-Java library (no dependencies) for CCSDS space packets, PUS-C TM headers, CUC time and the CRC; used by both sides of the link |
+| `spacecraft_simulator` | plain-Java program that stands in for the satellite: it sends housekeeping telemetry over TCP |
 
 `pass` finds stations through its `GroundStationSource` interface, which `station` implements, so no two modules
 depend on each other. `catalog` publishes a `CatalogRefreshed` event after every refresh and `radio` listens
@@ -202,13 +241,24 @@ groups), transmitter sync (`groundstation.radio.sync.interval`), CelesTrak and S
 `orbit_service/src/main/resources/application.yml`. Downloading orbital elements and transmitters needs internet
 access to reach CelesTrak and the SatNOGS DB.
 
+The spacecraft simulator runs as a separate process:
+
+```
+./gradlew :spacecraft_simulator:run
+```
+
+It sends a housekeeping packet every second on TCP port 10015; the environment variables `SIMULATOR_TM_PORT` and
+`SIMULATOR_HOUSEKEEPING_PERIOD` (ISO-8601, e.g. `PT5S`) change that. The service connects to it as set in
+`groundstation.tmtc.link`, and either can be started first.
+
 ## Tests
 
 ```
-./gradlew :orbit_service:test
+./gradlew test
 ```
 
-A JaCoCo coverage report is written to `orbit_service/build/reports/jacoco/test/html/index.html` after each test run.
+A JaCoCo coverage report is written to `<project>/build/reports/jacoco/test/html/index.html` after each test run;
+`./gradlew check` requires 100 % line and branch coverage in `orbit_service` and `ccsds`.
 
 Requirements are listed in [`docs/requirements/`](docs/requirements), one YAML file per area (catalog, passes,
 radio, interfaces, operations, ...), each requirement with an ID such as `CAT-050` and

@@ -1,0 +1,112 @@
+package lt.vsh1ft.groundstation.tmtc;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.time.Instant;
+import java.util.HexFormat;
+
+import lt.vsh1ft.ccsds.Apid;
+import lt.vsh1ft.ccsds.MessageType;
+import lt.vsh1ft.ccsds.MissionTime;
+import lt.vsh1ft.ccsds.PusTmSecondaryHeader;
+import lt.vsh1ft.ccsds.TmPacket;
+import lt.vsh1ft.groundstation.PostgresTestcontainer;
+import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.traceability.Requirement;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
+import org.springframework.data.jdbc.core.JdbcAggregateOperations;
+import org.springframework.modulith.test.ApplicationModuleTest;
+import org.springframework.test.context.TestPropertySource;
+
+@ApplicationModuleTest
+@Import(PostgresTestcontainer.class)
+@TestPropertySource(properties = "groundstation.tmtc.link.host=tm-link.invalid")
+class TmtcModuleTest {
+
+    private static final NoradId SATELLITE = new NoradId(99999);
+    private static final NoradId OTHER_SATELLITE = new NoradId(99998);
+    private static final Instant T0 = Instant.parse("2026-11-08T10:00:00Z");
+    private static final MessageType EVENT_REPORT = new MessageType(5, 1);
+
+    @Autowired
+    private TmPacketArchive archive;
+
+    @Autowired
+    private JdbcAggregateOperations aggregates;
+
+    @BeforeEach
+    void emptyArchive() {
+        aggregates.deleteAll(StoredTmPacket.class);
+    }
+
+    @Test
+    @Requirement({"TM-010", "TM-040"})
+    void packetsOfOneSatelliteArePagedNewestFirstWithACursor() {
+        archive.store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        archive.store(OTHER_SATELLITE, packet(1, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        archive.store(SATELLITE, packet(2, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        archive.store(SATELLITE, packet(3, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+
+        final var first = archive.packets(SATELLITE, query(2, null));
+        final var second = archive.packets(SATELLITE, query(2, first.nextBefore()));
+
+        assertThat(first.packets()).extracting(TmPacketResponse::sequenceCount).containsExactly(3, 2);
+        assertThat(second.packets()).extracting(TmPacketResponse::sequenceCount).containsExactly(0);
+        assertThat(second.nextBefore()).isNull();
+        assertThat(second.packets().getFirst().raw())
+                .isEqualTo(hex(packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0)));
+    }
+
+    @Test
+    @Requirement("TM-040")
+    void lastFullPageHasNoCursor() {
+        archive.store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        archive.store(SATELLITE, packet(1, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+
+        assertThat(archive.packets(SATELLITE, query(2, null)).nextBefore()).isNull();
+    }
+
+    @Test
+    @Requirement("TM-050")
+    void packetsAreFilteredByGenerationTimeFromInclusiveToExclusive() {
+        for (int second = 0; second < 4; second++) {
+            archive.store(SATELLITE, packet(second, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT,
+                    T0.plusSeconds(second)), T0);
+        }
+
+        final var found = archive.packets(SATELLITE,
+                new PacketsQuery(null, null, T0.plusSeconds(1), T0.plusSeconds(3), null, null, null));
+
+        assertThat(found.packets()).extracting(TmPacketResponse::sequenceCount).containsExactly(2, 1);
+    }
+
+    @Test
+    @Requirement("TM-050")
+    void packetsAreFilteredByApidServiceAndSubtype() {
+        archive.store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        archive.store(SATELLITE, packet(1, 101, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        archive.store(SATELLITE, packet(2, 100, EVENT_REPORT, T0), T0);
+        archive.store(SATELLITE, packet(3, 100, new MessageType(5, 2), T0), T0);
+        archive.store(SATELLITE, packet(4, 100, new MessageType(3, 26), T0), T0);
+
+        final var found = archive.packets(SATELLITE, new PacketsQuery(null, null, null, null, 100, 5, 1));
+
+        assertThat(found.packets()).extracting(TmPacketResponse::sequenceCount).containsExactly(2);
+    }
+
+    private static PacketsQuery query(int limit, Long before) {
+        return new PacketsQuery(limit, before, null, null, null, null, null);
+    }
+
+    private static TmPacket packet(int sequenceCount, int apid, MessageType type, Instant generated) {
+        final var header = new PusTmSecondaryHeader(0, type, 0, 0, MissionTime.toCuc(generated));
+        return new TmPacket(new Apid(apid), sequenceCount, header, new byte[] {1});
+    }
+
+    private static String hex(TmPacket packet) {
+        return HexFormat.of().withUpperCase().formatHex(packet.encode());
+    }
+}

@@ -1,0 +1,60 @@
+plugins {
+    id 'java-library'
+    id 'jacoco'
+}
+
+group = 'lt.vsh1ft'
+version = rootProject.version
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(25)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testImplementation platform('org.junit:junit-bom:6.0.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.assertj:assertj-core:3.27.7'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+jacoco {
+    toolVersion = '0.8.16'
+}
+
+test {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+jacocoTestReport {
+    reports {
+        xml.required = true
+        html.required = true
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            element = 'CLASS'
+            limit {
+                counter = 'LINE'
+                minimum = 1.0
+            }
+            limit {
+                counter = 'BRANCH'
+                minimum = 1.0
+            }
+        }
+    }
+}
+
+tasks.named('check') {
+    dependsOn jacocoTestCoverageVerification
+}

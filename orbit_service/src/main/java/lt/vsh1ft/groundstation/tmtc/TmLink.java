@@ -1,0 +1,94 @@
+package lt.vsh1ft.groundstation.tmtc;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+import java.time.Clock;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import lt.vsh1ft.ccsds.TmPacketReader;
+import lt.vsh1ft.groundstation.shared.NoradId;
+import org.springframework.context.SmartLifecycle;
+import org.springframework.stereotype.Component;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+class TmLink implements SmartLifecycle {
+
+    private final TmLinkProperties properties;
+    private final TmPacketArchive archive;
+    private final Clock clock;
+
+    private NoradId satellite;
+    private volatile boolean running;
+    private ExecutorService receiver;
+    private boolean downReported;
+
+    @Override
+    public void start() {
+        satellite = properties.satellite();
+        running = true;
+        receiver = Executors.newSingleThreadExecutor(Thread.ofVirtual().name("tm-link").factory());
+        receiver.execute(this::receiveUntilStopped);
+    }
+
+    @Override
+    public void stop() {
+        running = false;
+        receiver.shutdownNow();
+        receiver.close();
+    }
+
+    @Override
+    public boolean isRunning() {
+        return running;
+    }
+
+    private void receiveUntilStopped() {
+        while (running) {
+            receiveOneConnection();
+            pause();
+        }
+    }
+
+    private void receiveOneConnection() {
+        try (var socket = new Socket()) {
+            socket.connect(new InetSocketAddress(properties.host(), properties.port()),
+                    (int) properties.connectTimeout().toMillis());
+            log.info("TM link connected to {}:{}", properties.host(), properties.port());
+            downReported = false;
+            final var reader = new TmPacketReader(socket.getInputStream());
+            for (var packet = reader.next(); packet.isPresent(); packet = reader.next()) {
+                archive.store(satellite, packet.get(), clock.instant());
+            }
+            reportDown("closed by the simulator");
+        } catch (IOException | RuntimeException e) {
+            reportDown(e.toString());
+        }
+    }
+
+    private void reportDown(String reason) {
+        if (!running) {
+            return;
+        }
+        if (downReported) {
+            log.debug("TM link still down: {}", reason);
+            return;
+        }
+        log.warn("TM link to {}:{} down: {}; reconnecting every {}", properties.host(), properties.port(), reason,
+                properties.reconnectDelay());
+        downReported = true;
+    }
+
+    private void pause() {
+        try {
+            Thread.sleep(properties.reconnectDelay());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+}

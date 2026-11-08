@@ -39,3 +39,11 @@ groundstation:
     base-url: https://db.satnogs.org
     connect-timeout: 5s
     read-timeout: 30s
+
+  tmtc:
+    link:
+      norad-id: 99999
+      host: localhost
+      port: 10015
+      connect-timeout: 2s
+      reconnect-delay: 5s

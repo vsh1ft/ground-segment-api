@@ -1,0 +1,33 @@
+- id: TM-010
+  text: >-
+    The service shall connect to the spacecraft's TM link over TCP and archive every telemetry packet it
+    receives, exactly as received, together with its reception time and the NORAD ID of the satellite the link is
+    configured for.
+  verification: T
+
+- id: TM-020
+  text: >-
+    The service shall connect to the TM link when it starts and, whenever the connection cannot be made or is
+    lost, try again after a configurable delay, 5 seconds by default.
+  verification: T
+
+- id: TM-030
+  text: >-
+    A packet that cannot be decoded (wrong version, packet type, segmentation, length or CRC) shall not be
+    archived; the service shall close the connection and reconnect, so that reading starts again at a packet
+    boundary.
+  verification: T
+
+- id: TM-040
+  text: >-
+    The service shall list the archived packets of one satellite, most recently archived first, with APID,
+    sequence count, PUS service type and subtype, generation and reception time in UTC, and the raw bytes in hex.
+    It shall return at most a requested number of packets (20 by default, 100 at most) and a cursor to the next,
+    older page, so that pages stay stable while new packets arrive.
+  verification: T
+
+- id: TM-050
+  text: >-
+    The packet list shall be filterable by generation time (from inclusive, to exclusive), APID, PUS service type
+    and PUS message subtype.
+  verification: T

@@ -14,3 +14,16 @@
     Served element sets shall keep the full epoch precision of the source, in UTC, with mean motion in
     revolutions per day and angles in degrees.
   verification: T
+
+- id: IF-040
+  text: >-
+    The service shall decode telemetry as laid out in the TM link ICD (docs/icd/tm-link.md): CCSDS space packets
+    (CCSDS 133.0-B-2) with PUS-C telemetry secondary headers (ECSS-E-ST-70-41C) and a CRC-16-CCITT packet error
+    control field, sent back to back over TCP.
+  verification: T
+
+- id: IF-050
+  text: >-
+    Packet generation times shall be read as CUC time with 4 bytes of coarse and 2 bytes of fine time, counted in
+    TAI seconds since 1958-01-01, and served in UTC.
+  verification: T
