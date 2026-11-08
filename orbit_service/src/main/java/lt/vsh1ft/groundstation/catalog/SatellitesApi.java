@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -100,6 +101,35 @@ public interface SatellitesApi {
     ResponseEntity<Void> add(@Parameter(description = "NORAD catalog number", example = "25544")
                              @PathVariable @Positive int noradId,
                              UriComponentsBuilder uri);
+
+    @PostMapping(value = "/{noradId}/elements", consumes = MediaType.TEXT_PLAIN_VALUE)
+    @Operation(summary = "Upload orbital elements as a TLE",
+            description = "Stores a three-line TLE (a name and two element lines) as an element set, for a "
+                    + "satellite CelesTrak doesn't list yet, such as a new launch, or for an operator's own orbit "
+                    + "solution. A satellite outside the catalog is added under the TLE's name. Passes use the "
+                    + "element set with the newest epoch, whether downloaded or uploaded.")
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Three-line TLE", required = true,
+            content = @Content(mediaType = MediaType.TEXT_PLAIN_VALUE, examples = @ExampleObject(value = """
+                    GSAPI-SIM
+                    1 99999U 26999A   26312.50000000  .00000000  00000+0  00000+0 0  9997
+                    2 99999  97.5000 312.0000 0012000  90.0000 270.0000 15.20000000    14
+                    """)))
+    @ApiResponse(responseCode = "201", description = "Satellite added to the catalog with this element set",
+            headers = @Header(name = "Location", description = "URL of the catalog satellite",
+                    schema = @Schema(type = "string", format = "uri")))
+    @ApiResponse(responseCode = "200", description = "Element set stored for a satellite already in the catalog")
+    @ApiResponse(responseCode = "400", description = "Not a valid TLE, or a TLE of another satellite",
+            content = @Content(mediaType = MediaType.APPLICATION_PROBLEM_JSON_VALUE,
+                    schema = @Schema(implementation = ProblemDetail.class),
+                    examples = @ExampleObject(value = """
+                            {"title": "Bad Request", "status": 400,
+                             "detail": "The TLE is for NORAD ID 25544, not 99999",
+                             "instance": "/satellites/99999/elements"}
+                            """)))
+    ResponseEntity<ElementSet> upload(@Parameter(description = "NORAD catalog number", example = "99999")
+                                      @PathVariable @Positive int noradId,
+                                      @RequestBody String tle,
+                                      UriComponentsBuilder uri);
 
     @DeleteMapping("/{noradId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)

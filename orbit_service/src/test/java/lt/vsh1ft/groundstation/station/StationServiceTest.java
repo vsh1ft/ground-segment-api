@@ -104,4 +104,13 @@ class StationServiceTest {
     void deletingAnUnknownStationIsNotFound() {
         assertThatThrownBy(() -> service.delete(UNKNOWN)).isInstanceOf(StationNotFoundException.class);
     }
+
+    @Test
+    @Requirement("CON-010")
+    void stationIsFoundByItsExactName() {
+        service.create(VILNIUS);
+
+        assertThat(service.byName("Vilnius")).contains(VILNIUS);
+        assertThat(service.byName("vilnius")).isEmpty();
+    }
 }

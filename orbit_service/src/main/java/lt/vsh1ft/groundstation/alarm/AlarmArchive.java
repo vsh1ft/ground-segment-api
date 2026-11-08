@@ -22,6 +22,12 @@ class AlarmArchive {
         return aggregates.findAll(Query.query(open).sort(Sort.by(Sort.Direction.DESC, "id")), Alarm.class);
     }
 
+    List<Alarm> open(NoradId satellite, AlarmKind kind) {
+        final var open = Criteria.where("noradId").is(satellite.value()).and("kind").is(kind.name())
+                .and("state").not(AlarmState.CLEARED.name());
+        return aggregates.findAll(Query.query(open), Alarm.class);
+    }
+
     Optional<Alarm> find(NoradId satellite, long id) {
         final var matching = Criteria.where("noradId").is(satellite.value()).and("id").is(id);
         return aggregates.findOne(Query.query(matching), Alarm.class);

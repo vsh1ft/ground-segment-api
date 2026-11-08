@@ -10,6 +10,7 @@ import lt.vsh1ft.groundstation.elements.OmmArchive;
 import lt.vsh1ft.groundstation.elements.OmmDownloader;
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
 import lt.vsh1ft.groundstation.elements.StoredOmm;
+import lt.vsh1ft.groundstation.elements.TleReader;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -33,6 +34,7 @@ public class SatelliteService {
     private final SatelliteSummaryRepository summaries;
     private final OmmArchive elements;
     private final OmmDownloader downloader;
+    private final TleReader tles;
     private final JdbcAggregateOperations aggregates;
     private final TransactionOperations transactions;
 
@@ -70,6 +72,20 @@ public class SatelliteService {
             elements.save(omm);
         });
         log.info("Added {} ({}) to the catalog, epoch {}", omm.objectName(), satellite, omm.epoch());
+    }
+
+    public UploadedElements upload(NoradId satellite, String tle) {
+        final var omm = tles.read(satellite, tle);
+        final boolean added = !satellites.existsById(satellite.value());
+        transactions.executeWithoutResult(_ -> {
+            if (added) {
+                aggregates.insert(Satellite.from(omm));
+            }
+            elements.save(omm);
+        });
+        log.info("Stored uploaded elements of {} ({}), epoch {}{}", omm.objectName(), satellite, omm.epoch(),
+                added ? "; added it to the catalog" : "");
+        return new UploadedElements(ElementSet.from(omm), added);
     }
 
     public void store(StoredOmm latest) {

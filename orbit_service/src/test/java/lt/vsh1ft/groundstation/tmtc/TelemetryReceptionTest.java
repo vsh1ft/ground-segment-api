@@ -19,10 +19,13 @@ import java.util.Optional;
 
 import lt.vsh1ft.ccsds.MessageType;
 import lt.vsh1ft.ccsds.TmPacket;
+import lt.vsh1ft.groundstation.contact.ContactWatch;
+import lt.vsh1ft.groundstation.contact.Visibility;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import lt.vsh1ft.xtce.EnumeratedValue;
 import lt.vsh1ft.xtce.ParameterValue;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -36,13 +39,30 @@ class TelemetryReceptionTest {
     private final ParameterArchive parameters = mock(ParameterArchive.class);
     private final EventArchive events = mock(EventArchive.class);
     private final ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
+    private final ContactWatch contacts = mock(ContactWatch.class);
     private final TelemetryReception reception = new TelemetryReception(packets, parameters, events,
-            SimulatorTelemetry.databases(), publisher);
+            SimulatorTelemetry.databases(), publisher, contacts);
+
+    @BeforeEach
+    void everyPacketIsReceivedInAPass() {
+        given(contacts.received(any(), any())).willReturn(Visibility.IN_PASS);
+    }
+
+    @Test
+    @Requirement("CON-020")
+    void packetIsStoredWithTheVisibilityOfItsReceptionTime() {
+        given(contacts.received(SATELLITE, RECEIVED)).willReturn(Visibility.OUTSIDE_PASS);
+
+        reception.receive(SATELLITE, LIVE, RECEIVED);
+
+        verify(packets).store(SATELLITE, LIVE, RECEIVED, Visibility.OUTSIDE_PASS);
+        verify(parameters).store(eq(SATELLITE), anyLong(), eq(LIVE_GENERATED), any());
+    }
 
     @Test
     @Requirement("PAR-020")
     void housekeepingPacketIsArchivedAndItsParameterValuesStoredWithTheGenerationTime() {
-        given(packets.store(SATELLITE, LIVE, RECEIVED)).willReturn(12L);
+        given(packets.store(SATELLITE, LIVE, RECEIVED, Visibility.IN_PASS)).willReturn(12L);
 
         reception.receive(SATELLITE, LIVE, RECEIVED);
 
@@ -65,7 +85,7 @@ class TelemetryReceptionTest {
 
         reception.receive(SATELLITE, structure2, RECEIVED);
 
-        verify(packets).store(SATELLITE, structure2, RECEIVED);
+        verify(packets).store(SATELLITE, structure2, RECEIVED, Visibility.IN_PASS);
         verifyNoInteractions(parameters, publisher);
     }
 
@@ -76,7 +96,7 @@ class TelemetryReceptionTest {
 
         reception.receive(SATELLITE, shortStructure1, RECEIVED);
 
-        verify(packets).store(SATELLITE, shortStructure1, RECEIVED);
+        verify(packets).store(SATELLITE, shortStructure1, RECEIVED, Visibility.IN_PASS);
         verifyNoInteractions(parameters);
     }
 
@@ -86,7 +106,7 @@ class TelemetryReceptionTest {
 
         reception.receive(other, LIVE, RECEIVED);
 
-        verify(packets).store(other, LIVE, RECEIVED);
+        verify(packets).store(other, LIVE, RECEIVED, Visibility.IN_PASS);
         verify(parameters, never()).store(any(), anyLong(), any(), any());
     }
 
@@ -95,7 +115,7 @@ class TelemetryReceptionTest {
     void eventReportIsLoggedWithItsNameDescriptionAndContainerAndItsValuesStored() {
         final var batteryLow = SimulatorTelemetry.packet(MessageType.LOW_SEVERITY_ANOMALY_REPORT, 812, GENERATED,
                 "00011BED");
-        given(packets.store(SATELLITE, batteryLow, RECEIVED)).willReturn(40L);
+        given(packets.store(SATELLITE, batteryLow, RECEIVED, Visibility.IN_PASS)).willReturn(40L);
 
         reception.receive(SATELLITE, batteryLow, RECEIVED);
 
@@ -108,7 +128,7 @@ class TelemetryReceptionTest {
     @Requirement("EVT-010")
     void eventWithAnIdTheDatabaseDoesNotKnowIsLoggedWithoutAName() {
         final var unknown = SimulatorTelemetry.packet(MessageType.HIGH_SEVERITY_ANOMALY_REPORT, 1, GENERATED, "0063");
-        given(packets.store(SATELLITE, unknown, RECEIVED)).willReturn(41L);
+        given(packets.store(SATELLITE, unknown, RECEIVED, Visibility.IN_PASS)).willReturn(41L);
 
         reception.receive(SATELLITE, unknown, RECEIVED);
 
@@ -122,8 +142,8 @@ class TelemetryReceptionTest {
     void eventThatCannotBeDecodedIsStillLoggedWithItsSeverity() {
         final var empty = SimulatorTelemetry.packet(MessageType.MEDIUM_SEVERITY_ANOMALY_REPORT, 1, GENERATED, "");
         final var other = new NoradId(25544);
-        given(packets.store(SATELLITE, empty, RECEIVED)).willReturn(42L);
-        given(packets.store(other, empty, RECEIVED)).willReturn(43L);
+        given(packets.store(SATELLITE, empty, RECEIVED, Visibility.IN_PASS)).willReturn(42L);
+        given(packets.store(other, empty, RECEIVED, Visibility.IN_PASS)).willReturn(43L);
 
         reception.receive(SATELLITE, empty, RECEIVED);
         reception.receive(other, empty, RECEIVED);

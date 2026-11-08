@@ -1,5 +1,7 @@
 package lt.vsh1ft.groundstation.elements;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 
 import org.orekit.files.ccsds.definitions.Units;
@@ -36,5 +38,32 @@ final class OmmTleConverter {
                 omm.revAtEpoch(),
                 Units.ONE_PER_ER.toSI(omm.bstar()),
                 utc);
+    }
+
+    static StoredOmm toOmm(String name, TLE tle, Instant receivedAt) {
+        return new StoredOmm(
+                null,
+                tle.getSatelliteNumber(),
+                name,
+                designator(tle),
+                LocalDateTime.ofInstant(tle.getDate().toInstant(), ZoneOffset.UTC),
+                Units.REV_PER_DAY.fromSI(tle.getMeanMotion()),
+                tle.getE(),
+                Unit.DEGREE.fromSI(tle.getI()),
+                Unit.DEGREE.fromSI(tle.getRaan()),
+                Unit.DEGREE.fromSI(tle.getPerigeeArgument()),
+                Unit.DEGREE.fromSI(tle.getMeanAnomaly()),
+                tle.getEphemerisType(),
+                String.valueOf(tle.getClassification()),
+                tle.getElementNumber(),
+                tle.getRevolutionNumberAtEpoch(),
+                Units.ONE_PER_ER.fromSI(tle.getBStar()),
+                Units.REV_PER_DAY2_SCALED.fromSI(tle.getMeanMotionFirstDerivative()),
+                Units.REV_PER_DAY3_SCALED.fromSI(tle.getMeanMotionSecondDerivative()),
+                receivedAt);
+    }
+
+    private static String designator(TLE tle) {
+        return "%04d-%03d%s".formatted(tle.getLaunchYear(), tle.getLaunchNumber(), tle.getLaunchPiece().strip());
     }
 }

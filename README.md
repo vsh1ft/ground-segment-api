@@ -43,6 +43,7 @@ $ curl 'http://localhost:8080/satellites?search=iss'
 | `GET /satellites/{noradId}` | one satellite |
 | `GET /satellites/{noradId}/elements?page=&size=` | one page of the satellite's stored orbital elements, newest epoch first |
 | `POST /satellites/{noradId}` | adds a satellite from CelesTrak, 201 with `Location` |
+| `POST /satellites/{noradId}/elements` | stores a TLE sent as `text/plain`; 201 with `Location` if it adds the satellite, 200 otherwise |
 | `DELETE /satellites/{noradId}` | removes a satellite and its stored elements, 204 |
 
 `search` matches part of the name, ignoring case, or a NORAD catalog number exactly. `page` starts at 0; `size` is
@@ -63,6 +64,18 @@ $ curl 'http://localhost:8080/satellites/25544/elements?size=1'
   ],
   "page": {"size": 1, "number": 0, "totalElements": 12, "totalPages": 12}
 }
+```
+
+A satellite CelesTrak doesn't list, such as a launch from last week or the simulator's 99999, gets its orbit from
+a three-line TLE. The checksums are checked, and the catalog number must match the path. The TLE is stored like a
+downloaded element set, and passes use whichever stored set has the newest epoch. The refresh keeps asking CelesTrak
+for such a satellite, logs "not on CelesTrak yet" without counting it as a failure, and takes over once CelesTrak
+publishes it:
+
+```
+$ curl -X POST http://localhost:8080/satellites/99999/elements -H 'Content-Type: text/plain' \
+       --data-binary @spacecraft_simulator/gsapi-sim.tle
+{"epoch": "2026-11-08T12:00:00Z", "meanMotion": 15.2, "eccentricity": 0.0012, "inclination": 97.5, ...}
 ```
 
 ### Transmitters
@@ -158,9 +171,9 @@ older page pass `nextBefore` as `before`; it is `null` on the last page:
 ```
 {
   "packets": [
-    {"id": 8, "apid": 100, "sequenceCount": 24, "serviceType": 3, "messageSubtype": 25,
-     "generationTime": "2026-11-07T22:44:09.080399Z", "receptionTime": "2026-11-07T22:44:09.080401Z",
-     "raw": "0864C0180014200319001800008182085E1495011CF0009B01A9A5"}
+    {"id": 422, "apid": 100, "sequenceCount": 288, "serviceType": 3, "messageSubtype": 25,
+     "generationTime": "2026-11-08T18:02:34.315826Z", "receptionTime": "2026-11-08T18:02:34.315833Z",
+     "visibility": "IN_PASS", "raw": "0864C120001420031901200000818317DF50DA011D4600D501AB84"}
   ],
   "nextBefore": null
 }
@@ -168,6 +181,12 @@ older page pass `nextBefore` as `before`; it is `null` on the last page:
 
 `generationTime` is the spacecraft's on-board time (TAI since 1958) converted to UTC. When the link is down the
 service retries every 5 seconds.
+
+The link also names the station it receives through (`groundstation.tmtc.link.station`, a station name). Every
+packet gets a `visibility` from its reception time: `IN_PASS` during a predicted pass of the link's satellite over
+that station, `OUTSIDE_PASS` otherwise, and `UNKNOWN` when no station has that name or the satellite has no orbit.
+Packets are stored whatever their visibility; an `OUTSIDE_PASS` packet points to a stale TLE or a wrong station
+position. Packets received before visibility existed are `UNKNOWN`.
 
 ### Parameters
 
@@ -248,10 +267,10 @@ dip between two passes can't go unnoticed. The first endpoint lists the open ala
 ```
 {
   "alarms": [
-    {"id": 2, "parameter": "BATTERY_VOLTAGE", "level": "CRITICAL", "state": "RETURNED",
+    {"id": 2, "kind": "LIMIT", "parameter": "BATTERY_VOLTAGE", "level": "CRITICAL", "state": "RETURNED",
      "triggeredAt": "2026-11-08T13:42:44.097595Z", "triggerValue": 7.199,
      "returnedAt": "2026-11-08T13:43:49.097595Z", "acknowledgedAt": null, "clearedAt": null},
-    {"id": 1, "parameter": "PLATFORM_TEMPERATURE", "level": "CRITICAL", "state": "RETURNED",
+    {"id": 1, "kind": "LIMIT", "parameter": "PLATFORM_TEMPERATURE", "level": "CRITICAL", "state": "RETURNED",
      "triggeredAt": "2026-11-08T13:40:55.097473Z", "triggerValue": 32.1,
      "returnedAt": "2026-11-08T13:41:37.097687Z", "acknowledgedAt": null, "clearedAt": null}
   ]
@@ -261,16 +280,34 @@ dip between two passes can't go unnoticed. The first endpoint lists the open ala
 In that run the battery warning came 10 seconds before the spacecraft's own `BATTERY_LOW` event. Acknowledging
 alarm 2 returned it as `CLEARED` and removed it from the list; acknowledging it again is a 409.
 
+Silence on the link during a predicted pass is an alarm too. When no packet has arrived for 10 seconds
+(`groundstation.contact.silence-threshold`), measured from the start of the pass or the last packet, the service
+raises a `LOSS_OF_SIGNAL` warning with no parameter and no value. It returns when packets arrive again or the pass
+ends, and latches like a limit alarm. Silence between passes is normal and raises nothing.
+
+In a live run the simulator flew the TLE over a test station, with a pass predicted from 18:02:27.7 to
+18:10:07.1. The simulator started transmitting at 18:02:28.3, and every packet arrived as `IN_PASS`. Stopping it
+mid-pass, after a packet at 18:02:47.3, raised a loss of signal at 18:02:57.6. Restarting it cleared the
+acknowledged alarm. Stopping it again at 18:09:00 raised alarm 4, which returned exactly at the predicted end of
+the pass:
+
+```
+{"id": 4, "kind": "LOSS_OF_SIGNAL", "parameter": null, "level": "WARNING", "state": "RETURNED",
+ "triggeredAt": "2026-11-08T18:09:20.641008Z", "triggerValue": null,
+ "returnedAt": "2026-11-08T18:10:07.106438Z", "acknowledgedAt": null, "clearedAt": null}
+```
+
 States are `TRIGGERED` (out of limits), `ACKNOWLEDGED` (out of limits, seen), `RETURNED` (back in limits, waiting
 for acknowledgement) and `CLEARED` (finished). An alarm that escalates from warning to critical needs a new
 acknowledgement. Alarms live in their own module, which listens to the values `tmtc` stores and runs in a nested
 transaction, so a failing alarm update never loses telemetry. The
-[limits and alarms tutorial](docs/tutorial/limits-and-alarms.md) explains the limits and the lifecycle.
+[limits and alarms tutorial](docs/tutorial/limits-and-alarms.md) explains the limits and the lifecycle, and the
+[passes and loss of signal tutorial](docs/tutorial/passes-and-signal.md) explains visibility and silence.
 
 ### Errors
 
 Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for invalid
-parameters or fields, 404 for an unknown station or alarm, a satellite outside the catalog or one CelesTrak doesn't know,
+parameters or fields or an invalid TLE, 404 for an unknown station or alarm, a satellite outside the catalog or one CelesTrak doesn't know,
 409 for a duplicate station name, a satellite already in the catalog or an alarm already cleared, 503 when a satellite can't be added
 because CelesTrak can't be reached. A 400 lists every invalid
 field:
@@ -297,8 +334,8 @@ Each top-level package under `lt.vsh1ft.groundstation` is a module; its sub-pack
 station ──► pass ──► catalog ──► elements ──► shared
               └─────────────────────►┘
 radio ─────────────► catalog
-tmtc ──────────────────────────────────────► shared   (uses the ccsds and xtce libraries)
-alarm ──► tmtc                                          (listens to stored parameter values)
+tmtc ──► contact ──► pass                              (tmtc uses the ccsds and xtce libraries)
+alarm ──► tmtc, contact                                 (listens to stored values and to silence)
 ```
 
 | Module | Responsibility |
@@ -309,7 +346,8 @@ alarm ──► tmtc                                          (listens to stored
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
 | `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
 | `tmtc` | telemetry: the TCP link to the spacecraft, the packet and parameter archives, the event log, the mission database, `/satellites/{noradId}/telemetry/packets`, `/parameters` and `/events` |
-| `alarm` | limit checking of received values, the alarm lifecycle, `/satellites/{noradId}/alarms` and acknowledgement |
+| `contact` | the contact plan of the TM link (its satellite's passes over its station), packet visibility and the silence watch |
+| `alarm` | limit checking of received values, loss-of-signal alarms, the alarm lifecycle, `/satellites/{noradId}/alarms` and acknowledgement |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
 
 Three more Gradle projects sit next to `orbit_service`:
@@ -318,12 +356,12 @@ Three more Gradle projects sit next to `orbit_service`:
 |---|---|
 | `ccsds` | plain-Java library (no dependencies) for CCSDS space packets, PUS-C TM headers, CUC time and the CRC; used by both sides of the link |
 | `xtce` | plain-Java library (no dependencies) that reads an XTCE 1.2 mission database, validated against the official schema, and decodes packets into parameter values and checks them against limits |
-| `spacecraft_simulator` | plain-Java program that stands in for the satellite: it sends housekeeping telemetry over TCP |
+| `spacecraft_simulator` | plain-Java program that stands in for the satellite: it sends housekeeping telemetry over TCP, and with a TLE only while it is in view of the station (Orekit) |
 
 `pass` finds stations through its `GroundStationSource` interface, which `station` implements, so no two modules
 depend on each other. `catalog` publishes a `CatalogRefreshed` event after every refresh and `radio` listens
 to it, so `catalog` doesn't know `radio` exists; in the same way `tmtc` publishes `ParameterValuesReceived` and
-doesn't know `alarm` exists. `ModularityTest` fails the build on dependency cycles or on access to another module's
+doesn't know `alarm` exists, and `contact` publishes `SilenceStarted` and `SilenceEnded`. `ModularityTest` fails the build on dependency cycles or on access to another module's
 internals, and writes PlantUML module diagrams to `build/spring-modulith-docs`. The running app describes its
 modules at [http://localhost:8080/actuator/modulith](http://localhost:8080/actuator/modulith).
 
@@ -357,6 +395,19 @@ It sends a housekeeping packet every second on TCP port 10015, plus event report
 environment variables `SIMULATOR_TM_PORT` and `SIMULATOR_HOUSEKEEPING_PERIOD` (ISO-8601, e.g. `PT5S`) change that.
 `SIMULATOR_ORBIT_PERIOD` (default `PT92M`) sets how long one orbit takes; with `PT2M` every event appears within two
 minutes. The service connects to it as set in `groundstation.tmtc.link`, and either can be started first.
+
+To fly a real orbit, give it a TLE and the station the service uses; it then transmits only while it is above the
+station's minimum elevation, and takes the orbit period from the TLE:
+
+```
+SIMULATOR_TLE_FILE=spacecraft_simulator/gsapi-sim.tle \
+SIMULATOR_STATION_LATITUDE=54.67519 SIMULATOR_STATION_LONGITUDE=25.23422 \
+SIMULATOR_STATION_ALTITUDE=114 SIMULATOR_STATION_MIN_ELEVATION=5 \
+./gradlew :spacecraft_simulator:run
+```
+
+Upload the same TLE to the service (see [Satellites](#satellites)) so that both predict the same passes.
+`SIMULATOR_OREKIT_DATA` points to the Orekit data, `orekit-data` by default.
 
 ## Tests
 

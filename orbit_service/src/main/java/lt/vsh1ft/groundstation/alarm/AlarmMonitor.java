@@ -24,7 +24,7 @@ class AlarmMonitor {
 
     @Transactional(propagation = Propagation.NESTED)
     public void check(ParameterValuesReceived received) {
-        final Map<String, Alarm> open = alarms.open(received.satellite()).stream()
+        final Map<String, Alarm> open = alarms.open(received.satellite(), AlarmKind.LIMIT).stream()
                 .collect(Collectors.toMap(Alarm::parameter, Function.identity()));
         for (var value : received.values()) {
             check(received.satellite(), value, received.generationTime(),

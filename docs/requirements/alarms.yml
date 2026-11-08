@@ -39,3 +39,11 @@
     A failure while updating alarms shall not lose the received telemetry: the packet, its values and its event
     shall still be stored, and only the alarm changes of that packet shall be rolled back.
   verification: T
+
+- id: ALM-070
+  text: >-
+    Silence on the TM link during a planned pass shall raise a WARNING alarm of kind LOSS_OF_SIGNAL, without a
+    parameter or a value, with at most one open loss-of-signal alarm per satellite. The end of the silence shall
+    count as being back in limits, and a new silence while the alarm is RETURNED shall make it TRIGGERED again.
+    Limit alarms shall have the kind LIMIT.
+  verification: T

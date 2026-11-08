@@ -1,6 +1,8 @@
 package lt.vsh1ft.groundstation.alarm;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 
@@ -12,6 +14,8 @@ import java.util.List;
 
 import lt.vsh1ft.groundstation.ClockConfig;
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
+import lt.vsh1ft.groundstation.contact.SilenceEnded;
+import lt.vsh1ft.groundstation.contact.SilenceStarted;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.tmtc.ParameterValuesReceived;
 import lt.vsh1ft.groundstation.traceability.Requirement;
@@ -25,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
@@ -86,8 +91,8 @@ class AlarmModuleTest {
         receive(SATELLITE, 400, 7190, 300);
 
         assertThat(alarms.open(SATELLITE).alarms()).extracting(AlarmResponse::parameter, AlarmResponse::state)
-                .containsExactly(org.assertj.core.groups.Tuple.tuple("BATTERY_VOLTAGE", AlarmState.TRIGGERED),
-                        org.assertj.core.groups.Tuple.tuple("PLATFORM_TEMPERATURE", AlarmState.RETURNED));
+                .containsExactly(tuple("BATTERY_VOLTAGE", AlarmState.TRIGGERED),
+                        tuple("PLATFORM_TEMPERATURE", AlarmState.RETURNED));
     }
 
     @Test
@@ -96,12 +101,83 @@ class AlarmModuleTest {
         doAnswer(invocation -> jdbc.queryForObject("SELECT 1 / 0", Integer.class)).when(archive).save(any());
 
         transaction.executeWithoutResult(status -> {
-            jdbc.update("INSERT INTO alarm (version, norad_id, parameter, level, state, triggered_at, trigger_value) "
-                    + "VALUES (0, 99999, 'STORED_BEFORE', 'WARNING', 'CLEARED', now(), 0)");
+            jdbc.update("INSERT INTO alarm (version, norad_id, kind, parameter, level, state, triggered_at, "
+                    + "trigger_value) VALUES (0, 99999, 'LIMIT', 'STORED_BEFORE', 'WARNING', 'CLEARED', now(), 0)");
             publisher.publishEvent(received(SATELLITE, 1, 7000, 300));
         });
 
         assertThat(jdbc.queryForList("SELECT parameter FROM alarm", String.class)).containsExactly("STORED_BEFORE");
+    }
+
+    @Test
+    @Requirement("ALM-070")
+    void silenceRaisesOneLossOfSignalAlarmThatReturnsAndIsRaisedAgain() {
+        receive(SATELLITE, 1, 7199, 300);
+        publisher.publishEvent(new SilenceStarted(SATELLITE, T0.plusSeconds(20)));
+        publisher.publishEvent(new SilenceStarted(SATELLITE, T0.plusSeconds(25)));
+        publisher.publishEvent(new SilenceEnded(SATELLITE, T0.plusSeconds(40)));
+        publisher.publishEvent(new SilenceEnded(SATELLITE, T0.plusSeconds(41)));
+
+        final var lost = lossOfSignal(SATELLITE);
+        assertThat(lost.level()).isEqualTo(MonitoringLevel.WARNING);
+        assertThat(lost.state()).isEqualTo(AlarmState.RETURNED);
+        assertThat(lost.triggeredAt()).isEqualTo(T0.plusSeconds(20));
+        assertThat(lost.returnedAt()).isEqualTo(T0.plusSeconds(40));
+        assertThat(lost.parameter()).isNull();
+        assertThat(lost.triggerValue()).isNull();
+
+        publisher.publishEvent(new SilenceStarted(SATELLITE, T0.plusSeconds(5700)));
+
+        assertThat(lossOfSignal(SATELLITE).id()).isEqualTo(lost.id());
+        assertThat(lossOfSignal(SATELLITE).state()).isEqualTo(AlarmState.TRIGGERED);
+        assertThat(alarms.open(SATELLITE).alarms()).extracting(AlarmResponse::kind)
+                .containsExactlyInAnyOrder(AlarmKind.LOSS_OF_SIGNAL, AlarmKind.LIMIT);
+    }
+
+    @Test
+    @Requirement("ALM-070")
+    void acknowledgedLossOfSignalClearsWhenTelemetryReturnsAndANewSilenceRaisesANewAlarm() {
+        publisher.publishEvent(new SilenceStarted(SATELLITE, T0));
+        final var lost = lossOfSignal(SATELLITE);
+        alarms.acknowledge(SATELLITE, lost.id());
+
+        publisher.publishEvent(new SilenceEnded(SATELLITE, T0.plusSeconds(30)));
+        publisher.publishEvent(new SilenceStarted(SATELLITE, T0.plusSeconds(5700)));
+
+        assertThat(lossOfSignal(SATELLITE).id()).isNotEqualTo(lost.id());
+        assertThat(alarms.open(OTHER_SATELLITE).alarms()).isEmpty();
+    }
+
+    @Test
+    @Requirement("ALM-070")
+    void databaseAllowsOneOpenLossOfSignalAlarmPerSatellite() {
+        insertLossOfSignal("TRIGGERED");
+        insertLossOfSignal("CLEARED");
+
+        assertThatThrownBy(() -> insertLossOfSignal("RETURNED")).isInstanceOf(DuplicateKeyException.class);
+    }
+
+    @Test
+    @Requirement("ALM-070")
+    void failedLossOfSignalUpdateIsLoggedAndNotThrown() {
+        doAnswer(invocation -> jdbc.queryForObject("SELECT 1 / 0", Integer.class)).when(archive).save(any());
+        publisher.publishEvent(new SilenceStarted(SATELLITE, T0));
+        doAnswer(invocation -> jdbc.queryForObject("SELECT 1 / 0", Integer.class)).when(archive).open(any(), any());
+
+        publisher.publishEvent(new SilenceEnded(SATELLITE, T0.plusSeconds(30)));
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM alarm", Integer.class)).isZero();
+    }
+
+    private AlarmResponse lossOfSignal(NoradId satellite) {
+        return alarms.open(satellite).alarms().stream()
+                .filter(alarm -> alarm.kind() == AlarmKind.LOSS_OF_SIGNAL)
+                .findFirst().orElseThrow();
+    }
+
+    private void insertLossOfSignal(String state) {
+        jdbc.update("INSERT INTO alarm (version, norad_id, kind, level, state, triggered_at) "
+                + "VALUES (0, 99999, 'LOSS_OF_SIGNAL', 'WARNING', ?, now())", state);
     }
 
     private void receive(NoradId satellite, int second, int batteryMillivolts, int temperatureDeciCelsius) {

@@ -17,6 +17,7 @@ import java.time.ZoneOffset;
 import java.util.HexFormat;
 
 import lt.vsh1ft.ccsds.TmPacket;
+import lt.vsh1ft.groundstation.contact.ContactWatch;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.AfterEach;
@@ -32,6 +33,7 @@ class TmLinkTest {
     private static final int WAIT_MS = 5_000;
 
     private final TelemetryReception reception = mock(TelemetryReception.class);
+    private final ContactWatch contacts = mock(ContactWatch.class);
     private ServerSocket simulator;
     private TmLink link;
 
@@ -58,6 +60,7 @@ class TmLinkTest {
 
             verify(reception, timeout(WAIT_MS).times(2)).receive(SATELLITE, TmPacket.decode(REFERENCE), NOW);
         }
+        verify(contacts).watch(SATELLITE, "Vilnius");
     }
 
     @Test
@@ -122,9 +125,9 @@ class TmLinkTest {
     }
 
     private TmLink start(int port) {
-        final var properties = new TmLinkProperties(SATELLITE.value(), "localhost", port, Duration.ofMillis(200),
-                Duration.ofMillis(50), null);
-        final var started = new TmLink(properties, reception, Clock.fixed(NOW, ZoneOffset.UTC));
+        final var properties = new TmLinkProperties(SATELLITE.value(), "Vilnius", "localhost", port,
+                Duration.ofMillis(200), Duration.ofMillis(50), null);
+        final var started = new TmLink(properties, reception, contacts, Clock.fixed(NOW, ZoneOffset.UTC));
         started.start();
         return started;
     }

@@ -1,0 +1,21 @@
+- id: CON-010
+  text: >-
+    The service shall keep a contact plan for the TM link: the passes of the link's satellite over the station
+    named in the link configuration, from one hour before until 24 hours after the time it is made, remade at a
+    configurable interval, 10 minutes by default, so that new orbital elements and station changes take effect.
+  verification: T
+
+- id: CON-020
+  text: >-
+    Every received packet shall be stored with its visibility, judged by its reception time: IN_PASS during a
+    planned pass, OUTSIDE_PASS otherwise, and UNKNOWN when no station has the configured name or the satellite has
+    no orbit data. A packet shall be stored whatever its visibility.
+  verification: T
+
+- id: CON-030
+  text: >-
+    During a planned pass, the service shall notice silence on the TM link: when no packet has been received for a
+    configurable threshold, 10 seconds by default, measured from the later of the start of the pass and the last
+    received packet. Silence outside a planned pass shall not be noticed. The silence shall end when a packet
+    arrives or the pass ends.
+  verification: T

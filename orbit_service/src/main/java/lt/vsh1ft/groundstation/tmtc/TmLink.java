@@ -10,6 +10,7 @@ import java.util.concurrent.Executors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lt.vsh1ft.ccsds.TmPacketReader;
+import lt.vsh1ft.groundstation.contact.ContactWatch;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.context.SmartLifecycle;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,7 @@ class TmLink implements SmartLifecycle {
 
     private final TmLinkProperties properties;
     private final TelemetryReception reception;
+    private final ContactWatch contacts;
     private final Clock clock;
 
     private NoradId satellite;
@@ -31,6 +33,7 @@ class TmLink implements SmartLifecycle {
     @Override
     public void start() {
         satellite = properties.satellite();
+        contacts.watch(satellite, properties.station());
         running = true;
         receiver = Executors.newSingleThreadExecutor(Thread.ofVirtual().name("tm-link").factory());
         receiver.execute(this::receiveUntilStopped);

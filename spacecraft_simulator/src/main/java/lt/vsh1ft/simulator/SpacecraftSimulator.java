@@ -2,8 +2,10 @@ package lt.vsh1ft.simulator;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 
 public final class SpacecraftSimulator {
 
@@ -14,17 +16,22 @@ public final class SpacecraftSimulator {
 
     public static void main(String[] args) throws IOException {
         final var config = SimulatorConfig.from(System.getenv());
+        final var view = GroundContact.from(System.getenv()).map(StationView::load);
+        final var orbitPeriod = view.map(StationView::orbitPeriod).orElse(config.orbitPeriod());
+        final Predicate<Instant> inView = view.<Predicate<Instant>>map(station -> station::inView)
+                .orElse(_ -> true);
         final var clock = Clock.systemUTC();
-        final var generator = new TelemetryGenerator(new Spacecraft(clock.instant(), config.orbitPeriod()));
         final var server = new TelemetryServer(config.port());
+        final var downlink = new Downlink(new TelemetryGenerator(new Spacecraft(clock.instant(), orbitPeriod)),
+                inView, server::broadcast);
         server.start();
 
         final var scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleAtFixedRate(
-                () -> generator.step(clock.instant()).forEach(packet -> server.broadcast(packet.encode())),
+        scheduler.scheduleAtFixedRate(() -> downlink.step(clock.instant()),
                 0, config.housekeepingPeriod().toMillis(), TimeUnit.MILLISECONDS);
-        LOG.log(System.Logger.Level.INFO, "Sending housekeeping every {0} on TCP port {1}; orbit period {2}",
-                config.housekeepingPeriod(), String.valueOf(server.port()), config.orbitPeriod());
+        LOG.log(System.Logger.Level.INFO, "Sending housekeeping every {0} on TCP port {1}; orbit period {2}; {3}",
+                config.housekeepingPeriod(), String.valueOf(server.port()), orbitPeriod,
+                view.isPresent() ? "transmitting only in view of the station" : "transmitting all the time");
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             scheduler.shutdownNow();

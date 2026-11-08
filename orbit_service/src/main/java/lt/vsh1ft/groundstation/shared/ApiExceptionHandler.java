@@ -23,6 +23,11 @@ import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExcep
 @RestControllerAdvice
 public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
+    @ExceptionHandler(BadRequestException.class)
+    public ProblemDetail badRequest(BadRequestException e) {
+        return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, e.getMessage());
+    }
+
     @ExceptionHandler(NotFoundException.class)
     public ProblemDetail notFound(NotFoundException e) {
         return ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());

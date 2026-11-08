@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
 import lt.vsh1ft.groundstation.elements.CelestrakException;
+import lt.vsh1ft.groundstation.elements.InvalidTleException;
 import lt.vsh1ft.groundstation.elements.OmmArchive;
 import lt.vsh1ft.groundstation.elements.OmmDownloader;
 import lt.vsh1ft.groundstation.elements.OmmFixtures;
@@ -17,6 +18,7 @@ import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
 import lt.vsh1ft.groundstation.elements.SatelliteNotFoundException;
 import lt.vsh1ft.groundstation.elements.StoredOmm;
 import lt.vsh1ft.groundstation.elements.StoredOmmRepository;
+import lt.vsh1ft.groundstation.elements.TleReader;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
@@ -47,6 +49,9 @@ class SatelliteServiceTest {
 
     @MockitoBean
     private OmmDownloader downloader;
+
+    @MockitoBean
+    private TleReader tles;
 
     @Test
     @Requirement({"CAT-010", "CAT-100"})
@@ -230,5 +235,61 @@ class SatelliteServiceTest {
                 omm.argOfPericenter(), omm.meanAnomaly(), omm.ephemerisType(), omm.classificationType(),
                 omm.elementSetNo(), omm.revAtEpoch(), omm.bstar(), omm.meanMotionDot(), omm.meanMotionDdot(),
                 omm.downloadedAt());
+    }
+
+    @Test
+    @Requirement("CAT-110")
+    void uploadedTleAddsASatelliteOutsideTheCatalogUnderTheTlesName() {
+        given(tles.read(UNKNOWN, "tle")).willReturn(uploaded(OmmFixtures.ISS, 99999, "GSAPI-SIM"));
+
+        final var uploaded = service.upload(UNKNOWN, "tle");
+
+        assertThat(uploaded.addedToCatalog()).isTrue();
+        assertThat(uploaded.elements().epoch()).isEqualTo(OmmFixtures.ISS.epoch().toInstant(ZoneOffset.UTC));
+        assertThat(service.get(UNKNOWN)).isEqualTo(new SatelliteSummary(99999, "GSAPI-SIM", "1998-067A",
+                DOWNLOADED_AT, OmmFixtures.ISS.epoch().toInstant(ZoneOffset.UTC)));
+    }
+
+    @Test
+    @Requirement({"CAT-110", "CAT-100"})
+    void uploadedTleOfACatalogSatelliteAddsAnElementSetAndKeepsItsName() {
+        celestrakKnows(OmmFixtures.ISS);
+        service.add(ISS);
+        final var newer = OmmFixtures.withEpochDaysLater(OmmFixtures.ISS, 2);
+        given(tles.read(ISS, "tle")).willReturn(uploaded(newer, 25544, "MY ISS"));
+
+        final var uploaded = service.upload(ISS, "tle");
+
+        assertThat(uploaded.addedToCatalog()).isFalse();
+        assertThat(service.get(ISS).name()).isEqualTo("ISS (ZARYA)");
+        assertThat(service.get(ISS).latestEpoch()).isEqualTo(newer.epoch().toInstant(ZoneOffset.UTC));
+        assertThat(service.elementHistory(ISS, FIRST_PAGE).getTotalElements()).isEqualTo(2);
+    }
+
+    @Test
+    @Requirement("CAT-110")
+    void uploadingTheSameEpochTwiceStoresOneElementSet() {
+        given(tles.read(UNKNOWN, "tle")).willReturn(uploaded(OmmFixtures.ISS, 99999, "GSAPI-SIM"));
+        service.upload(UNKNOWN, "tle");
+
+        assertThat(service.upload(UNKNOWN, "tle").addedToCatalog()).isFalse();
+        assertThat(service.elementHistory(UNKNOWN, FIRST_PAGE).getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
+    @Requirement("CAT-110")
+    void invalidTleAddsNothing() {
+        given(tles.read(UNKNOWN, "tle")).willThrow(new InvalidTleException("The name line is longer than 100 "
+                + "characters"));
+
+        assertThatThrownBy(() -> service.upload(UNKNOWN, "tle")).isInstanceOf(InvalidTleException.class);
+        assertThatThrownBy(() -> service.get(UNKNOWN)).isInstanceOf(SatelliteNotInCatalogException.class);
+    }
+
+    private static StoredOmm uploaded(StoredOmm omm, int noradId, String name) {
+        return new StoredOmm(null, noradId, name, omm.objectId(), omm.epoch(), omm.meanMotion(),
+                omm.eccentricity(), omm.inclination(), omm.raOfAscNode(), omm.argOfPericenter(), omm.meanAnomaly(),
+                omm.ephemerisType(), omm.classificationType(), omm.elementSetNo(), omm.revAtEpoch(), omm.bstar(),
+                omm.meanMotionDot(), omm.meanMotionDdot(), DOWNLOADED_AT);
     }
 }

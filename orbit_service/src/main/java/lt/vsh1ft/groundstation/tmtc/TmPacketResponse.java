@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.HexFormat;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lt.vsh1ft.groundstation.contact.Visibility;
 
 @Schema(description = "A CCSDS space packet with a PUS-C telemetry secondary header, as received over the TM link")
 public record TmPacketResponse(
@@ -29,13 +30,18 @@ public record TmPacketResponse(
         @Schema(description = "When the ground received the packet, UTC", example = "2026-11-08T10:15:30.512Z")
         Instant receptionTime,
 
+        @Schema(description = "Whether the packet was received during a planned pass of the link's station; "
+                + "UNKNOWN when no pass could be predicted, and for packets received before passes were planned",
+                example = "IN_PASS")
+        Visibility visibility,
+
         @Schema(description = "The whole packet as received, hex",
                 example = "0864C00500122003190001000012345678800001020304FB2C")
         String raw) {
 
     static TmPacketResponse from(StoredTmPacket packet) {
         return new TmPacketResponse(packet.id(), packet.apid(), packet.sequenceCount(), packet.serviceType(),
-                packet.messageSubtype(), packet.generationTime(), packet.receptionTime(),
+                packet.messageSubtype(), packet.generationTime(), packet.receptionTime(), packet.visibility(),
                 HexFormat.of().withUpperCase().formatHex(packet.raw()));
     }
 }

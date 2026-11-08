@@ -1,6 +1,10 @@
 spring:
   main:
     banner-mode: off
+  task:
+    scheduling:
+      pool:
+        size: 4
   docker:
     compose:
       lifecycle-management: start-only
@@ -43,8 +47,13 @@ groundstation:
   tmtc:
     link:
       norad-id: 99999
+      station: Vilnius
       host: localhost
       port: 10015
       connect-timeout: 2s
       reconnect-delay: 5s
       mission-database: classpath:mdb/simulator.xml
+
+  contact:
+    silence-threshold: 10s
+    plan-interval: 10m

@@ -36,6 +36,15 @@ public class SatelliteController implements SatellitesApi {
     }
 
     @Override
+    public ResponseEntity<ElementSet> upload(int noradId, String tle, UriComponentsBuilder uri) {
+        final var uploaded = service.upload(new NoradId(noradId), tle);
+        if (uploaded.addedToCatalog()) {
+            return ResponseEntity.created(uri.path("/satellites/{noradId}").build(noradId)).body(uploaded.elements());
+        }
+        return ResponseEntity.ok(uploaded.elements());
+    }
+
+    @Override
     public void delete(int noradId) {
         service.delete(new NoradId(noradId));
     }

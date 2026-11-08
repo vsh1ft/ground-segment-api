@@ -22,7 +22,7 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 class AlarmControllerTest {
 
     private static final NoradId SATELLITE = new NoradId(99999);
-    private static final AlarmResponse RETURNED = new AlarmResponse(3, "BATTERY_VOLTAGE", MonitoringLevel.CRITICAL,
+    private static final AlarmResponse RETURNED = new AlarmResponse(3, AlarmKind.LIMIT, "BATTERY_VOLTAGE", MonitoringLevel.CRITICAL,
             AlarmState.RETURNED, Instant.parse("2026-11-08T09:00:01Z"), 7.199, Instant.parse("2026-11-08T09:04:30Z"),
             null, null);
 
@@ -38,7 +38,7 @@ class AlarmControllerTest {
         given(service.open(SATELLITE)).willReturn(new AlarmsResponse(List.of(RETURNED)));
 
         assertThat(mvc.get().uri("/satellites/99999/alarms")).hasStatusOk().bodyJson().isStrictlyEqualTo("""
-                {"alarms": [{"id": 3, "parameter": "BATTERY_VOLTAGE", "level": "CRITICAL", "state": "RETURNED",
+                {"alarms": [{"id": 3, "kind": "LIMIT", "parameter": "BATTERY_VOLTAGE", "level": "CRITICAL", "state": "RETURNED",
                              "triggeredAt": "2026-11-08T09:00:01Z", "triggerValue": 7.199,
                              "returnedAt": "2026-11-08T09:04:30Z", "acknowledgedAt": null, "clearedAt": null}]}
                 """);
@@ -47,7 +47,7 @@ class AlarmControllerTest {
     @Test
     @Requirement("ALM-050")
     void acknowledgementReturnsTheAlarmAfterwards() {
-        final var cleared = new AlarmResponse(3, "BATTERY_VOLTAGE", MonitoringLevel.CRITICAL, AlarmState.CLEARED,
+        final var cleared = new AlarmResponse(3, AlarmKind.LIMIT, "BATTERY_VOLTAGE", MonitoringLevel.CRITICAL, AlarmState.CLEARED,
                 RETURNED.triggeredAt(), 7.199, RETURNED.returnedAt(), Instant.parse("2026-11-08T09:30:00Z"),
                 Instant.parse("2026-11-08T09:30:00Z"));
         given(service.acknowledge(SATELLITE, 3)).willReturn(cleared);

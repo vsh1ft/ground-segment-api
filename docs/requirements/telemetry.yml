@@ -21,7 +21,8 @@
 - id: TM-040
   text: >-
     The service shall list the archived packets of one satellite, most recently archived first, with APID,
-    sequence count, PUS service type and subtype, generation and reception time in UTC, and the raw bytes in hex.
+    sequence count, PUS service type and subtype, generation and reception time in UTC, visibility, and the raw
+    bytes in hex.
     It shall return at most a requested number of packets (20 by default, 100 at most) and a cursor to the next,
     older page, so that pages stay stable while new packets arrive.
   verification: T

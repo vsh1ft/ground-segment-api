@@ -24,7 +24,7 @@ class AlarmServiceTest {
     private static final NoradId SATELLITE = new NoradId(99999);
     private static final Instant T0 = Instant.parse("2026-11-08T09:00:01Z");
     private static final Instant NOW = Instant.parse("2026-11-08T09:30:00Z");
-    private static final Alarm TRIGGERED = new Alarm(3L, 0L, 99999, "BATTERY_VOLTAGE", MonitoringLevel.WARNING,
+    private static final Alarm TRIGGERED = new Alarm(3L, 0L, 99999, AlarmKind.LIMIT, "BATTERY_VOLTAGE", MonitoringLevel.WARNING,
             AlarmState.TRIGGERED, T0, 7.199, null, null, null);
 
     private final AlarmArchive alarms = mock(AlarmArchive.class);

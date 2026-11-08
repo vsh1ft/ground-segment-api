@@ -2,6 +2,8 @@ package lt.vsh1ft.groundstation.tmtc;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -13,6 +15,8 @@ import lt.vsh1ft.ccsds.MissionTime;
 import lt.vsh1ft.ccsds.PusTmSecondaryHeader;
 import lt.vsh1ft.ccsds.TmPacket;
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
+import lt.vsh1ft.groundstation.contact.ContactWatch;
+import lt.vsh1ft.groundstation.contact.Visibility;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +26,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.jdbc.core.JdbcAggregateOperations;
 import org.springframework.modulith.test.ApplicationModuleTest;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @ApplicationModuleTest
 @Import(PostgresTestcontainer.class)
@@ -48,18 +53,22 @@ class TmtcModuleTest {
     @Autowired
     private EventService events;
 
+    @MockitoBean
+    private ContactWatch contacts;
+
     @BeforeEach
     void emptyArchive() {
         aggregates.deleteAll(StoredTmPacket.class);
+        given(contacts.received(any(), any())).willReturn(Visibility.IN_PASS);
     }
 
     @Test
     @Requirement({"TM-010", "TM-040"})
     void packetsOfOneSatelliteArePagedNewestFirstWithACursor() {
-        archive.store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
-        archive.store(OTHER_SATELLITE, packet(1, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
-        archive.store(SATELLITE, packet(2, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
-        archive.store(SATELLITE, packet(3, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        store(OTHER_SATELLITE, packet(1, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        store(SATELLITE, packet(2, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        store(SATELLITE, packet(3, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
 
         final var first = archive.packets(SATELLITE, query(2, null));
         final var second = archive.packets(SATELLITE, query(2, first.nextBefore()));
@@ -74,8 +83,8 @@ class TmtcModuleTest {
     @Test
     @Requirement("TM-040")
     void lastFullPageHasNoCursor() {
-        archive.store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
-        archive.store(SATELLITE, packet(1, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        store(SATELLITE, packet(1, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
 
         assertThat(archive.packets(SATELLITE, query(2, null)).nextBefore()).isNull();
     }
@@ -84,7 +93,7 @@ class TmtcModuleTest {
     @Requirement("TM-050")
     void packetsAreFilteredByGenerationTimeFromInclusiveToExclusive() {
         for (int second = 0; second < 4; second++) {
-            archive.store(SATELLITE, packet(second, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT,
+            store(SATELLITE, packet(second, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT,
                     T0.plusSeconds(second)), T0);
         }
 
@@ -97,11 +106,11 @@ class TmtcModuleTest {
     @Test
     @Requirement("TM-050")
     void packetsAreFilteredByApidServiceAndSubtype() {
-        archive.store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
-        archive.store(SATELLITE, packet(1, 101, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
-        archive.store(SATELLITE, packet(2, 100, EVENT_REPORT, T0), T0);
-        archive.store(SATELLITE, packet(3, 100, new MessageType(5, 2), T0), T0);
-        archive.store(SATELLITE, packet(4, 100, new MessageType(3, 26), T0), T0);
+        store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        store(SATELLITE, packet(1, 101, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0);
+        store(SATELLITE, packet(2, 100, EVENT_REPORT, T0), T0);
+        store(SATELLITE, packet(3, 100, new MessageType(5, 2), T0), T0);
+        store(SATELLITE, packet(4, 100, new MessageType(3, 26), T0), T0);
 
         final var found = archive.packets(SATELLITE, new PacketsQuery(null, null, null, null, 100, 5, 1));
 
@@ -197,5 +206,19 @@ class TmtcModuleTest {
 
     private static String hex(TmPacket packet) {
         return HexFormat.of().withUpperCase().formatHex(packet.encode());
+    }
+
+    @Test
+    @Requirement({"CON-020", "TM-040"})
+    void packetIsListedWithTheVisibilityItWasStoredWith() {
+        archive.store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0,
+                Visibility.OUTSIDE_PASS);
+
+        assertThat(archive.packets(SATELLITE, query(20, null)).packets()).singleElement()
+                .extracting(TmPacketResponse::visibility).isEqualTo(Visibility.OUTSIDE_PASS);
+    }
+
+    private void store(NoradId satellite, TmPacket packet, Instant receivedAt) {
+        archive.store(satellite, packet, receivedAt, Visibility.IN_PASS);
     }
 }

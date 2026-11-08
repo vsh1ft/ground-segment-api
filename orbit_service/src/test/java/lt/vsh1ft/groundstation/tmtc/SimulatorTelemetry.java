@@ -24,7 +24,7 @@ final class SimulatorTelemetry {
     }
 
     static TmLinkProperties link(Resource missionDatabase) {
-        return new TmLinkProperties(SATELLITE.value(), "localhost", 10015, Duration.ofSeconds(2),
+        return new TmLinkProperties(SATELLITE.value(), "Vilnius", "localhost", 10015, Duration.ofSeconds(2),
                 Duration.ofSeconds(5), missionDatabase);
     }
 

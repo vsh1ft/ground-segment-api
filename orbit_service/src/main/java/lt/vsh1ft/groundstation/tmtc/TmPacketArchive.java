@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.ccsds.TmPacket;
+import lt.vsh1ft.groundstation.contact.Visibility;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.core.JdbcAggregateOperations;
@@ -17,8 +18,8 @@ class TmPacketArchive {
 
     private final JdbcAggregateOperations aggregates;
 
-    long store(NoradId satellite, TmPacket packet, Instant receivedAt) {
-        return aggregates.insert(StoredTmPacket.received(satellite, packet, receivedAt)).id();
+    long store(NoradId satellite, TmPacket packet, Instant receivedAt, Visibility visibility) {
+        return aggregates.insert(StoredTmPacket.received(satellite, packet, receivedAt, visibility)).id();
     }
 
     TmPacketsResponse packets(NoradId satellite, PacketsQuery query) {

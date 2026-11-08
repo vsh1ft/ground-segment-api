@@ -1,6 +1,7 @@
 package lt.vsh1ft.groundstation.station;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,11 @@ public class StationService implements GroundStationSource {
     @Override
     public GroundStation byId(UUID id) {
         return get(id).toGroundStation();
+    }
+
+    @Override
+    public Optional<GroundStation> byName(String name) {
+        return repository.findByName(name).map(Station::toGroundStation);
     }
 
     @Transactional

@@ -46,7 +46,7 @@ public record ElementSet(
         @Schema(description = "Revolution number at epoch", example = "59308")
         int revAtEpoch,
 
-        @Schema(description = "When these elements were last downloaded from CelesTrak, UTC",
+        @Schema(description = "When these elements were last downloaded from CelesTrak or uploaded, UTC",
                 example = "2026-11-04T10:00:00Z")
         Instant downloadedAt) {
 

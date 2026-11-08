@@ -9,6 +9,7 @@ import lt.vsh1ft.ccsds.CucTime;
 import lt.vsh1ft.ccsds.MessageType;
 import lt.vsh1ft.ccsds.PusTmSecondaryHeader;
 import lt.vsh1ft.ccsds.TmPacket;
+import lt.vsh1ft.groundstation.contact.Visibility;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
@@ -25,14 +26,15 @@ class StoredTmPacketTest {
                 new CucTime(2_172_787_237L, 0x8000));
         final var packet = new TmPacket(new Apid(100), 5, header, new byte[0]);
 
-        assertThat(StoredTmPacket.received(SATELLITE, packet, RECEIVED).generationTime())
+        assertThat(StoredTmPacket.received(SATELLITE, packet, RECEIVED, Visibility.UNKNOWN).generationTime())
                 .isEqualTo(Instant.parse("2026-11-08T00:00:00.5Z"));
     }
 
     @Test
     @Requirement({"TM-010", "IF-040"})
     void storedPacketKeepsItsSatelliteTheHeaderFieldsAndTheBytesAsReceived() {
-        final var stored = StoredTmPacket.received(SATELLITE, TmPacket.decode(TmLinkTest.REFERENCE), RECEIVED);
+        final var stored = StoredTmPacket.received(SATELLITE, TmPacket.decode(TmLinkTest.REFERENCE), RECEIVED,
+                Visibility.IN_PASS);
 
         assertThat(stored.noradId()).isEqualTo(99999);
         assertThat(stored.apid()).isEqualTo(100);
@@ -40,6 +42,7 @@ class StoredTmPacketTest {
         assertThat(stored.serviceType()).isEqualTo(3);
         assertThat(stored.messageSubtype()).isEqualTo(25);
         assertThat(stored.receptionTime()).isEqualTo(RECEIVED);
+        assertThat(stored.visibility()).isEqualTo(Visibility.IN_PASS);
         assertThat(stored.raw()).isEqualTo(TmLinkTest.REFERENCE);
     }
 }

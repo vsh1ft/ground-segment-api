@@ -7,6 +7,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import java.time.Instant;
 import java.util.List;
 
+import lt.vsh1ft.groundstation.contact.Visibility;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ class TelemetryControllerTest {
     private static final NoradId SATELLITE = new NoradId(99999);
     private static final TmPacketResponse HOUSEKEEPING = new TmPacketResponse(42, 100, 5, 3, 25,
             Instant.parse("2026-11-08T00:00:00.5Z"), Instant.parse("2026-11-08T00:00:00.512Z"),
-            "0864C00500122003190001000012345678800001020304FB2C");
+            Visibility.IN_PASS, "0864C00500122003190001000012345678800001020304FB2C");
 
     @Autowired
     private MockMvcTester mvc;
@@ -44,6 +45,7 @@ class TelemetryControllerTest {
                         {"packets": [{"id": 42, "apid": 100, "sequenceCount": 5, "serviceType": 3,
                                       "messageSubtype": 25, "generationTime": "2026-11-08T00:00:00.500Z",
                                       "receptionTime": "2026-11-08T00:00:00.512Z",
+                                      "visibility": "IN_PASS",
                                       "raw": "0864C00500122003190001000012345678800001020304FB2C"}],
                          "nextBefore": 42}
                         """);

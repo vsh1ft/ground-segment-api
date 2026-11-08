@@ -94,13 +94,55 @@ class AlarmTest {
     @Test
     @Requirement("ALM-040")
     void clearedAlarmIgnoresNewValuesAndCannotBeAcknowledged() {
-        final var cleared = new Alarm(3L, 2L, 99999, "BATTERY_VOLTAGE", WARNING, AlarmState.CLEARED, T0, 7.199, T1,
-                T1, T1);
+        final var cleared = new Alarm(3L, 2L, 99999, AlarmKind.LIMIT, "BATTERY_VOLTAGE", WARNING, AlarmState.CLEARED, T0,
+                7.199, T1, T1, T1);
 
         assertThat(cleared.observe(CRITICAL, T2)).isEqualTo(cleared);
         assertThat(cleared.observe(IN_LIMITS, T2)).isEqualTo(cleared);
         assertThatThrownBy(() -> cleared.acknowledge(T2)).isInstanceOf(AlarmClearedException.class)
                 .hasMessage("Alarm 3 is already cleared");
+    }
+
+    @Test
+    @Requirement("ALM-070")
+    void limitAlarmHasTheKindLimit() {
+        assertThat(warning.kind()).isEqualTo(AlarmKind.LIMIT);
+    }
+
+    @Test
+    @Requirement("ALM-070")
+    void lossOfSignalIsATriggeredWarningWithoutParameterOrValue() {
+        final var lost = Alarm.lossOfSignal(SATELLITE, T0);
+
+        assertThat(lost.kind()).isEqualTo(AlarmKind.LOSS_OF_SIGNAL);
+        assertThat(lost.level()).isEqualTo(WARNING);
+        assertThat(lost.state()).isEqualTo(AlarmState.TRIGGERED);
+        assertThat(lost.triggeredAt()).isEqualTo(T0);
+        assertThat(lost.parameter()).isNull();
+        assertThat(lost.triggerValue()).isNull();
+    }
+
+    @Test
+    @Requirement("ALM-070")
+    void lossOfSignalFollowsTheSameLifecycle() {
+        final var returned = Alarm.lossOfSignal(SATELLITE, T0).observe(IN_LIMITS, T1);
+        final var again = returned.observe(WARNING, T2);
+
+        assertThat(returned.state()).isEqualTo(AlarmState.RETURNED);
+        assertThat(again.state()).isEqualTo(AlarmState.TRIGGERED);
+        assertThat(again.acknowledge(ACK).observe(IN_LIMITS, T3).state()).isEqualTo(AlarmState.CLEARED);
+    }
+
+    @Test
+    void onlyALimitAlarmHasAParameterAndATriggerValue() {
+        assertThatIllegalArgumentException().isThrownBy(() -> new Alarm(null, null, 99999, AlarmKind.LIMIT, null,
+                WARNING, AlarmState.TRIGGERED, T0, 7.199, null, null, null));
+        assertThatIllegalArgumentException().isThrownBy(() -> new Alarm(null, null, 99999, AlarmKind.LIMIT,
+                "BATTERY_VOLTAGE", WARNING, AlarmState.TRIGGERED, T0, null, null, null, null));
+        assertThatIllegalArgumentException().isThrownBy(() -> new Alarm(null, null, 99999,
+                AlarmKind.LOSS_OF_SIGNAL, "BATTERY_VOLTAGE", WARNING, AlarmState.TRIGGERED, T0, 7.199, null, null,
+                null)).withMessage("Only a limit alarm has a parameter and a trigger value: LOSS_OF_SIGNAL, "
+                + "BATTERY_VOLTAGE, 7.199");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package lt.vsh1ft.groundstation.catalog;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -24,6 +25,9 @@ import lt.vsh1ft.groundstation.elements.StoredOmm;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.TaskScheduler;
 
@@ -156,6 +160,22 @@ class CatalogRefreshTest {
 
         verify(catalog).store(NOAA_19);
         verify(catalog, never()).delete(any());
+    }
+
+    @Test
+    @Requirement("CAT-070")
+    @ExtendWith(OutputCaptureExtension.class)
+    void satelliteCelestrakDoesNotKnowIsNotAFailedRefresh(CapturedOutput output) {
+        given(downloader.downloadGroup(any())).willReturn(List.of());
+        given(catalog.all()).willReturn(List.of(new NoradId(99999), noradId(NOAA_19)));
+        given(downloader.download(new NoradId(99999))).willThrow(new SatelliteNotFoundException(new NoradId(99999)));
+        given(downloader.download(noradId(NOAA_19))).willThrow(new CelestrakException("CelesTrak is down"));
+
+        refresh.refresh();
+
+        assertThat(output).contains("NORAD ID 99999 is not on CelesTrak yet; it keeps its stored elements")
+                .contains("0 satellites stored, 1 failures")
+                .doesNotContain("Catalog refresh of NORAD ID 99999 failed");
     }
 
     @Test

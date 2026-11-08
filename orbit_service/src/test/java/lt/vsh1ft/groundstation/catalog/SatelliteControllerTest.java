@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import java.time.Instant;
 import java.util.List;
 
+import lt.vsh1ft.groundstation.elements.InvalidTleException;
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
 import lt.vsh1ft.groundstation.elements.SatelliteNotFoundException;
 import lt.vsh1ft.groundstation.shared.NoradId;
@@ -37,6 +38,11 @@ class SatelliteControllerTest {
     private static final ElementSet ISS_ELEMENTS = new ElementSet(Instant.parse("2026-11-01T18:56:25.712736Z"),
             15.49143202, 0.0007095, 51.6332, 339.1679, 336.8847, 23.1822, 0.00011503, 5.925e-5, 0, 999, 59308,
             Instant.parse("2026-11-04T10:00:00Z"));
+    private static final String TLE = """
+            ISS (ZARYA)
+            1 25544U 98067A   26305.78918649  .00005925  00000-0  11503-3 0  9992
+            2 25544  51.6332 339.1679 0007095 336.8847  23.1822 15.49143202593084
+            """;
 
     @Autowired
     private MockMvcTester mvc;
@@ -235,5 +241,46 @@ class SatelliteControllerTest {
         willThrow(new SatelliteNotInCatalogException(ISS)).given(service).delete(ISS);
 
         assertThat(mvc.delete().uri("/satellites/25544")).hasStatus(HttpStatus.NOT_FOUND);
+    }
+
+    @Test
+    @Requirement("CAT-110")
+    void uploadedTleOfANewSatelliteAddsItWithALocation() {
+        given(service.upload(ISS, TLE)).willReturn(new UploadedElements(ISS_ELEMENTS, true));
+
+        assertThat(mvc.post().uri("/satellites/25544/elements").contentType(MediaType.TEXT_PLAIN).content(TLE))
+                .hasStatus(HttpStatus.CREATED).hasHeader("Location", "http://localhost/satellites/25544")
+                .bodyJson().extractingPath("$.epoch").isEqualTo("2026-11-01T18:56:25.712736Z");
+    }
+
+    @Test
+    @Requirement("CAT-110")
+    void uploadedTleOfACatalogSatelliteReturnsTheElementSet() {
+        given(service.upload(ISS, TLE)).willReturn(new UploadedElements(ISS_ELEMENTS, false));
+
+        assertThat(mvc.post().uri("/satellites/25544/elements").contentType(MediaType.TEXT_PLAIN).content(TLE))
+                .hasStatusOk().doesNotContainHeader("Location")
+                .bodyJson().extractingPath("$.meanMotion").isEqualTo(15.49143202);
+    }
+
+    @Test
+    @Requirement({"CAT-110", "API-010"})
+    void invalidTleIsABadRequest() {
+        given(service.upload(ISS, TLE)).willThrow(new InvalidTleException("The TLE is for NORAD ID 99999, not 25544"));
+
+        assertThat(mvc.post().uri("/satellites/25544/elements").contentType(MediaType.TEXT_PLAIN).content(TLE))
+                .hasStatus(HttpStatus.BAD_REQUEST).hasContentType(MediaType.APPLICATION_PROBLEM_JSON)
+                .bodyJson().isLenientlyEqualTo("""
+                        {"detail": "The TLE is for NORAD ID 99999, not 25544",
+                         "instance": "/satellites/25544/elements"}
+                        """);
+    }
+
+    @Test
+    @Requirement("API-010")
+    void tleSentAsJsonIsAnUnsupportedMediaType() {
+        assertThat(mvc.post().uri("/satellites/25544/elements").contentType(MediaType.APPLICATION_JSON)
+                .content("{}")).hasStatus(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+        verifyNoInteractions(service);
     }
 }

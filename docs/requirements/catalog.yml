@@ -38,7 +38,8 @@
 - id: CAT-070
   text: >-
     A failed download or store of one group or satellite shall not stop the refresh of the others, and a
-    satellite CelesTrak no longer knows shall stay in the catalog.
+    satellite CelesTrak doesn't know, or no longer knows, shall stay in the catalog. CelesTrak not knowing a
+    satellite shall not count as a failed refresh.
   verification: T
 
 - id: CAT-080
@@ -56,4 +57,12 @@
 - id: CAT-100
   text: >-
     Each catalog satellite shall show the epoch of its newest stored element set.
+  verification: T
+
+- id: CAT-110
+  text: >-
+    The service shall accept orbital elements of a satellite as a three-line TLE (a name and two element lines)
+    and store them like downloaded elements, adding the satellite to the catalog under the TLE's name if it isn't
+    there yet. It shall reject a TLE with a wrong format or checksum, or whose catalog number differs from the
+    requested satellite.
   verification: T

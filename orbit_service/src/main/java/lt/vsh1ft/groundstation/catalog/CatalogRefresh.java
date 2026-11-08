@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lt.vsh1ft.groundstation.elements.OmmArchive;
 import lt.vsh1ft.groundstation.elements.OmmDownloader;
+import lt.vsh1ft.groundstation.elements.SatelliteNotFoundException;
 import lt.vsh1ft.groundstation.elements.StoredOmm;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -68,6 +69,8 @@ class CatalogRefresh {
         void refreshOne(NoradId satellite) {
             try {
                 store(downloader.download(satellite));
+            } catch (SatelliteNotFoundException e) {
+                log.info("NORAD ID {} is not on CelesTrak yet; it keeps its stored elements", satellite);
             } catch (RuntimeException e) {
                 failed("NORAD ID " + satellite, e);
             }
