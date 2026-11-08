@@ -152,6 +152,40 @@ Each pass says where to look: the azimuth where the satellite rises, where it is
 degrees clockwise from true north, and the same direction on the 16-point compass. The example pass rises in the
 southwest, crosses the southern sky at 36.6° and sets in the east.
 
+### Tracking
+
+```
+GET /satellites/25544/track?station=3f2a9c1e-...&from=2026-11-08T21:33:53.633Z&duration=PT8M24S&step=PT1S
+```
+
+A track says where to point the antenna and which frequency to use at every step of a window: azimuth, geometric
+elevation, range and range rate, below the horizon too, so a rotator can wait at the rise azimuth. Take `from` and
+`duration` from a pass. Every point also gives the Doppler-corrected frequencies of the satellite's active
+transmitters from the SatNOGS DB: the downlink to receive on, and the uplink to transmit on so that the satellite
+hears its nominal frequency. Transponders get both edges of their bands. `downlinkHz` and `uplinkHz` replace the
+transmitters with frequencies of your own, for a satellite SatNOGS doesn't list.
+
+```
+{
+  "satellite": 25544, "station": "3f2a9c1e-...", "elementsEpoch": "2026-11-08T04:12:35.430048Z", "step": "PT1S",
+  "frequencies": [
+    {"transmitter": "...", "description": "Mode V APRS", "direction": "DOWNLINK", "nominalHz": 145825000},
+    {"transmitter": "...", "description": "Mode V APRS", "direction": "UPLINK", "nominalHz": 145825000}
+  ],
+  "points": [
+    {"time": "2026-11-08T21:33:53.633Z", "azimuthDeg": 261.92, "elevationDeg": 5.00, "rangeKm": 1870.5,
+     "rangeRateKmPerS": -6.767, "frequenciesHz": [145828292, 145821708]},
+    ...
+  ]
+}
+```
+
+That ISS pass over Vilnius (46 frequencies in the real response; two shown) starts 3.3 kHz above the APRS
+frequency, passes through it at the 49.9° peak and ends 3.3 kHz below. `from` is now by default, `duration` 15
+minutes (at most 1 day), `step` 1 second (100 ms to 1 hour), and a track has at most 10 000 points. Azimuth,
+elevation, range and range rate are checked against Skyfield within 0.01°, 0.1 km and 0.001 km/s. The
+[tracking and Doppler tutorial](docs/tutorial/tracking-and-doppler.md) explains the Doppler shift.
+
 ### Telemetry
 
 ```
@@ -368,6 +402,7 @@ Each top-level package under `lt.vsh1ft.groundstation` is a module; its sub-pack
 station ──► pass ──► catalog ──► elements ──► shared
               └─────────────────────►┘
 radio ─────────────► catalog
+tracking ──► pass, elements, radio, catalog
 tmtc ──► contact ──► pass                              (tmtc uses the ccsds and xtce libraries)
 alarm ──► tmtc, contact                                 (listens to stored values and to silence)
 ```
@@ -381,6 +416,7 @@ alarm ──► tmtc, contact                                 (listens to stored
 | `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
 | `tmtc` | telemetry: the TCP link to the spacecraft, the packet and parameter archives, the event log, the mission database, `/satellites/{noradId}/telemetry/packets`, `/parameters` and `/events` |
 | `contact` | the contact plan of the TM link (its satellite's passes over its station), packet visibility, the silence watch, frame loss per pass and `/satellites/{noradId}/link-reports` |
+| `tracking` | `/satellites/{noradId}/track`: azimuth, elevation, range, range rate and Doppler-corrected transmitter frequencies |
 | `alarm` | limit checking of received values, loss-of-signal alarms, the alarm lifecycle, `/satellites/{noradId}/alarms` and acknowledgement |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
 
@@ -463,12 +499,14 @@ test has no passing test or a test names an unknown requirement.
 
 Pass predictions are checked against [Skyfield](https://rhodesmill.org/skyfield/), an independent SGP4
 implementation: for a fixed ISS element set over Vilnius, rise, peak and set must agree within 1 second and the
-peak elevation within 0.01 degrees (they agree within about 20 ms). The reference values come from
-`tools/reference/skyfield_passes.py`:
+peak elevation within 0.01 degrees (they agree within about 20 ms). Tracks are checked the same way at six moments
+of one pass: azimuth and elevation within 0.01°, range within 0.1 km, range rate within 0.001 km/s. The reference
+values come from `tools/reference/skyfield_passes.py` and `tools/reference/skyfield_track.py`:
 
 ```
 python -m venv .venv && .venv/bin/pip install skyfield   # on Windows: .venv\Scripts\pip
 .venv/bin/python tools/reference/skyfield_passes.py
+.venv/bin/python tools/reference/skyfield_track.py
 ```
 
 ## License

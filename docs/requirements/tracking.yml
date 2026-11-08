@@ -1,0 +1,25 @@
+- id: TRK-010
+  text: >-
+    The service shall give the track of a catalog satellite over a station: azimuth, geometric elevation, range
+    and range rate at a fixed step through a requested window, including points below the horizon.
+  verification: T
+
+- id: TRK-020
+  text: >-
+    Every track point shall give the Doppler-corrected frequencies, rounded to whole hertz, of the satellite's
+    active transmitters from the SatNOGS DB (each downlink and uplink frequency, both band edges for a
+    transponder), or of the downlink and uplink frequencies given in the request instead: the downlink as received
+    on the ground, the uplink as to be transmitted so that the satellite receives its nominal frequency.
+  verification: T
+
+- id: TRK-030
+  text: >-
+    For a fixed ISS element set over Vilnius, azimuth and elevation shall agree with Skyfield within 0.01 degrees,
+    range within 0.1 km and range rate within 0.001 km/s.
+  verification: T
+
+- id: TRK-040
+  text: >-
+    A track shall start now unless a start is given, last 15 minutes by default and at most 1 day, have a step of
+    1 second by default, from 100 ms to 1 hour, and have at most 10 000 points.
+  verification: T
