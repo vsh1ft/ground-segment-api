@@ -54,6 +54,38 @@
                     </DefaultCalibrator>
                 </IntegerDataEncoding>
             </FloatParameterType>
+            <FloatParameterType name="battery_voltage_t">
+                <UnitSet><Unit>V</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.001"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+                <DefaultAlarm>
+                    <StaticAlarmRanges>
+                        <WarningRange minInclusive="7.20" maxInclusive="7.80"/>
+                        <CriticalRange minInclusive="7.12" maxInclusive="7.90"/>
+                    </StaticAlarmRanges>
+                </DefaultAlarm>
+            </FloatParameterType>
+            <FloatParameterType name="platform_temperature_t">
+                <UnitSet><Unit>degC</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.1"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+                <DefaultAlarm>
+                    <StaticAlarmRanges>
+                        <WarningRange maxInclusive="32.0"/>
+                        <CriticalRange maxInclusive="34.5"/>
+                    </StaticAlarmRanges>
+                </DefaultAlarm>
+            </FloatParameterType>
             <EnumeratedParameterType name="mode_t">
                 <IntegerDataEncoding sizeInBits="8"/>
                 <EnumerationList>
@@ -102,8 +134,9 @@
                        shortDescription="On-board time, units of 2^-16 s"/>
             <Parameter name="HK_STRUCTURE_ID" parameterTypeRef="uint8_t"
                        shortDescription="Housekeeping parameter report structure ID"/>
-            <Parameter name="BATTERY_VOLTAGE" parameterTypeRef="voltage_t" shortDescription="Battery voltage"/>
-            <Parameter name="PLATFORM_TEMPERATURE" parameterTypeRef="temperature_t"
+            <Parameter name="BATTERY_VOLTAGE" parameterTypeRef="battery_voltage_t"
+                       shortDescription="Battery voltage"/>
+            <Parameter name="PLATFORM_TEMPERATURE" parameterTypeRef="platform_temperature_t"
                        shortDescription="Platform temperature"/>
             <Parameter name="SPACECRAFT_MODE" parameterTypeRef="mode_t" shortDescription="Spacecraft mode"/>
             <Parameter name="EVENT_ID" parameterTypeRef="event_id_t" shortDescription="Event definition ID"/>

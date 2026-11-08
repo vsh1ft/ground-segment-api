@@ -13,4 +13,6 @@ public sealed interface ParameterType permits IntegerParameterType, FloatParamet
     Optional<EngineeringValue> calibrate(long raw);
 
     EngineeringValue parse(String literal);
+
+    MonitoringLevel monitor(long raw);
 }

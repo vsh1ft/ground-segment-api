@@ -165,6 +165,24 @@ class PassControllerTest {
     }
 
     @Test
+    @Requirement("PASS-010")
+    void durationsFromOneNanosecondToExactlySevenDaysAreAccepted() {
+        given(service.forecast(eq(ISS), any(), eq(Duration.ofDays(7)))).willReturn(forecastOf());
+        given(service.forecast(eq(ISS), any(), eq(Duration.ofNanos(1)))).willReturn(forecastOf());
+
+        assertThat(mvc.get().uri(ISS_OVER_VILNIUS + "&duration=P7D")).hasStatusOk();
+        assertThat(mvc.get().uri(ISS_OVER_VILNIUS + "&duration=PT0.000000001S")).hasStatusOk();
+    }
+
+    @Test
+    @Requirement("PASS-010")
+    void durationOneNanosecondLongerThanSevenDaysIsABadRequest() {
+        assertBadRequestProblem(ISS_OVER_VILNIUS + "&duration=PT168H0.000000001S", """
+                [{"field": "duration", "message": "must be shorter than or equal to 7 days"}]
+                """);
+    }
+
+    @Test
     @Requirement("API-010")
     void zeroDurationIsABadRequest() {
         assertBadRequestProblem(ISS_OVER_VILNIUS + "&duration=PT0S", """

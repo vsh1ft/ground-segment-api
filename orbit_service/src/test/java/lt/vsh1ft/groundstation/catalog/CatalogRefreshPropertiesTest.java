@@ -15,9 +15,9 @@ class CatalogRefreshPropertiesTest {
     @Requirement("OPS-040")
     void intervalShorterThanTwoHoursIsRejected() {
         assertThatIllegalArgumentException()
-                .isThrownBy(() -> new CatalogRefreshProperties(Duration.ofMinutes(119), List.of("stations")))
+                .isThrownBy(() -> new CatalogRefreshProperties(Duration.ofHours(2).minusSeconds(1), List.of("stations")))
                 .withMessage("groundstation.catalog.refresh.interval must be at least PT2H because CelesTrak asks "
-                        + "not to download the same data more often, was PT1H59M");
+                        + "not to download the same data more often, was PT1H59M59S");
     }
 
     @Test

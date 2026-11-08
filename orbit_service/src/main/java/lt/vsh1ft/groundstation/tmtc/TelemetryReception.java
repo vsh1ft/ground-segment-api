@@ -12,6 +12,7 @@ import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.xtce.DecodedPacket;
 import lt.vsh1ft.xtce.MissionDatabase;
 import lt.vsh1ft.xtce.PacketDecodingException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,14 +25,17 @@ class TelemetryReception {
     private final ParameterArchive parameters;
     private final EventArchive events;
     private final MissionDatabases databases;
+    private final ApplicationEventPublisher publisher;
 
     @Transactional
     public void receive(NoradId satellite, TmPacket packet, Instant receivedAt) {
         final long packetId = packets.store(satellite, packet, receivedAt);
         final var generated = MissionTime.toUtc(packet.secondaryHeader().time());
         final var decoded = databases.of(satellite).flatMap(database -> decode(database, satellite, packetId, packet));
-        decoded.filter(DecodedPacket::complete)
-                .ifPresent(complete -> parameters.store(satellite, packetId, generated, complete.values()));
+        decoded.filter(DecodedPacket::complete).ifPresent(complete -> {
+            parameters.store(satellite, packetId, generated, complete.values());
+            publisher.publishEvent(new ParameterValuesReceived(satellite, packetId, generated, complete.values()));
+        });
         Severity.of(packet.secondaryHeader().messageType()).ifPresent(severity ->
                 events.store(StoredEvent.of(satellite, packetId, generated, severity, decoded)));
     }

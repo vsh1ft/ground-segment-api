@@ -1,0 +1,41 @@
+- id: ALM-010
+  text: >-
+    The mission database reader shall read warning and critical limits (XTCE DefaultAlarm with StaticAlarmRanges,
+    range form outside) of integer and float parameter types, in engineering units, with inclusive, exclusive or
+    open bounds, and shall reject a database whose limits are inconsistent (an empty range, a warning limit outside
+    the critical limit) or use alarm features it does not support.
+  verification: T
+
+- id: ALM-020
+  text: >-
+    Every parameter value stored from a received packet shall be checked against the limits of its type, giving
+    IN_LIMITS, WARNING or CRITICAL; a value outside the critical range is CRITICAL, a value outside the warning
+    range only is WARNING.
+  verification: T
+
+- id: ALM-030
+  text: >-
+    A value out of limits shall raise an alarm on its parameter unless the parameter already has an open alarm,
+    with at most one open alarm per parameter. An open alarm shall keep the most severe level reached; when it
+    escalates it shall need a new acknowledgement, and when its value leaves the limits again after returning it
+    shall become TRIGGERED again.
+  verification: T
+
+- id: ALM-040
+  text: >-
+    An alarm shall stay open until its value is back in limits and an operator has acknowledged it, in either
+    order. Acknowledging an acknowledged alarm shall change nothing; acknowledging a cleared alarm shall be a
+    conflict.
+  verification: T
+
+- id: ALM-050
+  text: >-
+    The service shall list the open alarms of a satellite, most recently raised first, and accept an
+    acknowledgement of one of them.
+  verification: T
+
+- id: ALM-060
+  text: >-
+    A failure while updating alarms shall not lose the received telemetry: the packet, its values and its event
+    shall still be stored, and only the alarm changes of that packet shall be rolled back.
+  verification: T

@@ -58,4 +58,17 @@ class EventControllerTest {
                         """);
         verifyNoInteractions(service);
     }
+
+    @Test
+    @Requirement({"EVT-030", "API-010"})
+    void limitOfOneHundredIsAcceptedAndZeroIsNot() {
+        given(service.events(SATELLITE, new EventsQuery(100, null, null, null, null)))
+                .willReturn(new EventsResponse(List.of(), null));
+
+        assertThat(mvc.get().uri("/satellites/99999/events?limit=100")).hasStatusOk();
+        assertThat(mvc.get().uri("/satellites/99999/events?limit=0")).hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson().isLenientlyEqualTo("""
+                        {"errors": [{"field": "limit", "message": "must be greater than or equal to 1"}]}
+                        """);
+    }
 }

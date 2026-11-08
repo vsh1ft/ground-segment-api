@@ -79,7 +79,7 @@ class MissionDatabaseTest {
     @Test
     void packetMatchingTwoContainersIsAmbiguous() {
         final var id = new Parameter("ID", null, new IntegerParameterType("uint8_t", null,
-                new IntegerEncoding(8, false)));
+                new IntegerEncoding(8, false), AlarmRanges.NONE));
         final var one = new Comparison(id, new IntegerValue(1), true);
         final var root = new SequenceContainer("ROOT", true, List.of(id), List.of(
                 new SequenceContainer.Child(new SequenceContainer("A", false, List.of(), List.of()), List.of(one)),

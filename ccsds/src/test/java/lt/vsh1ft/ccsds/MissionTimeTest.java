@@ -37,6 +37,14 @@ class MissionTimeTest {
     }
 
     @Test
+    void lastNanosecondOfASecondIsTheLargestFineTimeAndNeverRollsOver() {
+        final var cuc = MissionTime.toCuc(Instant.parse("2026-11-08T12:34:56.999999999Z"));
+
+        assertThat(cuc.fine()).isEqualTo(0xFFFF);
+        assertThat(cuc.coarse()).isEqualTo(MissionTime.toCuc(Instant.parse("2026-11-08T12:34:56Z")).coarse());
+    }
+
+    @Test
     void timeBeforeTheEpochCannotBeEncoded() {
         assertThatIllegalArgumentException()
                 .isThrownBy(() -> MissionTime.toCuc(Instant.parse("1957-12-31T23:59:00Z")));

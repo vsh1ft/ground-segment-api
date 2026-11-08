@@ -67,11 +67,18 @@ public final class XtceReader {
         String unit = null;
         Encoding encoding = null;
         Enumeration enumeration = new Enumeration(Map.of(), Map.of());
+        var limits = AlarmRanges.NONE;
         for (var child : Xml.children(type)) {
             switch (child.getLocalName()) {
                 case "UnitSet" -> unit = readUnit(child);
                 case "IntegerDataEncoding" -> encoding = readEncoding(child, calibrated);
                 case "EnumerationList" -> enumeration = readEnumeration(child);
+                case "DefaultAlarm" -> {
+                    if (kind.equals("EnumeratedParameterType")) {
+                        throw unsupported(child);
+                    }
+                    limits = readAlarm(child);
+                }
                 default -> throw unsupported(child);
             }
         }
@@ -81,9 +88,9 @@ public final class XtceReader {
         final var name = type.getAttribute(NAME);
         final ParameterType parameterType;
         if (kind.equals("IntegerParameterType")) {
-            parameterType = new IntegerParameterType(name, unit, encoding.encoding());
+            parameterType = new IntegerParameterType(name, unit, encoding.encoding(), limits);
         } else if (calibrated) {
-            parameterType = new FloatParameterType(name, unit, encoding.encoding(), encoding.calibrator());
+            parameterType = new FloatParameterType(name, unit, encoding.encoding(), encoding.calibrator(), limits);
         } else {
             parameterType = new EnumeratedParameterType(name, encoding.encoding(), enumeration.labels(),
                     enumeration.descriptions());
@@ -139,6 +146,59 @@ public final class XtceReader {
                     Double.parseDouble(term.getAttribute("coefficient"))));
         }
         return new PolynomialCalibrator(terms);
+    }
+
+    private AlarmRanges readAlarm(Element defaultAlarm) {
+        attributes(defaultAlarm, NAME, SHORT_DESCRIPTION, "minViolations");
+        requireDefault(defaultAlarm, "minViolations", "1");
+        var limits = AlarmRanges.NONE;
+        for (var child : Xml.children(defaultAlarm)) {
+            if (!child.getLocalName().equals("StaticAlarmRanges")) {
+                throw unsupported(child);
+            }
+            limits = readRanges(child);
+        }
+        return limits;
+    }
+
+    private AlarmRanges readRanges(Element staticAlarmRanges) {
+        attributes(staticAlarmRanges, NAME, SHORT_DESCRIPTION, "rangeForm");
+        requireDefault(staticAlarmRanges, "rangeForm", "outside");
+        var warning = AlarmRange.UNBOUNDED;
+        var critical = AlarmRange.UNBOUNDED;
+        for (var range : Xml.children(staticAlarmRanges)) {
+            switch (range.getLocalName()) {
+                case "WarningRange" -> warning = readRange(range);
+                case "CriticalRange" -> critical = readRange(range);
+                default -> throw unsupported(range);
+            }
+        }
+        try {
+            return new AlarmRanges(warning, critical);
+        } catch (IllegalArgumentException e) {
+            throw invalid(staticAlarmRanges, "is inconsistent: " + e.getMessage());
+        }
+    }
+
+    private AlarmRange readRange(Element range) {
+        attributes(range, "minInclusive", "minExclusive", "maxInclusive", "maxExclusive");
+        final var min = bound(range, "minInclusive", "minExclusive", Double.NEGATIVE_INFINITY);
+        final var max = bound(range, "maxInclusive", "maxExclusive", Double.POSITIVE_INFINITY);
+        try {
+            return new AlarmRange(min.value(), min.inclusive(), max.value(), max.inclusive());
+        } catch (IllegalArgumentException e) {
+            throw invalid(range, "is empty: " + e.getMessage());
+        }
+    }
+
+    private static Bound bound(Element range, String inclusive, String exclusive, double open) {
+        if (range.hasAttribute(inclusive) && range.hasAttribute(exclusive)) {
+            throw invalid(range, "has both " + inclusive + " and " + exclusive);
+        }
+        if (range.hasAttribute(exclusive)) {
+            return new Bound(Double.parseDouble(range.getAttribute(exclusive)), false);
+        }
+        return new Bound(Double.parseDouble(attribute(range, inclusive, String.valueOf(open))), true);
     }
 
     private Enumeration readEnumeration(Element enumerationList) {
@@ -324,6 +384,9 @@ public final class XtceReader {
     }
 
     private record Encoding(IntegerEncoding encoding, PolynomialCalibrator calibrator) {
+    }
+
+    private record Bound(double value, boolean inclusive) {
     }
 
     private record Enumeration(Map<Long, String> labels, Map<Long, String> descriptions) {

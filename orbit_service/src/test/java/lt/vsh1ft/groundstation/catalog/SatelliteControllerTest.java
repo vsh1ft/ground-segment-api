@@ -80,6 +80,34 @@ class SatelliteControllerTest {
     }
 
     @Test
+    @Requirement({"CAT-030", "API-010"})
+    void pageSizeOfOneHundredIsAcceptedAndZeroIsNot() {
+        given(service.search(null, PageRequest.of(0, 100)))
+                .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 100), 0));
+
+        assertThat(mvc.get().uri("/satellites?size=100")).hasStatusOk()
+                .bodyJson().extractingPath("$.page.size").isEqualTo(100);
+        assertThat(mvc.get().uri("/satellites?size=0")).hasStatus(HttpStatus.BAD_REQUEST).bodyJson()
+                .isLenientlyEqualTo("""
+                        {"errors": [{"field": "size", "message": "must be greater than or equal to 1"}]}
+                        """);
+    }
+
+    @Test
+    @Requirement({"ELM-020", "API-010"})
+    void elementHistoryPageSizeOfOneHundredIsAcceptedAndOneHundredAndOneIsNot() {
+        given(service.elementHistory(ISS, PageRequest.of(0, 100)))
+                .willReturn(new PageImpl<>(List.of(), PageRequest.of(0, 100), 0));
+
+        assertThat(mvc.get().uri("/satellites/25544/elements?size=100")).hasStatusOk()
+                .bodyJson().extractingPath("$.page.size").isEqualTo(100);
+        assertThat(mvc.get().uri("/satellites/25544/elements?size=101")).hasStatus(HttpStatus.BAD_REQUEST)
+                .bodyJson().isLenientlyEqualTo("""
+                        {"errors": [{"field": "size", "message": "must be less than or equal to 100"}]}
+                        """);
+    }
+
+    @Test
     @Requirement({"CAT-090", "CAT-100"})
     void satelliteIsReturnedByNoradId() {
         given(service.get(ISS)).willReturn(ISS_SUMMARY);

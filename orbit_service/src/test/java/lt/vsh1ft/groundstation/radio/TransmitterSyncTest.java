@@ -57,7 +57,7 @@ class TransmitterSyncTest {
     @Test
     @Requirement("RAD-010")
     void syncWaitsUntilTheIntervalHasPassed() {
-        given(transmitters.lastSync()).willReturn(Optional.of(NOW.minus(Duration.ofHours(23))));
+        given(transmitters.lastSync()).willReturn(Optional.of(NOW.minus(INTERVAL).plusSeconds(1)));
 
         sync.onCatalogRefreshed(new CatalogRefreshed());
 

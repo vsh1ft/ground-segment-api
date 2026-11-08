@@ -231,11 +231,47 @@ An event report the service can't decode (unknown event ID, no mission database)
 severity, just without a name: an anomaly nobody can name is the one an operator most needs to see. The
 [events tutorial](docs/tutorial/pus-events.md) explains the packets and the decoding.
 
+### Alarms
+
+```
+GET  /satellites/99999/alarms
+POST /satellites/99999/alarms/3/acknowledge
+```
+
+Every received value is checked against the warning and critical limits of its type in the mission database
+(XTCE `DefaultAlarm` with `StaticAlarmRanges`). For the simulator, battery voltage warns below 7.20 V, before the
+on-board FDIR acts at 7.15 V, and is critical below 7.12 V; platform temperature warns above 32.0 °C and is critical
+above 34.5 °C. A value out of limits raises an alarm on its parameter; the alarm keeps the most severe level reached
+and stays open until the value is back in limits **and** an operator has acknowledged it (a latching alarm), so a
+dip between two passes can't go unnoticed. The first endpoint lists the open alarms, most recently raised first:
+
+```
+{
+  "alarms": [
+    {"id": 2, "parameter": "BATTERY_VOLTAGE", "level": "CRITICAL", "state": "RETURNED",
+     "triggeredAt": "2026-11-08T13:42:44.097595Z", "triggerValue": 7.199,
+     "returnedAt": "2026-11-08T13:43:49.097595Z", "acknowledgedAt": null, "clearedAt": null},
+    {"id": 1, "parameter": "PLATFORM_TEMPERATURE", "level": "CRITICAL", "state": "RETURNED",
+     "triggeredAt": "2026-11-08T13:40:55.097473Z", "triggerValue": 32.1,
+     "returnedAt": "2026-11-08T13:41:37.097687Z", "acknowledgedAt": null, "clearedAt": null}
+  ]
+}
+```
+
+In that run the battery warning came 10 seconds before the spacecraft's own `BATTERY_LOW` event. Acknowledging
+alarm 2 returned it as `CLEARED` and removed it from the list; acknowledging it again is a 409.
+
+States are `TRIGGERED` (out of limits), `ACKNOWLEDGED` (out of limits, seen), `RETURNED` (back in limits, waiting
+for acknowledgement) and `CLEARED` (finished). An alarm that escalates from warning to critical needs a new
+acknowledgement. Alarms live in their own module, which listens to the values `tmtc` stores and runs in a nested
+transaction, so a failing alarm update never loses telemetry. The
+[limits and alarms tutorial](docs/tutorial/limits-and-alarms.md) explains the limits and the lifecycle.
+
 ### Errors
 
 Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for invalid
-parameters or fields, 404 for an unknown station, a satellite outside the catalog or one CelesTrak doesn't know,
-409 for a duplicate station name or a satellite already in the catalog, 503 when a satellite can't be added
+parameters or fields, 404 for an unknown station or alarm, a satellite outside the catalog or one CelesTrak doesn't know,
+409 for a duplicate station name, a satellite already in the catalog or an alarm already cleared, 503 when a satellite can't be added
 because CelesTrak can't be reached. A 400 lists every invalid
 field:
 
@@ -262,6 +298,7 @@ station ──► pass ──► catalog ──► elements ──► shared
               └─────────────────────►┘
 radio ─────────────► catalog
 tmtc ──────────────────────────────────────► shared   (uses the ccsds and xtce libraries)
+alarm ──► tmtc                                          (listens to stored parameter values)
 ```
 
 | Module | Responsibility |
@@ -272,6 +309,7 @@ tmtc ─────────────────────────
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
 | `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
 | `tmtc` | telemetry: the TCP link to the spacecraft, the packet and parameter archives, the event log, the mission database, `/satellites/{noradId}/telemetry/packets`, `/parameters` and `/events` |
+| `alarm` | limit checking of received values, the alarm lifecycle, `/satellites/{noradId}/alarms` and acknowledgement |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
 
 Three more Gradle projects sit next to `orbit_service`:
@@ -279,12 +317,13 @@ Three more Gradle projects sit next to `orbit_service`:
 | Project | Responsibility |
 |---|---|
 | `ccsds` | plain-Java library (no dependencies) for CCSDS space packets, PUS-C TM headers, CUC time and the CRC; used by both sides of the link |
-| `xtce` | plain-Java library (no dependencies) that reads an XTCE 1.2 mission database, validated against the official schema, and decodes packets into parameter values |
+| `xtce` | plain-Java library (no dependencies) that reads an XTCE 1.2 mission database, validated against the official schema, and decodes packets into parameter values and checks them against limits |
 | `spacecraft_simulator` | plain-Java program that stands in for the satellite: it sends housekeeping telemetry over TCP |
 
 `pass` finds stations through its `GroundStationSource` interface, which `station` implements, so no two modules
 depend on each other. `catalog` publishes a `CatalogRefreshed` event after every refresh and `radio` listens
-to it, so `catalog` doesn't know `radio` exists. `ModularityTest` fails the build on dependency cycles or on access to another module's
+to it, so `catalog` doesn't know `radio` exists; in the same way `tmtc` publishes `ParameterValuesReceived` and
+doesn't know `alarm` exists. `ModularityTest` fails the build on dependency cycles or on access to another module's
 internals, and writes PlantUML module diagrams to `build/spring-modulith-docs`. The running app describes its
 modules at [http://localhost:8080/actuator/modulith](http://localhost:8080/actuator/modulith).
 

@@ -9,6 +9,8 @@ import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 class GroundStationTest {
 
@@ -48,6 +50,37 @@ class GroundStationTest {
     @Requirement("STN-030")
     void stationAcceptsThePoles() {
         assertThat(invalidFields(new GroundStation("South Pole", -90.0, 0.0, 2835.0, 0.0))).isEmpty();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "90.0, 0.0, 0.0",
+            "-90.0, 0.0, 0.0",
+            "0.0, 180.0, 0.0",
+            "0.0, -180.0, 0.0",
+            "0.0, 0.0, 90.0",
+            "0.0, 0.0, -5.0"
+    })
+    @Requirement("STN-030")
+    void stationAcceptsEveryLimitItself(double latitudeDeg, double longitudeDeg, double minElevationDeg) {
+        assertThat(invalidFields(new GroundStation("Edge", latitudeDeg, longitudeDeg, 0.0, minElevationDeg)))
+                .isEmpty();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "90.000001, 0.0, 0.0, latitudeDeg",
+            "-90.000001, 0.0, 0.0, latitudeDeg",
+            "0.0, 180.000001, 0.0, longitudeDeg",
+            "0.0, -180.000001, 0.0, longitudeDeg",
+            "0.0, 0.0, 90.000001, minElevationDeg",
+            "0.0, 0.0, -5.000001, minElevationDeg"
+    })
+    @Requirement("STN-030")
+    void stationRejectsTheSmallestStepBeyondEveryLimit(double latitudeDeg, double longitudeDeg,
+                                                       double minElevationDeg, String field) {
+        assertThat(invalidFields(new GroundStation("Edge", latitudeDeg, longitudeDeg, 0.0, minElevationDeg)))
+                .containsExactly(field);
     }
 
     private Set<String> invalidFields(GroundStation station) {

@@ -29,6 +29,11 @@ public record EnumeratedParameterType(String name, IntegerEncoding encoding, Map
         return new EnumeratedValue(literal);
     }
 
+    @Override
+    public MonitoringLevel monitor(long raw) {
+        return MonitoringLevel.IN_LIMITS;
+    }
+
     public Optional<String> description(long raw) {
         return Optional.ofNullable(descriptions.get(raw));
     }

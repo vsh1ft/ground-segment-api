@@ -87,4 +87,17 @@ class ParameterControllerTest {
                         """);
         verifyNoInteractions(service);
     }
+
+    @Test
+    @Requirement({"PAR-050", "API-010"})
+    void limitOfOneHundredIsAcceptedAndOneHundredAndOneIsNot() {
+        given(service.values(SATELLITE, "BATTERY_VOLTAGE", new ValuesQuery(100, null, null, null)))
+                .willReturn(new ParameterValuesResponse("BATTERY_VOLTAGE", "V", List.of(), null));
+
+        assertThat(mvc.get().uri("/satellites/99999/parameters/BATTERY_VOLTAGE/values?limit=100")).hasStatusOk();
+        assertThat(mvc.get().uri("/satellites/99999/parameters/BATTERY_VOLTAGE/values?limit=101"))
+                .hasStatus(HttpStatus.BAD_REQUEST).bodyJson().isLenientlyEqualTo("""
+                        {"errors": [{"field": "limit", "message": "must be less than or equal to 100"}]}
+                        """);
+    }
 }

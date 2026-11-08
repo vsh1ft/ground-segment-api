@@ -34,14 +34,18 @@ class XtceReaderTest {
         assertThat(database.name()).isEqualTo("SIMULATOR");
         assertThat(database.parameters()).hasSize(22);
         assertThat(database.parameter("BATTERY_VOLTAGE").orElseThrow().type()).isEqualTo(new FloatParameterType(
-                "voltage_t", "V", new IntegerEncoding(16, false),
-                new PolynomialCalibrator(List.of(new PolynomialCalibrator.Term(1, 0.001)))));
+                "battery_voltage_t", "V", new IntegerEncoding(16, false),
+                new PolynomialCalibrator(List.of(new PolynomialCalibrator.Term(1, 0.001))),
+                new AlarmRanges(new AlarmRange(7.20, true, 7.80, true), new AlarmRange(7.12, true, 7.90, true))));
+        assertThat(((FloatParameterType) database.parameter("EVENT_BATTERY_VOLTAGE").orElseThrow().type()).limits())
+                .isEqualTo(AlarmRanges.NONE);
         assertThat(database.parameter("PLATFORM_TEMPERATURE").orElseThrow().type().encoding())
                 .isEqualTo(new IntegerEncoding(16, true));
         assertThat(database.parameter("SPACECRAFT_MODE").orElseThrow().type()).isEqualTo(new EnumeratedParameterType(
                 "mode_t", new IntegerEncoding(8, false), Map.of(0L, "SAFE", 1L, "NOMINAL"), Map.of()));
         assertThat(database.parameter("APID").orElseThrow().type())
-                .isEqualTo(new IntegerParameterType("uint11_t", null, new IntegerEncoding(11, false)));
+                .isEqualTo(new IntegerParameterType("uint11_t", null, new IntegerEncoding(11, false),
+                        AlarmRanges.NONE));
 
         final var root = database.root();
         assertThat(root.name()).isEqualTo("CCSDS_PACKET");
@@ -106,6 +110,27 @@ class XtceReaderTest {
         assertThat(database.decode(new byte[] {1, 3, 7}).container().name()).isEqualTo("BY_RAW");
         assertThat(database.decode(new byte[] {1, 3, 8}).container().name()).isEqualTo("BY_FLOAT");
         assertThat(database.parameter("ID").orElseThrow().type().unit()).isNull();
+    }
+
+    @Test
+    void staticAlarmRangesAreReadWithOpenAndExclusiveBounds() {
+        final var database = Xtce.read("""
+                        <IntegerParameterType name="uint8_t"><IntegerDataEncoding/>
+                          <DefaultAlarm name="count limits" shortDescription="limits" minViolations="1">
+                            <StaticAlarmRanges name="ranges" shortDescription="static" rangeForm="outside">
+                              <WarningRange minExclusive="10" maxExclusive="20"/>
+                              <CriticalRange minInclusive="5"/>
+                            </StaticAlarmRanges>
+                          </DefaultAlarm>
+                        </IntegerParameterType>
+                        <FloatParameterType name="f_t"><IntegerDataEncoding/><DefaultAlarm/></FloatParameterType>""",
+                ID + "<Parameter name=\"F\" parameterTypeRef=\"f_t\"/>", ROOT);
+
+        assertThat(((IntegerParameterType) database.parameter("ID").orElseThrow().type()).limits()).isEqualTo(
+                new AlarmRanges(new AlarmRange(10, false, 20, false),
+                        new AlarmRange(5, true, Double.POSITIVE_INFINITY, true)));
+        assertThat(((FloatParameterType) database.parameter("F").orElseThrow().type()).limits())
+                .isEqualTo(AlarmRanges.NONE);
     }
 
     @ParameterizedTest(name = "{0}")
@@ -186,6 +211,58 @@ class XtceReaderTest {
                                 </DefaultCalibrator></IntegerDataEncoding></FloatParameterType>"""),
                         "Unsupported XTCE element SplineCalibrator in DefaultCalibrator in IntegerDataEncoding in "
                                 + "FloatParameterType 't'"),
+                arguments("enumeration alarm", types("""
+                                <EnumeratedParameterType name="m"><IntegerDataEncoding/><EnumerationList>
+                                  <Enumeration value="0" label="SAFE"/></EnumerationList>
+                                  <DefaultAlarm><EnumerationAlarmList>
+                                    <EnumerationAlarm alarmLevel="warning" enumerationLabel="SAFE"/>
+                                  </EnumerationAlarmList></DefaultAlarm></EnumeratedParameterType>"""),
+                        "Unsupported XTCE element DefaultAlarm in EnumeratedParameterType 'm'"),
+                arguments("context alarm", types("""
+                                <FloatParameterType name="t"><IntegerDataEncoding/><ContextAlarmList><ContextAlarm>
+                                  <ContextMatch><Comparison parameterRef="ID" value="1"/></ContextMatch>
+                                </ContextAlarm></ContextAlarmList></FloatParameterType>"""),
+                        "Unsupported XTCE element ContextAlarmList in FloatParameterType 't'"),
+                arguments("persistence", types("""
+                                <FloatParameterType name="t"><IntegerDataEncoding/><DefaultAlarm minViolations="3"/>
+                                </FloatParameterType>"""),
+                        "DefaultAlarm in FloatParameterType 't' has minViolations=\"3\"; only \"1\" is supported"),
+                arguments("alarm conditions", types("""
+                                <FloatParameterType name="t"><IntegerDataEncoding/><DefaultAlarm><AlarmConditions>
+                                  <WarningAlarm><Comparison parameterRef="ID" value="1"/></WarningAlarm>
+                                </AlarmConditions></DefaultAlarm>
+                                </FloatParameterType>"""),
+                        "Unsupported XTCE element AlarmConditions in DefaultAlarm in FloatParameterType 't'"),
+                arguments("inside range form", types("""
+                                <FloatParameterType name="t"><IntegerDataEncoding/><DefaultAlarm>
+                                  <StaticAlarmRanges rangeForm="inside"><WarningRange minInclusive="1"/>
+                                  </StaticAlarmRanges></DefaultAlarm></FloatParameterType>"""),
+                        "StaticAlarmRanges in DefaultAlarm in FloatParameterType 't' has rangeForm=\"inside\"; only "
+                                + "\"outside\" is supported"),
+                arguments("watch range", types("""
+                                <FloatParameterType name="t"><IntegerDataEncoding/><DefaultAlarm><StaticAlarmRanges>
+                                  <WatchRange minInclusive="1"/></StaticAlarmRanges></DefaultAlarm>
+                                </FloatParameterType>"""),
+                        "Unsupported XTCE element WatchRange in StaticAlarmRanges in DefaultAlarm in "
+                                + "FloatParameterType 't'"),
+                arguments("inclusive and exclusive", types("""
+                                <FloatParameterType name="t"><IntegerDataEncoding/><DefaultAlarm><StaticAlarmRanges>
+                                  <WarningRange minInclusive="1" minExclusive="1"/></StaticAlarmRanges></DefaultAlarm>
+                                </FloatParameterType>"""),
+                        "WarningRange in StaticAlarmRanges in DefaultAlarm in FloatParameterType 't' has both "
+                                + "minInclusive and minExclusive"),
+                arguments("empty range", types("""
+                                <FloatParameterType name="t"><IntegerDataEncoding/><DefaultAlarm><StaticAlarmRanges>
+                                  <CriticalRange minInclusive="2" maxInclusive="1"/></StaticAlarmRanges></DefaultAlarm>
+                                </FloatParameterType>"""),
+                        "CriticalRange in StaticAlarmRanges in DefaultAlarm in FloatParameterType 't' is empty: "
+                                + "minimum 2.0 is above maximum 1.0"),
+                arguments("ranges not nested", types("""
+                                <FloatParameterType name="t"><IntegerDataEncoding/><DefaultAlarm><StaticAlarmRanges>
+                                  <WarningRange minInclusive="7.0"/><CriticalRange minInclusive="7.12"/>
+                                </StaticAlarmRanges></DefaultAlarm></FloatParameterType>"""),
+                        "StaticAlarmRanges in DefaultAlarm in FloatParameterType 't' is inconsistent: the warning "
+                                + "minimum 7.0 lies outside the critical minimum 7.12"),
                 arguments("duplicate enumeration value", types("""
                                 <EnumeratedParameterType name="m"><IntegerDataEncoding/><EnumerationList>
                                   <Enumeration value="0" label="A"/><Enumeration value="0" label="B"/>

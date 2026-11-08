@@ -25,6 +25,7 @@ import lt.vsh1ft.xtce.EnumeratedValue;
 import lt.vsh1ft.xtce.ParameterValue;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.context.ApplicationEventPublisher;
 
 class TelemetryReceptionTest {
 
@@ -34,8 +35,9 @@ class TelemetryReceptionTest {
     private final TmPacketArchive packets = mock(TmPacketArchive.class);
     private final ParameterArchive parameters = mock(ParameterArchive.class);
     private final EventArchive events = mock(EventArchive.class);
+    private final ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
     private final TelemetryReception reception = new TelemetryReception(packets, parameters, events,
-            SimulatorTelemetry.databases());
+            SimulatorTelemetry.databases(), publisher);
 
     @Test
     @Requirement("PAR-020")
@@ -52,6 +54,8 @@ class TelemetryReceptionTest {
             assertThat(mode.engineering()).isEqualTo(Optional.of(new EnumeratedValue("NOMINAL")));
         });
         verifyNoInteractions(events);
+        verify(publisher).publishEvent(new ParameterValuesReceived(SATELLITE, 12L, LIVE_GENERATED,
+                values.getValue()));
     }
 
     @Test
@@ -62,7 +66,7 @@ class TelemetryReceptionTest {
         reception.receive(SATELLITE, structure2, RECEIVED);
 
         verify(packets).store(SATELLITE, structure2, RECEIVED);
-        verifyNoInteractions(parameters);
+        verifyNoInteractions(parameters, publisher);
     }
 
     @Test

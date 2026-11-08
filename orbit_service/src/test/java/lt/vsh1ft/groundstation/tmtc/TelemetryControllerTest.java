@@ -79,6 +79,34 @@ class TelemetryControllerTest {
     }
 
     @Test
+    @Requirement({"TM-040", "TM-050"})
+    void everyLimitOfTheQueryIsAccepted() {
+        final var largest = new PacketsQuery(100, 1L, null, null, 2047, 255, 255);
+        final var smallest = new PacketsQuery(1, null, null, null, 0, 0, 0);
+        given(archive.packets(SATELLITE, largest)).willReturn(new TmPacketsResponse(List.of(), null));
+        given(archive.packets(SATELLITE, smallest)).willReturn(new TmPacketsResponse(List.of(), null));
+
+        assertThat(mvc.get().uri("/satellites/99999/telemetry/packets?limit=100&before=1&apid=2047&service=255"
+                + "&subtype=255")).hasStatusOk();
+        assertThat(mvc.get().uri("/satellites/99999/telemetry/packets?limit=1&apid=0&service=0&subtype=0"))
+                .hasStatusOk();
+    }
+
+    @Test
+    @Requirement({"TM-040", "TM-050", "API-010"})
+    void valuesJustBelowTheLowerLimitsAreABadRequest() {
+        final var response = mvc.get().uri("/satellites/99999/telemetry/packets"
+                + "?limit=0&apid=-1&service=-1").exchange();
+
+        assertThat(response).hasStatus(HttpStatus.BAD_REQUEST).bodyJson().isLenientlyEqualTo("""
+                {"errors": [{"field": "apid", "message": "must be greater than or equal to 0"},
+                            {"field": "limit", "message": "must be greater than or equal to 1"},
+                            {"field": "service", "message": "must be greater than or equal to 0"}]}
+                """);
+        verifyNoInteractions(archive);
+    }
+
+    @Test
     @Requirement("API-010")
     void nonPositiveNoradIdIsABadRequest() {
         assertThat(mvc.get().uri("/satellites/0/telemetry/packets")).hasStatus(HttpStatus.BAD_REQUEST);

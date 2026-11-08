@@ -67,6 +67,26 @@ class CatalogRefreshTest {
 
     @Test
     @Requirement("CAT-060")
+    void firstRefreshRunsRightAwayWhenTheLastDownloadIsExactlyOneIntervalOld() {
+        given(archive.lastDownload()).willReturn(Optional.of(NOW.minus(INTERVAL)));
+
+        refresh.schedule();
+
+        verify(scheduler).scheduleWithFixedDelay(any(), eq(NOW), eq(INTERVAL));
+    }
+
+    @Test
+    @Requirement("CAT-060")
+    void firstRefreshWaitsOneSecondWhenTheLastDownloadIsOneSecondYoungerThanTheInterval() {
+        given(archive.lastDownload()).willReturn(Optional.of(NOW.minus(INTERVAL).plusSeconds(1)));
+
+        refresh.schedule();
+
+        verify(scheduler).scheduleWithFixedDelay(any(), eq(NOW.plusSeconds(1)), eq(INTERVAL));
+    }
+
+    @Test
+    @Requirement("CAT-060")
     void firstRefreshRunsRightAwayWhenTheLastDownloadIsOlderThanTheInterval() {
         given(archive.lastDownload()).willReturn(Optional.of(NOW.minus(Duration.ofHours(5))));
 

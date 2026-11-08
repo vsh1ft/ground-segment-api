@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
@@ -56,12 +57,47 @@ class ValueTypesTest {
         final var encoding = new IntegerEncoding(8, false);
         final var mode = new EnumeratedParameterType("mode_t", encoding, Map.of(1L, "NOMINAL"), Map.of());
 
-        assertThat(new IntegerParameterType("t", null, encoding).parse("42")).isEqualTo(new IntegerValue(42));
-        assertThat(new FloatParameterType("f", null, encoding, PolynomialCalibrator.IDENTITY).parse("0.5"))
+        assertThat(new IntegerParameterType("t", null, encoding, AlarmRanges.NONE).parse("42"))
+                .isEqualTo(new IntegerValue(42));
+        assertThat(new FloatParameterType("f", null, encoding, PolynomialCalibrator.IDENTITY, AlarmRanges.NONE)
+                .parse("0.5"))
                 .isEqualTo(new FloatValue(0.5));
         assertThat(mode.parse("NOMINAL")).isEqualTo(new EnumeratedValue("NOMINAL"));
         assertThat(mode.unit()).isNull();
         assertThatThrownBy(() -> mode.parse("SAFE")).isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("not a label of mode_t");
+    }
+
+    @Test
+    void integerAndFloatValuesAreNumbersAndEnumeratedValuesAreNot() {
+        assertThat(new IntegerValue(42).number()).contains(42.0);
+        assertThat(new FloatValue(7.2).number()).contains(7.2);
+        assertThat(new EnumeratedValue("SAFE").number()).isEmpty();
+    }
+
+    @Test
+    void integerValuesAreCheckedRawAndFloatValuesAfterCalibration() {
+        final var encoding = new IntegerEncoding(16, false);
+        final var limits = new AlarmRanges(new AlarmRange(10, true, 20, true), new AlarmRange(5, true, 25, true));
+        final var counts = new IntegerParameterType("counts_t", null, encoding, limits);
+        final var volts = new FloatParameterType("volts_t", "V", encoding, new PolynomialCalibrator(List.of(
+                new PolynomialCalibrator.Term(1, 0.01))), limits);
+
+        assertThat(counts.monitor(15)).isEqualTo(MonitoringLevel.IN_LIMITS);
+        assertThat(counts.monitor(21)).isEqualTo(MonitoringLevel.WARNING);
+        assertThat(volts.monitor(1500)).isEqualTo(MonitoringLevel.IN_LIMITS);
+        assertThat(volts.monitor(2600)).isEqualTo(MonitoringLevel.CRITICAL);
+    }
+
+    @Test
+    void enumeratedValuesAreAlwaysInLimitsAndAValueIsCheckedByItsParameterType() {
+        final var encoding = new IntegerEncoding(8, false);
+        final var mode = new EnumeratedParameterType("mode_t", encoding, Map.of(0L, "SAFE"), Map.of());
+        final var limited = new Parameter("COUNT", null, new IntegerParameterType("count_t", null, encoding,
+                new AlarmRanges(AlarmRange.UNBOUNDED, new AlarmRange(0, true, 9, true))));
+
+        assertThat(mode.monitor(0)).isEqualTo(MonitoringLevel.IN_LIMITS);
+        assertThat(new ParameterValue(limited, 10, Optional.of(new IntegerValue(10))).level())
+                .isEqualTo(MonitoringLevel.CRITICAL);
     }
 }
