@@ -112,7 +112,7 @@ class AlarmTest {
     @Test
     @Requirement("ALM-070")
     void lossOfSignalIsATriggeredWarningWithoutParameterOrValue() {
-        final var lost = Alarm.lossOfSignal(SATELLITE, T0);
+        final var lost = Alarm.onLink(AlarmKind.LOSS_OF_SIGNAL, SATELLITE, T0);
 
         assertThat(lost.kind()).isEqualTo(AlarmKind.LOSS_OF_SIGNAL);
         assertThat(lost.level()).isEqualTo(WARNING);
@@ -125,12 +125,24 @@ class AlarmTest {
     @Test
     @Requirement("ALM-070")
     void lossOfSignalFollowsTheSameLifecycle() {
-        final var returned = Alarm.lossOfSignal(SATELLITE, T0).observe(IN_LIMITS, T1);
+        final var returned = Alarm.onLink(AlarmKind.LOSS_OF_SIGNAL, SATELLITE, T0).observe(IN_LIMITS, T1);
         final var again = returned.observe(WARNING, T2);
 
         assertThat(returned.state()).isEqualTo(AlarmState.RETURNED);
         assertThat(again.state()).isEqualTo(AlarmState.TRIGGERED);
         assertThat(again.acknowledge(ACK).observe(IN_LIMITS, T3).state()).isEqualTo(AlarmState.CLEARED);
+    }
+
+    @Test
+    @Requirement("ALM-080")
+    void linkQualityAlarmIsATriggeredWarningWithoutParameterOrValue() {
+        final var degraded = Alarm.onLink(AlarmKind.LINK_QUALITY, SATELLITE, T0);
+
+        assertThat(degraded.kind()).isEqualTo(AlarmKind.LINK_QUALITY);
+        assertThat(degraded.level()).isEqualTo(WARNING);
+        assertThat(degraded.state()).isEqualTo(AlarmState.TRIGGERED);
+        assertThat(degraded.parameter()).isNull();
+        assertThat(degraded.triggerValue()).isNull();
     }
 
     @Test

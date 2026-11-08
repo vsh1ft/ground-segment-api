@@ -19,3 +19,16 @@
     received packet. Silence outside a planned pass shall not be noticed. The silence shall end when a packet
     arrives or the pass ends.
   verification: T
+
+- id: CON-040
+  text: >-
+    The service shall count frames lost before each received frame from gaps in the master channel frame count,
+    modulo 256, only when the previous frame arrived less than 30 seconds earlier.
+  verification: T
+
+- id: CON-050
+  text: >-
+    The service shall keep a link report per planned pass with the frames received, lost, failing the check and
+    idle, write it every 10 seconds and when the pass ends, and list the reports of a satellite newest pass first,
+    at most a requested number (20 by default, 100 at most). Frames outside a planned pass shall be in no report.
+  verification: T

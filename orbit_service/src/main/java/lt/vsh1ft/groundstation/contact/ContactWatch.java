@@ -3,6 +3,7 @@ package lt.vsh1ft.groundstation.contact;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +21,7 @@ public class ContactWatch {
     static final Duration CHECK_PERIOD = Duration.ofSeconds(1);
 
     private final ContactPlanner planner;
+    private final LinkQuality linkQuality;
     private final ContactProperties properties;
     private final TaskScheduler scheduler;
     private final Clock clock;
@@ -63,6 +65,26 @@ public class ContactWatch {
         return visibility;
     }
 
+    public void frameReceived(NoradId from, Instant at, int lostBefore, boolean idle) {
+        if (isLink(from)) {
+            linkQuality.frameReceived(from, passAt(at), at, lostBefore, idle);
+        }
+    }
+
+    public void frameFailedCheck(NoradId from, Instant at) {
+        if (isLink(from)) {
+            linkQuality.frameFailedCheck(from, passAt(at), at);
+        }
+    }
+
+    private synchronized boolean isLink(NoradId from) {
+        return from.equals(satellite);
+    }
+
+    private synchronized Optional<Pass> passAt(Instant at) {
+        return plan.passAt(at);
+    }
+
     void replan() {
         final NoradId linkSatellite;
         final String linkStation;
@@ -79,12 +101,15 @@ public class ContactWatch {
     void check() {
         final var now = clock.instant();
         final Object event;
+        final Optional<Pass> passNow;
         synchronized (this) {
             event = silentPass == null ? silenceStarting(now) : silenceEnding(now);
+            passNow = plan.passAt(now);
         }
         if (event != null) {
             events.publishEvent(event);
         }
+        linkQuality.check(passNow, now);
     }
 
     private SilenceStarted silenceStarting(Instant now) {

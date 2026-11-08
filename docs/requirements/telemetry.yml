@@ -13,9 +13,9 @@
 
 - id: TM-030
   text: >-
-    A packet that cannot be decoded (wrong version, packet type, segmentation, length or CRC) shall not be
-    archived; the service shall close the connection and reconnect, so that reading starts again at a packet
-    boundary.
+    A frame that fails its frame error control check shall be dropped and counted, and reading shall go on with
+    the next frame on the same connection; a packet that cannot be decoded (wrong version, packet type,
+    segmentation, length or CRC) shall not be archived.
   verification: T
 
 - id: TM-040
@@ -31,4 +31,11 @@
   text: >-
     The packet list shall be filterable by generation time (from inclusive, to exclusive), APID, PUS service type
     and PUS message subtype.
+  verification: T
+
+- id: TM-060
+  text: >-
+    The service shall rebuild packets per virtual channel, joining packets that span frames and, after a lost frame,
+    starting again at the first header pointer of the next frame. Idle frames and idle packets (APID 2047) shall
+    carry no telemetry, and frames of another spacecraft than the link's shall be dropped.
   verification: T

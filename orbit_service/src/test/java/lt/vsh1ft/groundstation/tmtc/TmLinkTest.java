@@ -16,7 +16,9 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
 
+import lt.vsh1ft.ccsds.FrameSynchronizer;
 import lt.vsh1ft.ccsds.TmPacket;
+import lt.vsh1ft.ccsds.VirtualChannelFramer;
 import lt.vsh1ft.groundstation.contact.ContactWatch;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
@@ -56,11 +58,12 @@ class TmLinkTest {
         link = start(simulator.getLocalPort());
 
         try (var connection = simulator.accept()) {
-            connection.getOutputStream().write(concat(REFERENCE, REFERENCE));
+            connection.getOutputStream().write(concat(cadu(0), cadu(1)));
 
             verify(reception, timeout(WAIT_MS).times(2)).receive(SATELLITE, TmPacket.decode(REFERENCE), NOW);
         }
         verify(contacts).watch(SATELLITE, "Vilnius");
+        verify(contacts, times(2)).frameReceived(SATELLITE, NOW, 0, false);
     }
 
     @Test
@@ -69,10 +72,10 @@ class TmLinkTest {
         link = start(simulator.getLocalPort());
 
         try (var first = simulator.accept()) {
-            first.getOutputStream().write(REFERENCE);
+            first.getOutputStream().write(cadu(0));
         }
         try (var second = simulator.accept()) {
-            second.getOutputStream().write(REFERENCE);
+            second.getOutputStream().write(cadu(0));
 
             verify(reception, timeout(WAIT_MS).times(2)).receive(SATELLITE, TmPacket.decode(REFERENCE), NOW);
         }
@@ -88,27 +91,27 @@ class TmLinkTest {
 
         simulator = new ServerSocket(port);
         try (var connection = simulator.accept()) {
-            connection.getOutputStream().write(REFERENCE);
+            connection.getOutputStream().write(cadu(0));
 
             verify(reception, timeout(WAIT_MS)).receive(SATELLITE, TmPacket.decode(REFERENCE), NOW);
         }
     }
 
     @Test
-    @Requirement("TM-030")
-    void corruptedPacketIsNotArchivedAndTheLinkStartsOverOnANewConnection() throws IOException {
-        final var corrupted = REFERENCE.clone();
-        corrupted[19] = 0x00;
+    @Requirement({"TM-030", "IF-070"})
+    void corruptedFrameIsDroppedAndTheNextFrameOnTheSameConnectionIsRead() throws IOException {
+        final var corrupted = cadu(0);
+        corrupted[30] ^= 0x10;
         link = start(simulator.getLocalPort());
 
-        try (var first = simulator.accept()) {
-            first.getOutputStream().write(concat(corrupted, REFERENCE));
-        }
-        try (var second = simulator.accept()) {
-            second.getOutputStream().write(REFERENCE);
+        try (var connection = simulator.accept()) {
+            final var garbage = new byte[] {0x1A, (byte) 0xCF, 0x00, 0x42};
+            connection.getOutputStream().write(concat(garbage, concat(corrupted, cadu(1))));
 
             verify(reception, timeout(WAIT_MS)).receive(SATELLITE, TmPacket.decode(REFERENCE), NOW);
+            verify(contacts, timeout(WAIT_MS)).frameReceived(SATELLITE, NOW, 0, false);
         }
+        verify(contacts).frameFailedCheck(SATELLITE, NOW);
         verify(reception, times(1)).receive(any(), any(), any());
     }
 
@@ -125,11 +128,17 @@ class TmLinkTest {
     }
 
     private TmLink start(int port) {
-        final var properties = new TmLinkProperties(SATELLITE.value(), "Vilnius", "localhost", port,
+        final var properties = new TmLinkProperties(SATELLITE.value(), "Vilnius", 42, 64, "localhost", port,
                 Duration.ofMillis(200), Duration.ofMillis(50), null);
         final var started = new TmLink(properties, reception, contacts, Clock.fixed(NOW, ZoneOffset.UTC));
         started.start();
         return started;
+    }
+
+    static byte[] cadu(int masterChannelFrameCount) {
+        final var framer = new VirtualChannelFramer(42, 0, 56);
+        framer.add(REFERENCE);
+        return FrameSynchronizer.cadu(framer.paddedFrame(masterChannelFrameCount).encode());
     }
 
     private static byte[] concat(byte[] first, byte[] second) {

@@ -9,7 +9,7 @@ import java.util.concurrent.Executors;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lt.vsh1ft.ccsds.TmPacketReader;
+import lt.vsh1ft.ccsds.FrameSynchronizer;
 import lt.vsh1ft.groundstation.contact.ContactWatch;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.context.SmartLifecycle;
@@ -64,9 +64,10 @@ class TmLink implements SmartLifecycle {
                     (int) properties.connectTimeout().toMillis());
             log.info("TM link connected to {}:{}", properties.host(), properties.port());
             downReported = false;
-            final var reader = new TmPacketReader(socket.getInputStream());
-            for (var packet = reader.next(); packet.isPresent(); packet = reader.next()) {
-                reception.receive(satellite, packet.get(), clock.instant());
+            final var frames = new FrameDemultiplexer(satellite, properties.spacecraftId(), reception, contacts);
+            final var synchronizer = new FrameSynchronizer(socket.getInputStream(), properties.frameLength());
+            for (var frame = synchronizer.next(); frame.isPresent(); frame = synchronizer.next()) {
+                frames.receive(frame.get(), clock.instant());
             }
             reportDown("closed by the simulator");
         } catch (IOException | RuntimeException e) {

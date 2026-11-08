@@ -19,11 +19,24 @@
   text: >-
     The service shall decode telemetry as laid out in the TM link ICD (docs/icd/tm-link.md): CCSDS space packets
     (CCSDS 133.0-B-2) with PUS-C telemetry secondary headers (ECSS-E-ST-70-41C) and a CRC-16-CCITT packet error
-    control field, sent back to back over TCP.
+    control field, carried in TM transfer frames over TCP.
   verification: T
 
 - id: IF-050
   text: >-
     Packet generation times shall be read as CUC time with 4 bytes of coarse and 2 bytes of fine time, counted in
     TAI seconds since 1958-01-01, and served in UTC.
+  verification: T
+
+- id: IF-060
+  text: >-
+    The service shall read TM transfer frames (CCSDS 132.0-B) as laid out in the TM link ICD: 64 bytes, a primary
+    header with spacecraft ID, virtual channel, master and virtual channel frame counts and first header pointer, no
+    operational control field or secondary header, and a CRC-16-CCITT frame error control field.
+  verification: T
+
+- id: IF-070
+  text: >-
+    The service shall find frames by the attached sync marker 1ACFFC1D and derandomize them with the CCSDS 131.0-B
+    pseudo-randomizer; when the marker doesn't follow a frame, it shall search the stream for the next marker.
   verification: T

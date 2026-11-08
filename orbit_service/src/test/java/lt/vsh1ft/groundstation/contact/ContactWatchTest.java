@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Optional;
 
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
@@ -36,10 +37,11 @@ class ContactWatchTest {
 
     private final SettableClock clock = new SettableClock(STARTED);
     private final ContactPlanner planner = mock(ContactPlanner.class);
+    private final LinkQuality linkQuality = mock(LinkQuality.class);
     private final TaskScheduler scheduler = mock(TaskScheduler.class);
     private final ApplicationEventPublisher events = mock(ApplicationEventPublisher.class);
-    private final ContactWatch watch = new ContactWatch(planner, new ContactProperties(THRESHOLD, PLAN_INTERVAL),
-            scheduler, clock, events);
+    private final ContactWatch watch = new ContactWatch(planner, linkQuality,
+            new ContactProperties(THRESHOLD, PLAN_INTERVAL, 0.05), scheduler, clock, events);
 
     @Test
     @Requirement("CON-010")
@@ -175,6 +177,42 @@ class ContactWatchTest {
         checkAt(next.start().time().plusSeconds(10));
 
         verify(events).publishEvent(new SilenceStarted(SATELLITE, next.start().time().plusSeconds(10)));
+    }
+
+    @Test
+    @Requirement("CON-050")
+    void framesOfTheLinkAreTalliedWithThePassTheyArrivedIn() {
+        watching(PLAN);
+
+        watch.frameReceived(SATELLITE, AOS, 2, true);
+        watch.frameFailedCheck(SATELLITE, LOS);
+
+        verify(linkQuality).frameReceived(SATELLITE, Optional.of(PASS), AOS, 2, true);
+        verify(linkQuality).frameFailedCheck(SATELLITE, Optional.empty(), LOS);
+    }
+
+    @Test
+    @Requirement("CON-050")
+    void framesOfAnotherSatelliteAreNotTallied() {
+        watching(PLAN);
+        final var other = new NoradId(25544);
+
+        watch.frameReceived(other, AOS, 0, false);
+        watch.frameFailedCheck(other, AOS);
+
+        verifyNoInteractions(linkQuality);
+    }
+
+    @Test
+    @Requirement("CON-050")
+    void everyCheckJudgesTheLinkWithThePassOfThatMoment() {
+        watching(PLAN);
+
+        checkAt(AOS.plusSeconds(1));
+        checkAt(LOS);
+
+        verify(linkQuality).check(Optional.of(PASS), AOS.plusSeconds(1));
+        verify(linkQuality).check(Optional.empty(), LOS);
     }
 
     private void watching(ContactPlan plan) {

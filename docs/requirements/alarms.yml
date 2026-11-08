@@ -47,3 +47,11 @@
     count as being back in limits, and a new silence while the alarm is RETURNED shall make it TRIGGERED again.
     Limit alarms shall have the kind LIMIT.
   verification: T
+
+- id: ALM-080
+  text: >-
+    When more than a configurable share of the frames of the current pass is lost, 5 % by default, judged once at
+    least 100 frames of the pass were expected, the service shall raise a WARNING alarm of kind LINK_QUALITY, with
+    at most one open per satellite. The share falling back to the limit or the end of the pass shall count as back
+    in limits.
+  verification: T

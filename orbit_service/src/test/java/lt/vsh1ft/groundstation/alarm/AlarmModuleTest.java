@@ -14,6 +14,8 @@ import java.util.List;
 
 import lt.vsh1ft.groundstation.ClockConfig;
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
+import lt.vsh1ft.groundstation.contact.LinkDegraded;
+import lt.vsh1ft.groundstation.contact.LinkRecovered;
 import lt.vsh1ft.groundstation.contact.SilenceEnded;
 import lt.vsh1ft.groundstation.contact.SilenceStarted;
 import lt.vsh1ft.groundstation.shared.NoradId;
@@ -165,6 +167,35 @@ class AlarmModuleTest {
         doAnswer(invocation -> jdbc.queryForObject("SELECT 1 / 0", Integer.class)).when(archive).open(any(), any());
 
         publisher.publishEvent(new SilenceEnded(SATELLITE, T0.plusSeconds(30)));
+
+        assertThat(jdbc.queryForObject("SELECT count(*) FROM alarm", Integer.class)).isZero();
+    }
+
+    @Test
+    @Requirement("ALM-080")
+    void degradedLinkRaisesALinkQualityAlarmBesideALossOfSignal() {
+        publisher.publishEvent(new LinkDegraded(SATELLITE, T0.plusSeconds(30)));
+        publisher.publishEvent(new SilenceStarted(SATELLITE, T0.plusSeconds(40)));
+        publisher.publishEvent(new LinkRecovered(SATELLITE, T0.plusSeconds(60)));
+
+        assertThat(alarms.open(SATELLITE).alarms())
+                .extracting(AlarmResponse::kind, AlarmResponse::state, AlarmResponse::returnedAt)
+                .containsExactly(tuple(AlarmKind.LOSS_OF_SIGNAL, AlarmState.TRIGGERED, null),
+                        tuple(AlarmKind.LINK_QUALITY, AlarmState.RETURNED, T0.plusSeconds(60)));
+
+        publisher.publishEvent(new LinkDegraded(SATELLITE, T0.plusSeconds(5700)));
+
+        assertThat(alarms.open(SATELLITE).alarms()).filteredOn(alarm -> alarm.kind() == AlarmKind.LINK_QUALITY)
+                .singleElement().satisfies(alarm -> assertThat(alarm.state()).isEqualTo(AlarmState.TRIGGERED));
+    }
+
+    @Test
+    @Requirement("ALM-080")
+    void failedLinkQualityUpdateIsLoggedAndNotThrown() {
+        doAnswer(invocation -> jdbc.queryForObject("SELECT 1 / 0", Integer.class)).when(archive).open(any(), any());
+
+        publisher.publishEvent(new LinkDegraded(SATELLITE, T0));
+        publisher.publishEvent(new LinkRecovered(SATELLITE, T0.plusSeconds(30)));
 
         assertThat(jdbc.queryForObject("SELECT count(*) FROM alarm", Integer.class)).isZero();
     }

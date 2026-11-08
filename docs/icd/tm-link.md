@@ -2,20 +2,22 @@
 
 | | |
 |---|---|
-| Document | ICD-TM-001, issue 3 (2026-11-08) |
+| Document | ICD-TM-001, issue 4 (2026-11-08) |
 | Interface | `spacecraft_simulator` (provider) to `orbit_service` module `tmtc` (user) |
 | Code | `ccsds` module, shared by both sides |
 | Mission database | `orbit_service/src/main/resources/mdb/simulator.xml` (XTCE 1.2): sections 3 and 4 in machine-readable form |
-| Requirements | IF-040, IF-050, TM-010 to TM-050, PAR-010 to PAR-050, EVT-010 to EVT-030 (`docs/requirements/`) |
+| Requirements | IF-040 to IF-070, TM-010 to TM-060, PAR-010 to PAR-050, EVT-010 to EVT-030 (`docs/requirements/`) |
 
 ## 1. Scope
 
 This document fixes every bit that crosses the telemetry link between the spacecraft simulator and the ground
-software. In this issue the link carries telemetry only (no telecommands) and the packets travel without
-transfer frames. CCSDS TM transfer frames (CCSDS 132.0-B) are planned for a later issue.
+software. In this issue the link carries telemetry only (no telecommands). Packets travel in CCSDS TM transfer
+frames (section 2.1), each preceded by an attached sync marker and randomized (section 2.2).
 
 Reference documents:
 
+- CCSDS 131.0-B *TM Synchronization and Channel Coding* (attached sync marker, pseudo-randomizer)
+- CCSDS 132.0-B *TM Space Data Link Protocol* (transfer frames)
 - CCSDS 133.0-B-2 *Space Packet Protocol*
 - CCSDS 301.0-B-4 *Time Code Formats*
 - ECSS-E-ST-70-41C *Telemetry and telecommand packet utilization* (PUS-C)
@@ -28,13 +30,50 @@ Reference documents:
 | Protocol | TCP |
 | Server | the simulator, port `10015` (`SIMULATOR_TM_PORT`) |
 | Client | the ground software (`groundstation.tmtc.link.host` / `.port`) |
-| Spacecraft identification | not in the packets (a space packet has no spacecraft ID); the client assigns the link a NORAD ID (`groundstation.tmtc.link.norad-id`, `99999` for the simulator) and archives every packet under it |
-| Stream content | space packets back to back, with no delimiters, padding or idle data in between |
-| Packet boundaries | found from the packet data length field of each primary header |
+| Spacecraft identification | spacecraft ID `42` in every frame header; the client drops frames of other spacecraft (`groundstation.tmtc.link.spacecraft-id`) and assigns the link a NORAD ID (`groundstation.tmtc.link.norad-id`, `99999` for the simulator), under which it archives every packet |
+| Stream content | CADUs back to back: the 4-byte attached sync marker, then a 64-byte randomized transfer frame |
+| Frame rate | 4 frames per second while the spacecraft is in view, idle frames included; no frames out of view |
+| Frame boundaries | found by the attached sync marker |
 | Several clients | allowed; every connected client receives every packet |
 | Packets sent while no client is connected | lost; there is no store and forward |
 | Reconnection | by the client, after `groundstation.tmtc.link.reconnect-delay` (5 s) |
-| Error handling | a client that can't decode a packet closes the connection and reconnects, so that it starts again at a packet boundary |
+| Error handling | a frame failing its frame error control is dropped; when no marker follows a frame, the client searches the stream for the next one; the connection stays open |
+| Test impairment | the simulator drops `SIMULATOR_FRAME_DROP_RATE` and corrupts (one bit flipped) `SIMULATOR_FRAME_CORRUPT_RATE` of the frames, 0 by default |
+
+### 2.1 Transfer frames (CCSDS 132.0-B)
+
+Every frame is 64 bytes: a 6-byte primary header, a 56-byte data field and a 2-byte frame error control field
+(FECF).
+
+| Bits | Field | Value |
+|---|---|---|
+| 2 | transfer frame version | `00` |
+| 10 | spacecraft ID | `42` |
+| 3 | virtual channel ID | `0` housekeeping, `1` event reports, `7` idle frames |
+| 1 | operational control field flag | `0` |
+| 8 | master channel frame count | +1 per frame, idle frames included; wraps at 256 |
+| 8 | virtual channel frame count | +1 per frame of the virtual channel; wraps at 256 |
+| 1 | secondary header flag | `0` |
+| 1 | synchronisation flag | `0` |
+| 1 | packet order flag | `0` |
+| 2 | segment length ID | `11` |
+| 11 | first header pointer | offset of the first packet starting in the data field; `0x7FF` none starts; `0x7FE` idle data only |
+
+The FECF is the CRC-16-CCITT of section 3.4 over the 62 bytes before it.
+
+Each virtual channel carries its packets as one continuous byte stream; a packet that doesn't fit continues in the
+next frame of the same virtual channel. VC0 sends a frame only when 56 bytes are waiting. VC1 sends at the next
+frame slot and fills the rest of the data field with an idle packet (APID `0x7FF`, no secondary header, fill
+`0x55`); an idle packet needs at least 7 bytes and otherwise continues into the next VC1 frame. Each frame slot
+(every 250 ms) sends a VC1 frame if an event report is waiting, otherwise a full VC0 frame if one is ready,
+otherwise an idle frame on VC7 (first header pointer `0x7FE`, data `0x55`). Data waiting while the spacecraft is out
+of view is dropped.
+
+### 2.2 Synchronisation and randomization (CCSDS 131.0-B)
+
+Every frame is preceded by the attached sync marker `1A CF FC 1D`. The frame (not the marker) is XORed, after the
+FECF is computed, with the CCSDS pseudo-random sequence: generator x⁸ + x⁷ + x⁵ + x³ + 1, initial state all ones,
+period 255 bytes, starting `FF 48 0E C0 9A 0D 70 BC`, restarted for every frame.
 
 ## 3. Packet layout
 
@@ -185,3 +224,4 @@ Event report `BATTERY_LOW` at 2026-11-08T09:00:00Z, battery at 7149 mV, sequence
 | 1 | 2026-11-08 | first issue: TM over TCP, housekeeping structure 1 |
 | 2 | 2026-11-08 | mission database (XTCE) referenced as the machine-readable form of sections 3 and 4; spacecraft identification by link configuration |
 | 3 | 2026-11-08 | event reports TM[5,1] to TM[5,4] (section 4.2, second example); configurable orbit period |
+| 4 | 2026-11-08 | TM transfer frames, attached sync marker and randomization (sections 2.1, 2.2) replace bare packets; frames are sent only while the spacecraft is in view of the station |

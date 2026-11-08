@@ -13,7 +13,8 @@ public record AlarmResponse(
         long id,
 
         @Schema(description = "What raised the alarm: LIMIT, a parameter value outside its limits, or "
-                + "LOSS_OF_SIGNAL, no telemetry during a planned pass", example = "LIMIT")
+                + "LOSS_OF_SIGNAL, no telemetry during a planned pass, or LINK_QUALITY, too many transfer frames "
+                + "lost in a pass", example = "LIMIT")
         AlarmKind kind,
 
         @Schema(description = "Parameter name; null for a loss of signal", example = "BATTERY_VOLTAGE",

@@ -1,0 +1,8 @@
+package lt.vsh1ft.groundstation.contact;
+
+import java.time.Instant;
+
+import lt.vsh1ft.groundstation.shared.NoradId;
+
+public record LinkRecovered(NoradId satellite, Instant at) {
+}

@@ -160,9 +160,15 @@ GET /satellites/99999/telemetry/packets?limit=20&from=2026-11-07T22:00:00Z&apid=
 
 The service connects to the spacecraft simulator over TCP and archives every telemetry packet it receives: CCSDS
 space packets with PUS-C secondary headers, laid out as described in the
-[TM link ICD](docs/icd/tm-link.md). A space packet doesn't say which spacecraft sent it, so the link is assigned
-a NORAD ID in the configuration (`groundstation.tmtc.link.norad-id`, 99999 for the simulator) and every packet is
-archived under it. The satellite doesn't have to be in the catalog.
+[TM link ICD](docs/icd/tm-link.md). The packets travel in 64-byte CCSDS TM transfer frames, four per second, each
+behind the `1A CF FC 1D` sync marker and randomized as on a real downlink. Housekeeping travels on virtual channel
+0, event reports on virtual channel 1, and idle frames fill the gaps. The ground finds frames by the marker, drops
+frames that fail their error check and searches for the next marker without reconnecting, and rebuilds packets
+that span frames; after a lost frame it starts again at the next packet start. A space packet doesn't say which
+spacecraft sent it, so the link is assigned a NORAD ID in the configuration (`groundstation.tmtc.link.norad-id`,
+99999 for the simulator) and every packet is archived under it; frames carry spacecraft ID 42, and frames of other
+spacecraft are dropped. The satellite doesn't have to be in the catalog. The
+[TM frames tutorial](docs/tutorial/tm-frames.md) explains the frame layer.
 
 Packets are listed most recently archived first; `raw` is the whole packet in hex. Every filter is optional:
 `from` (inclusive) and `to` (exclusive) on the generation time, `apid`, `service` and `subtype`. For the next,
@@ -187,6 +193,32 @@ packet gets a `visibility` from its reception time: `IN_PASS` during a predicted
 that station, `OUTSIDE_PASS` otherwise, and `UNKNOWN` when no station has that name or the satellite has no orbit.
 Packets are stored whatever their visibility; an `OUTSIDE_PASS` packet points to a stale TLE or a wrong station
 position. Packets received before visibility existed are `UNKNOWN`.
+
+### Link reports
+
+```
+GET /satellites/99999/link-reports?limit=20
+```
+
+The frame counters show how well the link worked. For each predicted pass the service keeps a report of the frames
+received, the frames lost (gaps in the master channel frame count), how many of those failed the error check, and
+the idle frames. The report of a pass in progress is written every 10 seconds and once more at the end of the pass.
+In a live run with the simulator dropping 5 % and corrupting 3 % of the frames, a whole pass came out as:
+
+```
+{
+  "reports": [
+    {"passStart": "2026-11-08T19:09:56.490001Z", "passEnd": "2026-11-08T19:17:28.280545Z",
+     "framesReceived": 1677, "framesLost": 130, "framesFailedCheck": 42, "idleFrames": 1479,
+     "lossRatio": 0.07194244604316546, "updatedAt": "2026-11-08T19:17:28.280545Z"}
+  ]
+}
+```
+
+1677 + 130 frames in 452 seconds is the link's four frames per second. When more than 5 % of a pass's frames are
+lost (`groundstation.contact.max-frame-loss`), judged once 100 frames were expected, the service raises a
+`LINK_QUALITY` warning. In that run it was raised 25 seconds into the pass and returned at the predicted end of the
+pass.
 
 ### Parameters
 
@@ -280,7 +312,9 @@ dip between two passes can't go unnoticed. The first endpoint lists the open ala
 In that run the battery warning came 10 seconds before the spacecraft's own `BATTERY_LOW` event. Acknowledging
 alarm 2 returned it as `CLEARED` and removed it from the list; acknowledging it again is a 409.
 
-Silence on the link during a predicted pass is an alarm too. When no packet has arrived for 10 seconds
+Two alarm kinds watch the link itself: `LINK_QUALITY` when too many frames are lost (see
+[Link reports](#link-reports)), and `LOSS_OF_SIGNAL` when nothing arrives. Silence on the link during a predicted
+pass is an alarm too. When no packet has arrived for 10 seconds
 (`groundstation.contact.silence-threshold`), measured from the start of the pass or the last packet, the service
 raises a `LOSS_OF_SIGNAL` warning with no parameter and no value. It returns when packets arrive again or the pass
 ends, and latches like a limit alarm. Silence between passes is normal and raises nothing.
@@ -346,7 +380,7 @@ alarm ──► tmtc, contact                                 (listens to stored
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
 | `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
 | `tmtc` | telemetry: the TCP link to the spacecraft, the packet and parameter archives, the event log, the mission database, `/satellites/{noradId}/telemetry/packets`, `/parameters` and `/events` |
-| `contact` | the contact plan of the TM link (its satellite's passes over its station), packet visibility and the silence watch |
+| `contact` | the contact plan of the TM link (its satellite's passes over its station), packet visibility, the silence watch, frame loss per pass and `/satellites/{noradId}/link-reports` |
 | `alarm` | limit checking of received values, loss-of-signal alarms, the alarm lifecycle, `/satellites/{noradId}/alarms` and acknowledgement |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
 
@@ -354,7 +388,7 @@ Three more Gradle projects sit next to `orbit_service`:
 
 | Project | Responsibility |
 |---|---|
-| `ccsds` | plain-Java library (no dependencies) for CCSDS space packets, PUS-C TM headers, CUC time and the CRC; used by both sides of the link |
+| `ccsds` | plain-Java library (no dependencies) for CCSDS space packets, PUS-C TM headers, CUC time, the CRC, TM transfer frames, the sync marker and randomizer, and packing packets into frames and back; used by both sides of the link |
 | `xtce` | plain-Java library (no dependencies) that reads an XTCE 1.2 mission database, validated against the official schema, and decodes packets into parameter values and checks them against limits |
 | `spacecraft_simulator` | plain-Java program that stands in for the satellite: it sends housekeeping telemetry over TCP, and with a TLE only while it is in view of the station (Orekit) |
 
@@ -407,7 +441,9 @@ SIMULATOR_STATION_ALTITUDE=114 SIMULATOR_STATION_MIN_ELEVATION=5 \
 ```
 
 Upload the same TLE to the service (see [Satellites](#satellites)) so that both predict the same passes.
-`SIMULATOR_OREKIT_DATA` points to the Orekit data, `orekit-data` by default.
+`SIMULATOR_OREKIT_DATA` points to the Orekit data, `orekit-data` by default. `SIMULATOR_FRAME_DROP_RATE` and
+`SIMULATOR_FRAME_CORRUPT_RATE` (0 to 1, 0 by default) drop or corrupt that share of the frames, to see the link
+reports and the link-quality alarm at work.
 
 ## Tests
 

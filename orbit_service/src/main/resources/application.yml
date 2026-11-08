@@ -48,6 +48,8 @@ groundstation:
     link:
       norad-id: 99999
       station: Vilnius
+      spacecraft-id: 42
+      frame-length: 64
       host: localhost
       port: 10015
       connect-timeout: 2s
@@ -57,3 +59,4 @@ groundstation:
   contact:
     silence-threshold: 10s
     plan-interval: 10m
+    max-frame-loss: 0.05

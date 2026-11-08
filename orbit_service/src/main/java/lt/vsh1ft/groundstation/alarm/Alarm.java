@@ -39,9 +39,9 @@ record Alarm(
                 value, null, null, null);
     }
 
-    static Alarm lossOfSignal(NoradId satellite, Instant at) {
-        return new Alarm(null, null, satellite.value(), AlarmKind.LOSS_OF_SIGNAL, null, MonitoringLevel.WARNING,
-                AlarmState.TRIGGERED, at, null, null, null, null);
+    static Alarm onLink(AlarmKind kind, NoradId satellite, Instant at) {
+        return new Alarm(null, null, satellite.value(), kind, null, MonitoringLevel.WARNING, AlarmState.TRIGGERED, at,
+                null, null, null, null);
     }
 
     Alarm observe(MonitoringLevel observed, Instant at) {
