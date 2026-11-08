@@ -32,3 +32,10 @@
     exclusive), with at most a requested number of values (20 by default, 100 at most) and a cursor to the next,
     older page.
   verification: T
+
+- id: PAR-060
+  text: >-
+    Mission databases shall support little-endian integers, integers of up to 64 bits, fixed-size US-ASCII strings
+    ending at their first zero byte, absolute times as a scaled count from an epoch, and fixed gaps before container
+    entries.
+  verification: T

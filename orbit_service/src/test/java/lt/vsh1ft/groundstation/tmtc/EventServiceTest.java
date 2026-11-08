@@ -68,6 +68,7 @@ class EventServiceTest {
     }
 
     private static StoredParameterValue value(long packetId, String parameter, long raw, Double number, String text) {
-        return new StoredParameterValue(null, SATELLITE.value(), packetId, parameter, GENERATED, raw, number, text);
+        return new StoredParameterValue(null, SATELLITE.value(), packetId, null, parameter, GENERATED, raw, number,
+                text);
     }
 }

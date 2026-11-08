@@ -4,10 +4,12 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lt.vsh1ft.xtce.AbsoluteTimeParameterType;
 import lt.vsh1ft.xtce.EnumeratedParameterType;
 import lt.vsh1ft.xtce.FloatParameterType;
 import lt.vsh1ft.xtce.IntegerParameterType;
 import lt.vsh1ft.xtce.Parameter;
+import lt.vsh1ft.xtce.StringParameterType;
 
 @Schema(description = "A telemetry parameter defined in the satellite's mission database")
 public record ParameterResponse(
@@ -36,11 +38,16 @@ public record ParameterResponse(
                     new ParameterResponse(parameter.name(), parameter.description(), Kind.FLOAT, type.unit(), null);
             case EnumeratedParameterType type -> new ParameterResponse(parameter.name(), parameter.description(),
                     Kind.ENUMERATED, null, new TreeMap<>(type.labels()));
+            case StringParameterType type ->
+                    new ParameterResponse(parameter.name(), parameter.description(), Kind.STRING, null, null);
+            case AbsoluteTimeParameterType type ->
+                    new ParameterResponse(parameter.name(), parameter.description(), Kind.TIME, null, null);
         };
     }
 
-    @Schema(description = "INTEGER: whole numbers; FLOAT: calibrated numbers; ENUMERATED: labels")
+    @Schema(description = "INTEGER: whole numbers; FLOAT: calibrated numbers; ENUMERATED: labels; STRING: text; "
+            + "TIME: absolute times in UTC")
     public enum Kind {
-        INTEGER, FLOAT, ENUMERATED
+        INTEGER, FLOAT, ENUMERATED, STRING, TIME
     }
 }

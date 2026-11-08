@@ -2,6 +2,8 @@ package lt.vsh1ft.groundstation.tmtc;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
@@ -15,18 +17,31 @@ import org.springframework.stereotype.Component;
 @Component
 class MissionDatabases {
 
-    private final NoradId satellite;
-    private final MissionDatabase database;
+    private final Map<NoradId, MissionDatabase> databases = new HashMap<>();
+    private final Map<NoradId, FrameCheck> frameChecks = new HashMap<>();
 
-    MissionDatabases(TmLinkProperties link) {
-        satellite = link.satellite();
-        database = read(link.missionDatabase());
-        log.info("Mission database {} for satellite {}: {} parameters", database.name(), satellite,
-                database.parameters().size());
+    MissionDatabases(TmLinkProperties link, TmtcProperties tmtc) {
+        add(link.satellite(), link.missionDatabase(), FrameCheck.NONE);
+        tmtc.missionDatabases().forEach(database ->
+                add(new NoradId(database.noradId()), database.location(), database.frameCheck()));
     }
 
     Optional<MissionDatabase> of(NoradId satellite) {
-        return this.satellite.equals(satellite) ? Optional.of(database) : Optional.empty();
+        return Optional.ofNullable(databases.get(satellite));
+    }
+
+    FrameCheck frameCheck(NoradId satellite) {
+        return frameChecks.getOrDefault(satellite, FrameCheck.NONE);
+    }
+
+    private void add(NoradId satellite, Resource xtce, FrameCheck frameCheck) {
+        final var database = read(xtce);
+        if (databases.putIfAbsent(satellite, database) != null) {
+            throw new IllegalStateException("Satellite " + satellite + " has more than one mission database");
+        }
+        frameChecks.put(satellite, frameCheck);
+        log.info("Mission database {} for satellite {}: {} parameters", database.name(), satellite,
+                database.parameters().size());
     }
 
     private static MissionDatabase read(Resource xtce) {

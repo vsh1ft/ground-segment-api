@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.within;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -81,7 +83,7 @@ class MissionDatabaseTest {
         final var id = new Parameter("ID", null, new IntegerParameterType("uint8_t", null,
                 new IntegerEncoding(8, false), AlarmRanges.NONE));
         final var one = new Comparison(id, new IntegerValue(1), true);
-        final var root = new SequenceContainer("ROOT", true, List.of(id), List.of(
+        final var root = new SequenceContainer("ROOT", true, List.of(new SequenceContainer.Entry(id)), List.of(
                 new SequenceContainer.Child(new SequenceContainer("A", false, List.of(), List.of()), List.of(one)),
                 new SequenceContainer.Child(new SequenceContainer("B", false, List.of(), List.of()), List.of(one))));
 
@@ -95,7 +97,7 @@ class MissionDatabaseTest {
         final var mode = new Parameter("MODE", null, new EnumeratedParameterType("mode_t",
                 new IntegerEncoding(8, false), Map.of(1L, "NOMINAL"), Map.of()));
         final var raw = new Comparison(mode, new IntegerValue(1), false);
-        final var root = new SequenceContainer("ROOT", true, List.of(mode), List.of(
+        final var root = new SequenceContainer("ROOT", true, List.of(new SequenceContainer.Entry(mode)), List.of(
                 new SequenceContainer.Child(new SequenceContainer("NOMINAL_ONLY", false, List.of(), List.of()),
                         List.of(raw))));
 
@@ -144,7 +146,7 @@ class MissionDatabaseTest {
     void containersAreFoundByNameAnywhereInTheTree() {
         assertThat(HOUSEKEEPING.container("CCSDS_PACKET")).hasValue(HOUSEKEEPING.root());
         assertThat(HOUSEKEEPING.container("EVENT_TEMPERATURE_HIGH")).hasValueSatisfying(container ->
-                assertThat(container.entries()).extracting(Parameter::name).containsExactly("EVENT_TEMPERATURE"));
+                assertThat(container.parameters()).extracting(Parameter::name).containsExactly("EVENT_TEMPERATURE"));
         assertThat(HOUSEKEEPING.container("EVENT_SOLAR_FLARE")).isEmpty();
     }
 
@@ -165,5 +167,80 @@ class MissionDatabaseTest {
     private static EngineeringValue engineering(DecodedPacket decoded, String name) {
         final Optional<EngineeringValue> engineering = value(decoded, name).engineering();
         return engineering.orElseThrow();
+    }
+
+    @Test
+    void littleEndianIntegersAreReadLeastSignificantByteFirst() {
+        final var database = single(new IntegerParameterType("t", null, new IntegerEncoding(32, true, true),
+                AlarmRanges.NONE), 0);
+
+        assertThat(database.decode(Xtce.bytes("C2 33 07 19")).values().getFirst().raw()).isEqualTo(0x190733C2L);
+        assertThat(database.decode(Xtce.bytes("FE FF FF FF")).values().getFirst().raw()).isEqualTo(-2);
+    }
+
+    @Test
+    void sixtyFourBitIntegersKeepEveryBit() {
+        final var unsigned = single(new IntegerParameterType("t", null, new IntegerEncoding(64, false, true),
+                AlarmRanges.NONE), 0);
+        final var signed = single(new IntegerParameterType("t", null, new IntegerEncoding(64, true),
+                AlarmRanges.NONE), 0);
+
+        assertThat(unsigned.decode(Xtce.bytes("B2 98 6D BB A1 01 00 00")).values().getFirst().raw())
+                .isEqualTo(1_794_145_884_338L);
+        assertThat(signed.decode(Xtce.bytes("FF FF FF FF FF FF FF FE")).values().getFirst().raw()).isEqualTo(-2);
+    }
+
+    @Test
+    void fixedSizeStringEndsAtItsFirstZeroByte() {
+        final var database = single(new StringParameterType("s", new IntegerEncoding(32, false)), 0);
+
+        assertThat(database.decode(Xtce.bytes("43 54 53 31")).values().getFirst().engineering())
+                .contains(new StringValue("CTS1"));
+        assertThat(database.decode(Xtce.bytes("20 53 35 00")).values().getFirst().engineering())
+                .contains(new StringValue(" S5"));
+        assertThat(database.decode(Xtce.bytes("00 41 42 43")).values().getFirst().engineering())
+                .contains(new StringValue(""));
+    }
+
+    @Test
+    void absoluteTimeIsTheEpochPlusTheScaledCountAndGivesTheGenerationTime() {
+        final var database = single(new AbsoluteTimeParameterType("t", new IntegerEncoding(64, false, true),
+                Instant.EPOCH, new BigDecimal("0.001"), BigDecimal.ZERO), 0);
+
+        final var decoded = database.decode(Xtce.bytes("B2 98 6D BB A1 01 00 00"));
+
+        assertThat(decoded.values().getFirst().engineering())
+                .contains(new TimeValue(Instant.parse("2026-11-08T13:51:24.338Z")));
+        assertThat(decoded.generationTime()).hasValue(Instant.parse("2026-11-08T13:51:24.338Z"));
+    }
+
+    @Test
+    void timeOffsetIsAddedAfterScaling() {
+        final var tai = Instant.parse("1958-01-01T00:00:00Z");
+        final var database = single(new AbsoluteTimeParameterType("t", new IntegerEncoding(8, false), tai,
+                new BigDecimal("2"), new BigDecimal("0.5")), 0);
+
+        assertThat(database.decode(new byte[] {3}).generationTime()).hasValue(tai.plusMillis(6500));
+    }
+
+    @Test
+    void packetWithoutAnAbsoluteTimeHasNoGenerationTime() {
+        assertThat(HOUSEKEEPING.decode(Xtce.bytes(HEADERS + "01 1CF3 009E 01 ACC1")).generationTime()).isEmpty();
+    }
+
+    @Test
+    void entryOffsetSkipsBitsBeforeTheEntry() {
+        final var database = single(new IntegerParameterType("t", null, new IntegerEncoding(8, false),
+                AlarmRanges.NONE), 16);
+
+        assertThat(database.decode(Xtce.bytes("AA BB 07")).values().getFirst().raw()).isEqualTo(7);
+        assertThatThrownBy(() -> database.decode(Xtce.bytes("AA"))).isInstanceOf(PacketDecodingException.class)
+                .hasMessage("Packet has 8 bits, needed 16 more from bit 0");
+    }
+
+    private static MissionDatabase single(ParameterType type, long offsetInBits) {
+        final var parameter = new Parameter("P", null, type);
+        return new MissionDatabase("TEST", List.of(parameter), new SequenceContainer("ROOT", false,
+                List.of(new SequenceContainer.Entry(parameter, offsetInBits)), List.of()));
     }
 }

@@ -1,6 +1,14 @@
 package lt.vsh1ft.xtce;
 
 import java.io.InputStream;
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -15,6 +23,7 @@ public final class XtceReader {
 
     private static final String NAME = "name";
     private static final String SHORT_DESCRIPTION = "shortDescription";
+    private static final String FIXED_VALUE = "FixedValue";
 
     private final Map<String, ParameterType> types = new LinkedHashMap<>();
     private final Map<String, Parameter> parameters = new LinkedHashMap<>();
@@ -57,6 +66,14 @@ public final class XtceReader {
 
     private void readType(Element type) {
         final var kind = type.getLocalName();
+        if (kind.equals("StringParameterType")) {
+            readStringType(type);
+            return;
+        }
+        if (kind.equals("AbsoluteTimeParameterType")) {
+            readTimeType(type);
+            return;
+        }
         switch (kind) {
             case "IntegerParameterType" -> attributes(type, NAME, SHORT_DESCRIPTION, "signed", "sizeInBits");
             case "FloatParameterType" -> attributes(type, NAME, SHORT_DESCRIPTION, "sizeInBits");
@@ -98,6 +115,83 @@ public final class XtceReader {
         types.put(name, parameterType);
     }
 
+    private void readStringType(Element type) {
+        attributes(type, NAME, SHORT_DESCRIPTION);
+        final var children = Xml.children(type);
+        if (children.size() != 1 || !children.getFirst().getLocalName().equals("StringDataEncoding")) {
+            throw invalid(type, "needs exactly one StringDataEncoding and nothing else");
+        }
+        final var encoding = children.getFirst();
+        attributes(encoding, "encoding", "byteOrder", "bitOrder");
+        if (!encoding.getAttribute("encoding").equals("US-ASCII")) {
+            throw invalid(encoding, "must have encoding=\"US-ASCII\"; other character sets are not supported");
+        }
+        requireDefault(encoding, "byteOrder", "mostSignificantByteFirst");
+        requireDefault(encoding, "bitOrder", "mostSignificantBitFirst");
+        final var size = Xml.children(encoding).getFirst();
+        if (!size.getLocalName().equals("SizeInBits")) {
+            throw unsupported(size);
+        }
+        final var parts = Xml.children(size);
+        if (parts.size() != 1) {
+            throw unsupported(parts.get(1));
+        }
+        final long sizeInBits = Long.parseLong(Xml.children(parts.getFirst()).getFirst().getTextContent().strip());
+        if (sizeInBits % Byte.SIZE != 0 || sizeInBits > IntegerEncoding.MAX_SIZE_IN_BITS) {
+            throw invalid(encoding, "is " + sizeInBits + " bits; strings of whole bytes up to "
+                    + IntegerEncoding.MAX_SIZE_IN_BITS + " bits are supported");
+        }
+        final var name = type.getAttribute(NAME);
+        types.put(name, new StringParameterType(name, new IntegerEncoding((int) sizeInBits, false)));
+    }
+
+    private void readTimeType(Element type) {
+        attributes(type, NAME, SHORT_DESCRIPTION);
+        Element encoding = null;
+        Instant epoch = null;
+        for (var child : Xml.children(type)) {
+            if (child.getLocalName().equals("Encoding")) {
+                encoding = child;
+            } else {
+                epoch = readEpoch(child);
+            }
+        }
+        if (encoding == null || epoch == null) {
+            throw invalid(type, "needs an Encoding and a ReferenceTime with an Epoch");
+        }
+        attributes(encoding, "units", "scale", "offset");
+        requireDefault(encoding, "units", "seconds");
+        final var data = Xml.children(encoding).getFirst();
+        if (!data.getLocalName().equals("IntegerDataEncoding")) {
+            throw unsupported(data);
+        }
+        final var name = type.getAttribute(NAME);
+        types.put(name, new AbsoluteTimeParameterType(name, readEncoding(data, false).encoding(), epoch,
+                new BigDecimal(attribute(encoding, "scale", "1")), new BigDecimal(attribute(encoding, "offset", "0"))));
+    }
+
+    private static Instant readEpoch(Element referenceTime) {
+        final var epoch = Xml.children(referenceTime).getFirst();
+        if (!epoch.getLocalName().equals("Epoch")) {
+            throw unsupported(epoch);
+        }
+        final var value = epoch.getTextContent().strip();
+        if (value.equals("UNIX")) {
+            return Instant.EPOCH;
+        }
+        try {
+            if (!value.contains("T")) {
+                return LocalDate.parse(value).atStartOfDay(ZoneOffset.UTC).toInstant();
+            }
+            final var time = DateTimeFormatter.ISO_DATE_TIME.parseBest(value, OffsetDateTime::from,
+                    LocalDateTime::from);
+            return time instanceof OffsetDateTime zoned ? zoned.toInstant()
+                    : ((LocalDateTime) time).toInstant(ZoneOffset.UTC);
+        } catch (DateTimeParseException e) {
+            throw invalid(epoch, "is " + value + "; only a date, a date and time or UNIX are supported");
+        }
+    }
+
     private String readUnit(Element unitSet) {
         final var units = Xml.children(unitSet);
         if (units.size() > 1) {
@@ -120,7 +214,16 @@ public final class XtceReader {
             throw invalid(encoding, "is " + sizeInBits + " bits; at most " + IntegerEncoding.MAX_SIZE_IN_BITS
                     + " are supported");
         }
-        requireDefault(encoding, "byteOrder", "mostSignificantByteFirst");
+        final boolean littleEndian = switch (attribute(encoding, "byteOrder", "mostSignificantByteFirst")) {
+            case "mostSignificantByteFirst" -> false;
+            case "leastSignificantByteFirst" -> true;
+            default -> throw invalid(encoding, "has byteOrder=\"" + encoding.getAttribute("byteOrder")
+                    + "\"; only mostSignificantByteFirst and leastSignificantByteFirst are supported");
+        };
+        if (littleEndian && sizeInBits % Byte.SIZE != 0) {
+            throw invalid(encoding, "is little-endian but " + sizeInBits + " bits; little-endian integers must be "
+                    + "whole bytes");
+        }
         requireDefault(encoding, "bitOrder", "mostSignificantBitFirst");
         var calibrator = PolynomialCalibrator.IDENTITY;
         for (var child : Xml.children(encoding)) {
@@ -129,7 +232,7 @@ public final class XtceReader {
             }
             calibrator = readCalibrator(child);
         }
-        return new Encoding(new IntegerEncoding((int) sizeInBits, signed), calibrator);
+        return new Encoding(new IntegerEncoding((int) sizeInBits, signed, littleEndian), calibrator);
     }
 
     private PolynomialCalibrator readCalibrator(Element defaultCalibrator) {
@@ -237,7 +340,7 @@ public final class XtceReader {
 
     private void readContainer(Element container) {
         attributes(container, NAME, SHORT_DESCRIPTION, "abstract");
-        final var entries = new ArrayList<Parameter>();
+        final var entries = new ArrayList<SequenceContainer.Entry>();
         String base = null;
         final var restriction = new ArrayList<PendingComparison>();
         for (var child : Xml.children(container)) {
@@ -256,15 +359,33 @@ public final class XtceReader {
                 "false")), entries, base, restriction));
     }
 
-    private Parameter readEntry(Element entry) {
+    private SequenceContainer.Entry readEntry(Element entry) {
         if (!entry.getLocalName().equals("ParameterRefEntry")) {
             throw unsupported(entry);
         }
         attributes(entry, "parameterRef", SHORT_DESCRIPTION);
-        Xml.children(entry).stream().findFirst().ifPresent(child -> {
-            throw unsupported(child);
-        });
-        return parameter(entry);
+        long offset = 0;
+        for (var child : Xml.children(entry)) {
+            if (!child.getLocalName().equals("LocationInContainerInBits")) {
+                throw unsupported(child);
+            }
+            offset = readLocation(child);
+        }
+        return new SequenceContainer.Entry(parameter(entry), offset);
+    }
+
+    private static long readLocation(Element location) {
+        attributes(location, "referenceLocation");
+        requireDefault(location, "referenceLocation", "previousEntry");
+        final var value = Xml.children(location).getFirst();
+        if (!value.getLocalName().equals(FIXED_VALUE)) {
+            throw unsupported(value);
+        }
+        final long offset = Long.parseLong(value.getTextContent().strip());
+        if (offset < 0) {
+            throw invalid(location, "is " + offset + " bits; an entry can't overlap the one before it");
+        }
+        return offset;
     }
 
     private List<PendingComparison> readRestriction(Element criteria) {
@@ -317,7 +438,7 @@ public final class XtceReader {
     private SequenceContainer build(ContainerDefinition definition, Set<String> decodedBefore) {
         built.add(definition.name());
         final var decoded = new HashSet<>(decodedBefore);
-        definition.entries().forEach(entry -> decoded.add(entry.name()));
+        definition.entries().forEach(entry -> decoded.add(entry.parameter().name()));
         final var children = containers.values().stream()
                 .filter(child -> definition.name().equals(child.base()))
                 .map(child -> new SequenceContainer.Child(build(child, decoded), restriction(child, decoded)))
@@ -395,7 +516,8 @@ public final class XtceReader {
     private record PendingComparison(Parameter parameter, String value, boolean calibrated) {
     }
 
-    private record ContainerDefinition(String name, boolean isAbstract, List<Parameter> entries, String base,
+    private record ContainerDefinition(String name, boolean isAbstract, List<SequenceContainer.Entry> entries,
+                                       String base,
                                        List<PendingComparison> restriction) {
     }
 }

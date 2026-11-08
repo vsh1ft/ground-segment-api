@@ -26,6 +26,12 @@ class ParameterArchive {
                 .toList());
     }
 
+    void storeFromFrame(NoradId satellite, long frameId, Instant generationTime, List<ParameterValue> values) {
+        aggregates.insertAll(values.stream()
+                .map(value -> StoredParameterValue.ofFrame(satellite, frameId, generationTime, value))
+                .toList());
+    }
+
     ParameterValuesResponse values(NoradId satellite, Parameter parameter, ValuesQuery query) {
         final var newestFirst = Query.query(matching(satellite, parameter, query))
                 .sort(Sort.by(Sort.Direction.DESC, "id"))

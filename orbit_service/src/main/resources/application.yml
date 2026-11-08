@@ -43,6 +43,15 @@ groundstation:
     base-url: https://db.satnogs.org
     connect-timeout: 5s
     read-timeout: 30s
+    network:
+      base-url: https://network.satnogs.org
+      connect-timeout: 5s
+      read-timeout: 30s
+    import:
+      satellites: 69015
+      interval: 1h
+      look-back: 2d
+      settle: 1h
 
   tmtc:
     link:
@@ -55,6 +64,10 @@ groundstation:
       connect-timeout: 2s
       reconnect-delay: 5s
       mission-database: classpath:mdb/simulator.xml
+    mission-databases:
+      - norad-id: 69015
+        location: classpath:mdb/frontiersat.xml
+        frame-check: CRC32C_TRAILER
 
   contact:
     silence-threshold: 10s

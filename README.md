@@ -254,6 +254,44 @@ lost (`groundstation.contact.max-frame-loss`), judged once 100 frames were expec
 `LINK_QUALITY` warning. In that run it was raised 25 seconds into the pass and returned at the predicted end of the
 pass.
 
+### Real satellites
+
+```
+GET  /satellites/69015/frames?limit=20&source=OWN&station=3f2a9c1e-...
+POST /satellites/69015/frames
+```
+
+Besides the simulator, the service takes telemetry from real satellites. Every hour it imports the frames that
+stations of the [SatNOGS](https://satnogs.org) network received from the satellites in
+`groundstation.satnogs.import.satellites`, through the public SatNOGS Network API: no account needed. Frames your
+own station received (from SatDump, gr-satellites or any decoder that writes frames) are sent with `POST`, with
+your station's ID and the reception time.
+
+The first satellite with a mission database is FrontierSat (CTS-SAT-1, NORAD 69015), a student cubesat of
+CalgaryToSpace. Its extended beacon is decoded into 88 parameters (battery, temperatures, solar power, attitude,
+modes), written from the team's firmware and checked field by field against a real frame decoded independently.
+Values go into the same archive as the simulator's, so `/satellites/69015/parameters/OBC_TEMPERATURE/values` works
+like the simulator's parameters. They are dated by the satellite's own clock: FrontierSat also sends stored beacons
+hours later, and the reception time would put those in the wrong place.
+
+The same beacon is often heard by several stations, and some stations' decoders strip the frame's CRC before
+uploading. Frames are normalized (a matching CRC-32C is checked and removed) and stored once, each with the list
+of stations that received it and whether that was SatNOGS or your own station:
+
+```
+{"frames": [{"id": 4712, "firstReceivedAt": "2026-11-08T19:03:34Z", "container": "BEACON_EXTENDED_V5",
+             "generationTime": "2026-11-08T13:51:24.338Z", "crcChecked": true, "length": 202, "raw": "C2A28A00...",
+             "receptions": [{"source": "SATNOGS", "station": "Dtec Station", "latitudeDeg": 25.12,
+                             "longitudeDeg": 55.377, "altitudeM": 32.0, "observation": 15386644,
+                             "receivedAt": "2026-11-08T19:03:34Z"}]}],
+ "nextBefore": 4711}
+```
+
+SatNOGS data is published under [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/); the stations
+that received each frame are kept and listed for that reason. If CelesTrak doesn't list the satellite in a
+refreshed group, add it first with `POST /satellites/69015`. The
+[SatNOGS telemetry tutorial](docs/tutorial/satnogs-telemetry.md) walks through a real frame byte by byte.
+
 ### Parameters
 
 ```
@@ -403,6 +441,7 @@ station ──► pass ──► catalog ──► elements ──► shared
               └─────────────────────►┘
 radio ─────────────► catalog
 tracking ──► pass, elements, radio, catalog
+satnogs ──► tmtc, catalog                               (imports SatNOGS frames)
 tmtc ──► contact ──► pass                              (tmtc uses the ccsds and xtce libraries)
 alarm ──► tmtc, contact                                 (listens to stored values and to silence)
 ```
@@ -414,9 +453,10 @@ alarm ──► tmtc, contact                                 (listens to stored
 | `catalog` | the satellite catalog, `/satellites` and the scheduled refresh from CelesTrak |
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
 | `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
-| `tmtc` | telemetry: the TCP link to the spacecraft, the packet and parameter archives, the event log, the mission database, `/satellites/{noradId}/telemetry/packets`, `/parameters` and `/events` |
+| `tmtc` | telemetry: the TCP link to the spacecraft, frames from real satellites, the packet, frame and parameter archives, the event log, the mission databases, `/satellites/{noradId}/telemetry/packets`, `/frames`, `/parameters` and `/events` |
 | `contact` | the contact plan of the TM link (its satellite's passes over its station), packet visibility, the silence watch, frame loss per pass and `/satellites/{noradId}/link-reports` |
 | `tracking` | `/satellites/{noradId}/track`: azimuth, elevation, range, range rate and Doppler-corrected transmitter frequencies |
+| `satnogs` | the hourly import of frames from the SatNOGS Network API |
 | `alarm` | limit checking of received values, loss-of-signal alarms, the alarm lifecycle, `/satellites/{noradId}/alarms` and acknowledgement |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
 

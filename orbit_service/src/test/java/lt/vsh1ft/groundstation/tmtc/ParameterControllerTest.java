@@ -51,14 +51,14 @@ class ParameterControllerTest {
                 Instant.parse("2026-11-08T09:00:00Z"));
         given(service.values(SATELLITE, "BATTERY_VOLTAGE", query)).willReturn(new ParameterValuesResponse(
                 "BATTERY_VOLTAGE", "V", List.of(new ParameterValuesResponse.Value(42,
-                        Instant.parse("2026-11-08T08:53:41.923Z"), 7411, 7.411, 12)), 42L));
+                        Instant.parse("2026-11-08T08:53:41.923Z"), 7411, 7.411, 12L, null)), 42L));
 
         assertThat(mvc.get().uri("/satellites/99999/parameters/BATTERY_VOLTAGE/values?limit=1&before=50"
                 + "&from=2026-11-08T08:00:00Z&to=2026-11-08T09:00:00Z"))
                 .hasStatusOk().bodyJson().isStrictlyEqualTo("""
                         {"parameter": "BATTERY_VOLTAGE", "unit": "V",
                          "values": [{"id": 42, "generationTime": "2026-11-08T08:53:41.923Z", "raw": 7411,
-                                     "engineering": 7.411, "packetId": 12}],
+                                     "engineering": 7.411, "packetId": 12, "frameId": null}],
                          "nextBefore": 42}
                         """);
     }

@@ -1,0 +1,586 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SpaceSystem xmlns="http://www.omg.org/spec/XTCE/20180204" name="FRONTIERSAT"
+             shortDescription="FrontierSat (CTS-SAT-1), NORAD 69015: CSP frames from the AX100 radio">
+    <LongDescription>Mission database for FrontierSat (CTS-SAT-1) of CalgaryToSpace, written from the team's
+        firmware: the 4-byte CSP header, the packet type, and the extended beacon v5+
+        (COMMS_beacon_extended_packet_v5plus_t in misc_tools/exec_blob/extended_beacon_blob of
+        github.com/CalgaryToSpace/CTS-SAT-1-OBC-Firmware). All payload fields are little-endian. The frame's
+        CRC-32C trailer is removed before decoding. Other packet types end at the abstract root container.
+    </LongDescription>
+    <Header version="1" date="2026-11-08" validationStatus="Working"/>
+    <TelemetryMetaData>
+        <ParameterTypeSet>
+            <IntegerParameterType name="uint1_t" signed="false">
+                <IntegerDataEncoding sizeInBits="1"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint2_t" signed="false">
+                <IntegerDataEncoding sizeInBits="2"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint4_t" signed="false">
+                <IntegerDataEncoding sizeInBits="4"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint5_t" signed="false">
+                <IntegerDataEncoding sizeInBits="5"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint6_t" signed="false">
+                <IntegerDataEncoding sizeInBits="6"/>
+            </IntegerParameterType>
+            <EnumeratedParameterType name="boolean_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="FALSE"/>
+                    <Enumeration value="1" label="TRUE"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="eps_mode_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="STARTUP"/>
+                    <Enumeration value="1" label="NOMINAL"/>
+                    <Enumeration value="2" label="SAFETY"/>
+                    <Enumeration value="3" label="EMERGENCY_LOW_POWER"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="eps_reset_cause_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="POWER_ON"/>
+                    <Enumeration value="1" label="WATCHDOG"/>
+                    <Enumeration value="2" label="COMMANDED"/>
+                    <Enumeration value="3" label="CONTROL_SYSTEM_RESET"/>
+                    <Enumeration value="4" label="EMERGENCY_LOW_POWER"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="gnss_rx_mode_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="COMMAND_MODE"/>
+                    <Enumeration value="1" label="FIREHOSE_MODE" shortDescription="storing GNSS data"/>
+                    <Enumeration value="2" label="DISABLED" shortDescription="GNSS data not collected"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <FloatParameterType name="int16_A_x0p001_t">
+                <UnitSet><Unit>A</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.001"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="int16_V_x0p001_t">
+                <UnitSet><Unit>V</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.001"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="int16_W_x0p01_t">
+                <UnitSet><Unit>W</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="int16_degC_x0p01_t">
+                <UnitSet><Unit>degC</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="int16_deg_per_s_x0p001_t">
+                <UnitSet><Unit>deg/s</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.001"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="int16_deg_per_s_x0p01_t">
+                <UnitSet><Unit>deg/s</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="int16_deg_x0p01_t">
+                <UnitSet><Unit>deg</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="int16_ratio_x0p0001_t">
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.0001"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <IntegerParameterType name="int16_rpm_t" signed="true">
+                <UnitSet><Unit>rpm</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst"/>
+            </IntegerParameterType>
+            <FloatParameterType name="int16_uT_x0p01_t">
+                <UnitSet><Unit>uT</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="int32_W_x0p01_t">
+                <UnitSet><Unit>W</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="32" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="int32_degC_x0p01_t">
+                <UnitSet><Unit>degC</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="32" encoding="twosComplement" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <IntegerParameterType name="int32_t" signed="true">
+                <IntegerDataEncoding sizeInBits="32" encoding="twosComplement" byteOrder="leastSignificantByteFirst"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="int8_degC_t" signed="true">
+                <UnitSet><Unit>degC</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="8" encoding="twosComplement"/>
+            </IntegerParameterType>
+            <EnumeratedParameterType name="mpi_rx_mode_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="COMMAND_MODE"/>
+                    <Enumeration value="1" label="SENSING_MODE" shortDescription="science data being collected"/>
+                    <Enumeration value="2" label="NOT_LISTENING_TO_MPI"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="mpi_stop_reason_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="NOT_SET"/>
+                    <Enumeration value="1" label="TEMPERATURE_EXCEEDED"/>
+                    <Enumeration value="2" label="TELECOMMAND"/>
+                    <Enumeration value="3" label="MAX_TIME_EXCEEDED"/>
+                    <Enumeration value="4" label="SELF_CHECK_DONE"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="mpi_transceiver_state_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="INACTIVE"/>
+                    <Enumeration value="1" label="MOSI"/>
+                    <Enumeration value="2" label="MISO"/>
+                    <Enumeration value="3" label="DUPLEX"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="operation_state_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="BOOTED_AND_WAITING" shortDescription="booted, counting down to antenna deployment"/>
+                    <Enumeration value="1" label="DEPLOYING" shortDescription="deploying the antennas"/>
+                    <Enumeration value="2" label="NOMINAL_WITH_RADIO_TX" shortDescription="normal operation, transmitting"/>
+                    <Enumeration value="3" label="NOMINAL_WITHOUT_RADIO_TX" shortDescription="normal operation, not transmitting"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="rbf_state_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="BENCH" shortDescription="remove-before-flight pin inserted"/>
+                    <Enumeration value="1" label="FLYING" shortDescription="remove-before-flight pin out"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="reset_cause_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="UNKNOWN"/>
+                    <Enumeration value="1" label="LOW_POWER_RESET"/>
+                    <Enumeration value="2" label="WINDOW_WATCHDOG_RESET"/>
+                    <Enumeration value="3" label="INDEPENDENT_WATCHDOG_RESET"/>
+                    <Enumeration value="4" label="SOFTWARE_RESET"/>
+                    <Enumeration value="5" label="EXTERNAL_RESET_PIN_RESET"/>
+                    <Enumeration value="6" label="BROWNOUT_RESET"/>
+                    <Enumeration value="7" label="OPTION_BYTE_LOADER_RESET"/>
+                    <Enumeration value="8" label="FIREWALL_RESET"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <EnumeratedParameterType name="rf_switch_control_mode_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="TOGGLE_BEFORE_EVERY_BEACON"/>
+                    <Enumeration value="1" label="FORCE_ANT1"/>
+                    <Enumeration value="2" label="FORCE_ANT2"/>
+                    <Enumeration value="3" label="USE_ADCS_NORMAL"/>
+                    <Enumeration value="4" label="USE_ADCS_FLIPPED"/>
+                    <Enumeration value="255" label="UNKNOWN"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <StringParameterType name="string32_t">
+                <StringDataEncoding encoding="US-ASCII">
+                    <SizeInBits><Fixed><FixedValue>32</FixedValue></Fixed></SizeInBits>
+                </StringDataEncoding>
+            </StringParameterType>
+            <EnumeratedParameterType name="time_sync_source_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="NONE"/>
+                    <Enumeration value="1" label="GNSS_UART"/>
+                    <Enumeration value="2" label="GNSS_PPS"/>
+                    <Enumeration value="3" label="TELECOMMAND_ABSOLUTE"/>
+                    <Enumeration value="4" label="TELECOMMAND_CORRECTION"/>
+                    <Enumeration value="5" label="EPS_RTC" shortDescription="power system real-time clock, precise to 1 s"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+            <FloatParameterType name="uint16_V_x0p001_t">
+                <UnitSet><Unit>V</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.001"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="uint16_W_x0p01_t">
+                <UnitSet><Unit>W</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="uint16_deg_per_s_x0p01_t">
+                <UnitSet><Unit>deg/s</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="uint16_deg_x0p01_t">
+                <UnitSet><Unit>deg</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned" byteOrder="leastSignificantByteFirst">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <IntegerParameterType name="uint16_s_t" signed="false">
+                <UnitSet><Unit>s</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" byteOrder="leastSignificantByteFirst"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint16_t" signed="false">
+                <IntegerDataEncoding sizeInBits="16" byteOrder="leastSignificantByteFirst"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint32_ms_t" signed="false">
+                <UnitSet><Unit>ms</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="32" byteOrder="leastSignificantByteFirst"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint32_s_t" signed="false">
+                <UnitSet><Unit>s</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="32" byteOrder="leastSignificantByteFirst"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint32_t" signed="false">
+                <IntegerDataEncoding sizeInBits="32" byteOrder="leastSignificantByteFirst"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint8_MHz_t" signed="false">
+                <UnitSet><Unit>MHz</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="8"/>
+            </IntegerParameterType>
+            <FloatParameterType name="uint8_W_x0p01_t">
+                <UnitSet><Unit>W</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="8" encoding="unsigned">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.01"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <IntegerParameterType name="uint8_percent_t" signed="false">
+                <UnitSet><Unit>%</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="8"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint8_t" signed="false">
+                <IntegerDataEncoding sizeInBits="8"/>
+            </IntegerParameterType>
+            <AbsoluteTimeParameterType name="unix_time_ms_t">
+                <Encoding scale="0.001">
+                    <IntegerDataEncoding sizeInBits="64" byteOrder="leastSignificantByteFirst"/>
+                </Encoding>
+                <ReferenceTime><Epoch>UNIX</Epoch></ReferenceTime>
+            </AbsoluteTimeParameterType>
+            <EnumeratedParameterType name="packet_type_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="1" label="BEACON_BASIC" shortDescription="basic beacon, no peripherals"/>
+                    <Enumeration value="3" label="LOG_MESSAGE" shortDescription="log message text"/>
+                    <Enumeration value="4" label="TCMD_RESPONSE" shortDescription="telecommand response"/>
+                    <Enumeration value="16" label="BULK_FILE_DOWNLINK" shortDescription="file chunk"/>
+                    <Enumeration value="32" label="BEACON_EXTENDED" shortDescription="extended beacon v2 to v4"/>
+                    <Enumeration value="33" label="BEACON_EXTENDED_V5PLUS" shortDescription="extended beacon v5 and later"/>
+                    <Enumeration value="48" label="GNSS_BESTXYZB_SAMPLE" shortDescription="raw GNSS position log"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+        </ParameterTypeSet>
+        <ParameterSet>
+            <Parameter name="CSP_PRIORITY" parameterTypeRef="uint2_t" shortDescription="CSP priority"/>
+            <Parameter name="CSP_SOURCE" parameterTypeRef="uint5_t" shortDescription="CSP source address"/>
+            <Parameter name="CSP_DESTINATION" parameterTypeRef="uint5_t" shortDescription="CSP destination address"/>
+            <Parameter name="CSP_DESTINATION_PORT" parameterTypeRef="uint6_t" shortDescription="CSP destination port"/>
+            <Parameter name="CSP_SOURCE_PORT" parameterTypeRef="uint6_t" shortDescription="CSP source port"/>
+            <Parameter name="CSP_RESERVED" parameterTypeRef="uint4_t"/>
+            <Parameter name="CSP_HMAC" parameterTypeRef="uint1_t"/>
+            <Parameter name="CSP_XTEA" parameterTypeRef="uint1_t"/>
+            <Parameter name="CSP_RDP" parameterTypeRef="uint1_t"/>
+            <Parameter name="CSP_CRC" parameterTypeRef="uint1_t"/>
+            <Parameter name="PACKET_TYPE" parameterTypeRef="packet_type_t" shortDescription="What the rest of the packet holds"/>
+            <Parameter name="SATELLITE_NAME" parameterTypeRef="string32_t" shortDescription="Always CTS1"/>
+            <Parameter name="ACTIVE_RF_SWITCH_ANTENNA" parameterTypeRef="uint8_t" shortDescription="Antenna in use, 1 or 2"/>
+            <Parameter name="ACTIVE_RF_SWITCH_CONTROL_MODE" parameterTypeRef="rf_switch_control_mode_t"/>
+            <Parameter name="UPTIME" parameterTypeRef="uint32_ms_t" shortDescription="Time since the on-board computer booted"/>
+            <Parameter name="DURATION_SINCE_LAST_UPLINK" parameterTypeRef="uint32_ms_t"/>
+            <Parameter name="UNIX_EPOCH_TIME" parameterTypeRef="unix_time_ms_t" shortDescription="On-board time when the beacon was made"/>
+            <Parameter name="LAST_TIME_SYNC_SOURCE" parameterTypeRef="time_sync_source_t"/>
+            <Parameter name="IS_FS_MOUNTED" parameterTypeRef="boolean_t"/>
+            <Parameter name="TOTAL_TCMD_QUEUED_COUNT" parameterTypeRef="uint16_t"/>
+            <Parameter name="PENDING_QUEUED_TCMD_COUNT" parameterTypeRef="uint16_t"/>
+            <Parameter name="TOTAL_BEACON_COUNT_SINCE_BOOT" parameterTypeRef="uint32_t"/>
+            <Parameter name="EPS_MODE" parameterTypeRef="eps_mode_t"/>
+            <Parameter name="EPS_RESET_CAUSE" parameterTypeRef="eps_reset_cause_t"/>
+            <Parameter name="EPS_UPTIME" parameterTypeRef="uint32_s_t"/>
+            <Parameter name="EPS_ERROR_CODE" parameterTypeRef="uint16_t"/>
+            <Parameter name="EPS_BATTERY_VOLTAGE" parameterTypeRef="uint16_V_x0p001_t" shortDescription="Battery voltage from the power system; often 0 because the power system fails to report it, use OBC_ADC_BATTERY_VOLTAGE instead"/>
+            <Parameter name="EPS_BATTERY_PERCENT" parameterTypeRef="uint8_percent_t"/>
+            <Parameter name="EPS_BATTERY_TEMPERATURE_0" parameterTypeRef="int16_degC_x0p01_t" shortDescription="Battery temperature, sensor 0"/>
+            <Parameter name="EPS_BATTERY_TEMPERATURE_1" parameterTypeRef="int16_degC_x0p01_t" shortDescription="Battery temperature, sensor 1"/>
+            <Parameter name="EPS_TOTAL_FAULT_COUNT" parameterTypeRef="int32_t"/>
+            <Parameter name="EPS_ENABLED_CHANNELS_BITFIELD" parameterTypeRef="uint32_t"/>
+            <Parameter name="EPS_TOTAL_PCU_POWER_INPUT" parameterTypeRef="int32_W_x0p01_t"/>
+            <Parameter name="EPS_TOTAL_PCU_POWER_OUTPUT" parameterTypeRef="int32_W_x0p01_t"/>
+            <Parameter name="EPS_TOTAL_AVG_PCU_POWER_INPUT" parameterTypeRef="int32_W_x0p01_t"/>
+            <Parameter name="EPS_TOTAL_AVG_PCU_POWER_OUTPUT" parameterTypeRef="int32_W_x0p01_t"/>
+            <Parameter name="OBC_TEMPERATURE" parameterTypeRef="int32_degC_x0p01_t" shortDescription="On-board computer temperature"/>
+            <Parameter name="REBOOT_REASON" parameterTypeRef="reset_cause_t"/>
+            <Parameter name="CTS1_OPERATION_STATE" parameterTypeRef="operation_state_t"/>
+            <Parameter name="RBF_PIN_STATE" parameterTypeRef="rbf_state_t"/>
+            <Parameter name="MPI_RX_MODE" parameterTypeRef="mpi_rx_mode_t"/>
+            <Parameter name="MPI_TRANSCEIVER_STATE" parameterTypeRef="mpi_transceiver_state_t"/>
+            <Parameter name="MPI_LAST_REASON_FOR_STOPPING" parameterTypeRef="mpi_stop_reason_t"/>
+            <Parameter name="GNSS_UART_INTERRUPT_ENABLED" parameterTypeRef="boolean_t"/>
+            <Parameter name="GNSS_RX_MODE" parameterTypeRef="gnss_rx_mode_t"/>
+            <Parameter name="DISTINCT_TCMDS_PENDING" parameterTypeRef="uint8_t"/>
+            <Parameter name="DURATION_SINCE_LAST_TIME_SYNC" parameterTypeRef="uint16_s_t" shortDescription="Clamped to 65535 s"/>
+            <Parameter name="ADCS_WHEEL_SPEED_X" parameterTypeRef="int16_rpm_t"/>
+            <Parameter name="ADCS_WHEEL_SPEED_Y" parameterTypeRef="int16_rpm_t"/>
+            <Parameter name="ADCS_WHEEL_SPEED_Z" parameterTypeRef="int16_rpm_t"/>
+            <Parameter name="ADCS_POINTING_ERROR" parameterTypeRef="uint16_deg_x0p01_t"/>
+            <Parameter name="ADCS_INNOVATION_VECTOR_X" parameterTypeRef="int16_ratio_x0p0001_t"/>
+            <Parameter name="ADCS_INNOVATION_VECTOR_Y" parameterTypeRef="int16_ratio_x0p0001_t"/>
+            <Parameter name="ADCS_INNOVATION_VECTOR_Z" parameterTypeRef="int16_ratio_x0p0001_t"/>
+            <Parameter name="ADCS_ESTIMATED_GYRO_BIAS_X" parameterTypeRef="int16_deg_per_s_x0p001_t"/>
+            <Parameter name="ADCS_ESTIMATED_GYRO_BIAS_Y" parameterTypeRef="int16_deg_per_s_x0p001_t"/>
+            <Parameter name="ADCS_ESTIMATED_GYRO_BIAS_Z" parameterTypeRef="int16_deg_per_s_x0p001_t"/>
+            <Parameter name="GNSS_POWER_CONSUMED" parameterTypeRef="uint8_W_x0p01_t"/>
+            <Parameter name="ADCS_TOTAL_POWER_CONSUMED" parameterTypeRef="uint16_W_x0p01_t"/>
+            <Parameter name="EPS_PCU_CH4_VOLT_IN_MPPT" parameterTypeRef="int16_V_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH4_CURR_IN_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH4_CURR_OU_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="END_MESSAGE" parameterTypeRef="string32_t" shortDescription='" X5" on a live beacon, " S5" on a stored beacon sent later as history'/>
+            <Parameter name="OBC_ACTIVE_OSCILLATOR" parameterTypeRef="uint8_MHz_t" shortDescription="16 internal (imprecise), 25 external (precise)"/>
+            <Parameter name="OBC_ADC_BATTERY_VOLTAGE" parameterTypeRef="int16_V_x0p001_t" shortDescription="Battery voltage measured by the on-board computer; reliable when the power system does not report it"/>
+            <Parameter name="MPI_LAST_TEMPERATURE" parameterTypeRef="int8_degC_t" shortDescription="Payload (MPI) temperature when last active; -99 inactive, -98 error, -97 stale"/>
+            <Parameter name="EPS_PCU_CH0_VOLT_IN_MPPT" parameterTypeRef="int16_V_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH0_CURR_IN_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH0_CURR_OU_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH1_VOLT_IN_MPPT" parameterTypeRef="int16_V_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH1_CURR_IN_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH1_CURR_OU_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH2_VOLT_IN_MPPT" parameterTypeRef="int16_V_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH2_CURR_IN_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH2_CURR_OU_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH3_VOLT_IN_MPPT" parameterTypeRef="int16_V_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH3_CURR_IN_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="EPS_PCU_CH3_CURR_OU_MPPT" parameterTypeRef="int16_A_x0p001_t"/>
+            <Parameter name="EPS_BATTERY_PACK_STATUS_BITFIELD" parameterTypeRef="uint16_t" shortDescription="Bits 0-3 cell under-voltage, 4-7 over-voltage, 8-11 balancing, 12 heater on, 15 pack enabled"/>
+            <Parameter name="EPS_TOTAL_AVG_NET_BATTERY_POWER" parameterTypeRef="int16_W_x0p01_t"/>
+            <Parameter name="EPS_TOTAL_AVG_POWER_DISTRIBUTED" parameterTypeRef="int16_W_x0p01_t"/>
+            <Parameter name="ADCS_RAW_CSS_1" parameterTypeRef="uint8_t"/>
+            <Parameter name="ADCS_RAW_CSS_2" parameterTypeRef="uint8_t"/>
+            <Parameter name="ADCS_RAW_CSS_3" parameterTypeRef="uint8_t"/>
+            <Parameter name="ADCS_RAW_CSS_4" parameterTypeRef="uint8_t"/>
+            <Parameter name="ADCS_RAW_CSS_5" parameterTypeRef="uint8_t"/>
+            <Parameter name="ADCS_RAW_CSS_6" parameterTypeRef="uint8_t"/>
+            <Parameter name="ADCS_RAW_CSS_7" parameterTypeRef="uint8_t"/>
+            <Parameter name="ADCS_RAW_CSS_9" parameterTypeRef="uint8_t"/>
+            <Parameter name="ADCS_MAGNETIC_FIELD_X" parameterTypeRef="int16_uT_x0p01_t"/>
+            <Parameter name="ADCS_MAGNETIC_FIELD_Y" parameterTypeRef="int16_uT_x0p01_t"/>
+            <Parameter name="ADCS_MAGNETIC_FIELD_Z" parameterTypeRef="int16_uT_x0p01_t"/>
+            <Parameter name="ADCS_ANGULAR_RATE_NORM" parameterTypeRef="uint16_deg_per_s_x0p01_t"/>
+            <Parameter name="ADCS_ESTIMATED_RATE_X" parameterTypeRef="int16_deg_per_s_x0p01_t"/>
+            <Parameter name="ADCS_ESTIMATED_RATE_Y" parameterTypeRef="int16_deg_per_s_x0p01_t"/>
+            <Parameter name="ADCS_ESTIMATED_RATE_Z" parameterTypeRef="int16_deg_per_s_x0p01_t"/>
+            <Parameter name="ADCS_ESTIMATED_ROLL_ANGLE" parameterTypeRef="int16_deg_x0p01_t"/>
+            <Parameter name="ADCS_ESTIMATED_PITCH_ANGLE" parameterTypeRef="int16_deg_x0p01_t"/>
+            <Parameter name="ADCS_ESTIMATED_YAW_ANGLE" parameterTypeRef="int16_deg_x0p01_t"/>
+        </ParameterSet>
+        <ContainerSet>
+            <SequenceContainer name="FRONTIERSAT_FRAME" abstract="true"
+                               shortDescription="CSP header and packet type">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="CSP_PRIORITY"/>
+                    <ParameterRefEntry parameterRef="CSP_SOURCE"/>
+                    <ParameterRefEntry parameterRef="CSP_DESTINATION"/>
+                    <ParameterRefEntry parameterRef="CSP_DESTINATION_PORT"/>
+                    <ParameterRefEntry parameterRef="CSP_SOURCE_PORT"/>
+                    <ParameterRefEntry parameterRef="CSP_RESERVED"/>
+                    <ParameterRefEntry parameterRef="CSP_HMAC"/>
+                    <ParameterRefEntry parameterRef="CSP_XTEA"/>
+                    <ParameterRefEntry parameterRef="CSP_RDP"/>
+                    <ParameterRefEntry parameterRef="CSP_CRC"/>
+                    <ParameterRefEntry parameterRef="PACKET_TYPE"/>
+                </EntryList>
+            </SequenceContainer>
+            <SequenceContainer name="BEACON_EXTENDED_V5"
+                               shortDescription="Extended beacon v5+, COMMS_beacon_extended_packet_v5plus_t">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="SATELLITE_NAME"/>
+                    <ParameterRefEntry parameterRef="ACTIVE_RF_SWITCH_ANTENNA"/>
+                    <ParameterRefEntry parameterRef="ACTIVE_RF_SWITCH_CONTROL_MODE"/>
+                    <ParameterRefEntry parameterRef="UPTIME"/>
+                    <ParameterRefEntry parameterRef="DURATION_SINCE_LAST_UPLINK"/>
+                    <ParameterRefEntry parameterRef="UNIX_EPOCH_TIME"/>
+                    <ParameterRefEntry parameterRef="LAST_TIME_SYNC_SOURCE"/>
+                    <ParameterRefEntry parameterRef="IS_FS_MOUNTED"/>
+                    <ParameterRefEntry parameterRef="TOTAL_TCMD_QUEUED_COUNT"/>
+                    <ParameterRefEntry parameterRef="PENDING_QUEUED_TCMD_COUNT"/>
+                    <ParameterRefEntry parameterRef="TOTAL_BEACON_COUNT_SINCE_BOOT"/>
+                    <ParameterRefEntry parameterRef="EPS_MODE"/>
+                    <ParameterRefEntry parameterRef="EPS_RESET_CAUSE"/>
+                    <ParameterRefEntry parameterRef="EPS_UPTIME"/>
+                    <ParameterRefEntry parameterRef="EPS_ERROR_CODE"/>
+                    <ParameterRefEntry parameterRef="EPS_BATTERY_VOLTAGE"/>
+                    <ParameterRefEntry parameterRef="EPS_BATTERY_PERCENT"/>
+                    <ParameterRefEntry parameterRef="EPS_BATTERY_TEMPERATURE_0"/>
+                    <ParameterRefEntry parameterRef="EPS_BATTERY_TEMPERATURE_1"/>
+                    <ParameterRefEntry parameterRef="EPS_TOTAL_FAULT_COUNT"/>
+                    <ParameterRefEntry parameterRef="EPS_ENABLED_CHANNELS_BITFIELD"/>
+                    <ParameterRefEntry parameterRef="EPS_TOTAL_PCU_POWER_INPUT"/>
+                    <ParameterRefEntry parameterRef="EPS_TOTAL_PCU_POWER_OUTPUT"/>
+                    <ParameterRefEntry parameterRef="EPS_TOTAL_AVG_PCU_POWER_INPUT"/>
+                    <ParameterRefEntry parameterRef="EPS_TOTAL_AVG_PCU_POWER_OUTPUT"/>
+                    <ParameterRefEntry parameterRef="OBC_TEMPERATURE"/>
+                    <ParameterRefEntry parameterRef="REBOOT_REASON"/>
+                    <ParameterRefEntry parameterRef="CTS1_OPERATION_STATE"/>
+                    <ParameterRefEntry parameterRef="RBF_PIN_STATE"/>
+                    <ParameterRefEntry parameterRef="MPI_RX_MODE"/>
+                    <ParameterRefEntry parameterRef="MPI_TRANSCEIVER_STATE"/>
+                    <ParameterRefEntry parameterRef="MPI_LAST_REASON_FOR_STOPPING"/>
+                    <ParameterRefEntry parameterRef="GNSS_UART_INTERRUPT_ENABLED"/>
+                    <ParameterRefEntry parameterRef="GNSS_RX_MODE"/>
+                    <ParameterRefEntry parameterRef="DISTINCT_TCMDS_PENDING"/>
+                    <ParameterRefEntry parameterRef="DURATION_SINCE_LAST_TIME_SYNC"/>
+                    <ParameterRefEntry parameterRef="ADCS_WHEEL_SPEED_X"/>
+                    <ParameterRefEntry parameterRef="ADCS_WHEEL_SPEED_Y"/>
+                    <ParameterRefEntry parameterRef="ADCS_WHEEL_SPEED_Z"/>
+                    <ParameterRefEntry parameterRef="ADCS_POINTING_ERROR"/>
+                    <ParameterRefEntry parameterRef="ADCS_INNOVATION_VECTOR_X"/>
+                    <ParameterRefEntry parameterRef="ADCS_INNOVATION_VECTOR_Y"/>
+                    <ParameterRefEntry parameterRef="ADCS_INNOVATION_VECTOR_Z"/>
+                    <ParameterRefEntry parameterRef="ADCS_ESTIMATED_GYRO_BIAS_X"/>
+                    <ParameterRefEntry parameterRef="ADCS_ESTIMATED_GYRO_BIAS_Y"/>
+                    <ParameterRefEntry parameterRef="ADCS_ESTIMATED_GYRO_BIAS_Z"/>
+                    <ParameterRefEntry parameterRef="GNSS_POWER_CONSUMED"/>
+                    <ParameterRefEntry parameterRef="ADCS_TOTAL_POWER_CONSUMED"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH4_VOLT_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH4_CURR_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH4_CURR_OU_MPPT"/>
+                    <ParameterRefEntry parameterRef="END_MESSAGE">
+                        <LocationInContainerInBits><FixedValue>80</FixedValue></LocationInContainerInBits>
+                    </ParameterRefEntry>
+                    <ParameterRefEntry parameterRef="OBC_ACTIVE_OSCILLATOR"/>
+                    <ParameterRefEntry parameterRef="OBC_ADC_BATTERY_VOLTAGE"/>
+                    <ParameterRefEntry parameterRef="MPI_LAST_TEMPERATURE"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH0_VOLT_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH0_CURR_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH0_CURR_OU_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH1_VOLT_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH1_CURR_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH1_CURR_OU_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH2_VOLT_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH2_CURR_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH2_CURR_OU_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH3_VOLT_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH3_CURR_IN_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_PCU_CH3_CURR_OU_MPPT"/>
+                    <ParameterRefEntry parameterRef="EPS_BATTERY_PACK_STATUS_BITFIELD"/>
+                    <ParameterRefEntry parameterRef="EPS_TOTAL_AVG_NET_BATTERY_POWER"/>
+                    <ParameterRefEntry parameterRef="EPS_TOTAL_AVG_POWER_DISTRIBUTED"/>
+                    <ParameterRefEntry parameterRef="ADCS_RAW_CSS_1">
+                        <LocationInContainerInBits><FixedValue>48</FixedValue></LocationInContainerInBits>
+                    </ParameterRefEntry>
+                    <ParameterRefEntry parameterRef="ADCS_RAW_CSS_2"/>
+                    <ParameterRefEntry parameterRef="ADCS_RAW_CSS_3"/>
+                    <ParameterRefEntry parameterRef="ADCS_RAW_CSS_4"/>
+                    <ParameterRefEntry parameterRef="ADCS_RAW_CSS_5"/>
+                    <ParameterRefEntry parameterRef="ADCS_RAW_CSS_6"/>
+                    <ParameterRefEntry parameterRef="ADCS_RAW_CSS_7"/>
+                    <ParameterRefEntry parameterRef="ADCS_RAW_CSS_9"/>
+                    <ParameterRefEntry parameterRef="ADCS_MAGNETIC_FIELD_X"/>
+                    <ParameterRefEntry parameterRef="ADCS_MAGNETIC_FIELD_Y"/>
+                    <ParameterRefEntry parameterRef="ADCS_MAGNETIC_FIELD_Z"/>
+                    <ParameterRefEntry parameterRef="ADCS_ANGULAR_RATE_NORM"/>
+                    <ParameterRefEntry parameterRef="ADCS_ESTIMATED_RATE_X"/>
+                    <ParameterRefEntry parameterRef="ADCS_ESTIMATED_RATE_Y"/>
+                    <ParameterRefEntry parameterRef="ADCS_ESTIMATED_RATE_Z"/>
+                    <ParameterRefEntry parameterRef="ADCS_ESTIMATED_ROLL_ANGLE"/>
+                    <ParameterRefEntry parameterRef="ADCS_ESTIMATED_PITCH_ANGLE"/>
+                    <ParameterRefEntry parameterRef="ADCS_ESTIMATED_YAW_ANGLE"/>
+                </EntryList>
+                <BaseContainer containerRef="FRONTIERSAT_FRAME">
+                    <RestrictionCriteria>
+                        <Comparison parameterRef="PACKET_TYPE" value="BEACON_EXTENDED_V5PLUS"/>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+        </ContainerSet>
+    </TelemetryMetaData>
+</SpaceSystem>

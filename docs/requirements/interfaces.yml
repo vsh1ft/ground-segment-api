@@ -40,3 +40,10 @@
     The service shall find frames by the attached sync marker 1ACFFC1D and derandomize them with the CCSDS 131.0-B
     pseudo-randomizer; when the marker doesn't follow a frame, it shall search the stream for the next marker.
   verification: T
+
+- id: IF-080
+  text: >-
+    The service shall read observations from the SatNOGS Network API in JSON, without an account, following the
+    cursor of the Link header to older pages, and read each demodulated frame file as raw bytes or as hexadecimal
+    text, with the reception time taken from the file name.
+  verification: T

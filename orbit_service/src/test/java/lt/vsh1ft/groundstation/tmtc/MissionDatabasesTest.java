@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
@@ -36,7 +37,7 @@ class MissionDatabasesTest {
     void missingFileStopsTheStartup() {
         final var link = SimulatorTelemetry.link(new ClassPathResource("mdb/missing.xml"));
 
-        assertThatThrownBy(() -> new MissionDatabases(link)).isInstanceOf(UncheckedIOException.class)
+        assertThatThrownBy(() -> new MissionDatabases(link, new TmtcProperties(null))).isInstanceOf(UncheckedIOException.class)
                 .hasMessageStartingWith("Cannot read the mission database class path resource [mdb/missing.xml]");
     }
 
@@ -46,13 +47,13 @@ class MissionDatabasesTest {
         final var xtce = """
                 <SpaceSystem xmlns="http://www.omg.org/spec/XTCE/20180204" name="BAD">
                   <TelemetryMetaData><ParameterTypeSet>
-                    <StringParameterType name="text_t"/>
+                    <BooleanParameterType name="flag_t"/>
                   </ParameterTypeSet></TelemetryMetaData>
                 </SpaceSystem>""";
         final var link = SimulatorTelemetry.link(new ByteArrayResource(xtce.getBytes(StandardCharsets.UTF_8)));
 
-        assertThatThrownBy(() -> new MissionDatabases(link)).isInstanceOf(InvalidMissionDatabaseException.class)
-                .hasMessage("Unsupported XTCE element StringParameterType 'text_t'");
+        assertThatThrownBy(() -> new MissionDatabases(link, new TmtcProperties(null))).isInstanceOf(InvalidMissionDatabaseException.class)
+                .hasMessage("Unsupported XTCE element BooleanParameterType 'flag_t'");
     }
 
     @Test
@@ -85,8 +86,29 @@ class MissionDatabasesTest {
                 </SpaceSystem>""";
         final var link = SimulatorTelemetry.link(new ByteArrayResource(xtce.getBytes(StandardCharsets.UTF_8)));
 
-        assertThatThrownBy(() -> new MissionDatabases(link)).isInstanceOf(InvalidMissionDatabaseException.class)
+        assertThatThrownBy(() -> new MissionDatabases(link, new TmtcProperties(null))).isInstanceOf(InvalidMissionDatabaseException.class)
                 .hasMessage("StaticAlarmRanges in DefaultAlarm in FloatParameterType 'v_t' is inconsistent: the "
                         + "warning maximum 8.0 lies outside the critical maximum 7.9");
+    }
+
+    @Test
+    @Requirement("SAT-020")
+    void satelliteWithTwoMissionDatabasesStopsTheStartup() {
+        final var link = SimulatorTelemetry.link(new ClassPathResource("mdb/simulator.xml"));
+        final var twice = new TmtcProperties(List.of(new TmtcProperties.SatelliteDatabase(99999,
+                new ClassPathResource("mdb/frontiersat.xml"), null)));
+
+        assertThatThrownBy(() -> new MissionDatabases(link, twice)).isInstanceOf(IllegalStateException.class)
+                .hasMessage("Satellite 99999 has more than one mission database");
+    }
+
+    @Test
+    @Requirement("SAT-020")
+    void satelliteDatabaseWithoutAFrameCheckHasNoneAndNeedsALocation() {
+        assertThat(new TmtcProperties.SatelliteDatabase(69015, new ClassPathResource("mdb/frontiersat.xml"), null)
+                .frameCheck()).isEqualTo(FrameCheck.NONE);
+        assertThatThrownBy(() -> new TmtcProperties.SatelliteDatabase(69015, null, FrameCheck.NONE))
+                .isInstanceOf(NullPointerException.class)
+                .hasMessage("groundstation.tmtc.mission-databases[].location is required");
     }
 }

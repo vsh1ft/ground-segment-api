@@ -29,7 +29,7 @@ final class SimulatorTelemetry {
     }
 
     static MissionDatabases databases() {
-        return new MissionDatabases(link(new ClassPathResource("mdb/simulator.xml")));
+        return new MissionDatabases(link(new ClassPathResource("mdb/simulator.xml")), new TmtcProperties(null));
     }
 
     static TmPacket housekeeping(int sequenceCount, Instant generated, String userDataHex) {

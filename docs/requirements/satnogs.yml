@@ -1,0 +1,41 @@
+- id: SAT-010
+  text: >-
+    The service shall import the frames of configured catalog satellites from the SatNOGS Network at a
+    configurable interval, 1 hour by default, starting when it starts: on the first import of a satellite going
+    back a configurable time, 2 days by default, and afterwards continuing from where the last import ended. It shall
+    take observations of any status but only those that ended at least a configurable settle time ago, 1 hour by
+    default, and shall start again from the same point when an import or any of its frame downloads fails. After a
+    throttled request it shall not ask again before the time SatNOGS gives in Retry-After, or one interval without it.
+  verification: T
+
+- id: SAT-020
+  text: >-
+    A received frame shall be stored once per satellite and distinct content, with every reception of it (source,
+    station, position, observation, time). With a CRC-32C frame check, a frame ending in a matching CRC shall be
+    stored without it and marked checked, and any other frame stored as received and marked unchecked, so that a
+    frame uploaded with and without its CRC is one frame. A frame matching a complete container of the satellite's
+    mission database shall be decoded once, when it is first received, into the parameter archive, dated by the
+    on-board time it carries or else by its first reception.
+  verification: T
+
+- id: SAT-030
+  text: >-
+    The FrontierSat (NORAD 69015) mission database shall decode the extended beacon v5+ exactly as the team's
+    firmware struct defines it, checked field by field against a real frame decoded independently; other packet
+    types shall not be decoded.
+  verification: T
+
+- id: SAT-040
+  text: >-
+    The service shall list the received frames of a satellite, most recently first received first, with their
+    receptions, filtered by source or by one of the user's stations, at most a requested number (20 by default, 100
+    at most) with a cursor to the next, older page.
+  verification: T
+
+- id: SAT-050
+  text: >-
+    The service shall accept a frame received by one of the user's stations, 1 to 2048 bytes in hex with the
+    station and the reception time, answer 201 for a frame it hadn't received and 200 otherwise, add nothing for the
+    same frame from the same station at the same time, and answer 404 for an unknown station or a satellite outside
+    the catalog.
+  verification: T

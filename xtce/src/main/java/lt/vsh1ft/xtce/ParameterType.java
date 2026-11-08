@@ -2,7 +2,8 @@ package lt.vsh1ft.xtce;
 
 import java.util.Optional;
 
-public sealed interface ParameterType permits IntegerParameterType, FloatParameterType, EnumeratedParameterType {
+public sealed interface ParameterType permits IntegerParameterType, FloatParameterType, EnumeratedParameterType,
+        StringParameterType, AbsoluteTimeParameterType {
 
     String name();
 

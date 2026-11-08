@@ -15,6 +15,8 @@ import lt.vsh1ft.xtce.IntegerValue;
 import lt.vsh1ft.xtce.MissionDatabase;
 import lt.vsh1ft.xtce.Parameter;
 import lt.vsh1ft.xtce.ParameterValue;
+import lt.vsh1ft.xtce.StringValue;
+import lt.vsh1ft.xtce.TimeValue;
 import org.junit.jupiter.api.Test;
 
 class ParameterResponsesTest {
@@ -66,7 +68,7 @@ class ParameterResponsesTest {
         assertThat(battery.unit()).isEqualTo("V");
         assertThat(battery.nextBefore()).isEqualTo(41L);
         assertThat(battery.values().getFirst()).isEqualTo(new ParameterValuesResponse.Value(42, GENERATED, 7411,
-                7.411, 12));
+                7.411, 12L, null));
         assertThat(mode.values()).extracting(ParameterValuesResponse.Value::engineering)
                 .containsExactly("NOMINAL", null);
     }
@@ -76,6 +78,26 @@ class ParameterResponsesTest {
     }
 
     private static StoredParameterValue row(Parameter parameter, long raw, Double number, String text) {
-        return new StoredParameterValue(42L, SATELLITE.value(), 12, parameter.name(), GENERATED, raw, number, text);
+        return new StoredParameterValue(42L, SATELLITE.value(), 12L, null, parameter.name(), GENERATED, raw, number,
+                text);
+    }
+
+    @Test
+    @Requirement({"PAR-040", "PAR-060"})
+    void textAndTimeParametersAreDescribedStoredAndServedAsText() {
+        final var frontierSat = FrontierSat.databases().of(FrontierSat.SATELLITE).orElseThrow();
+        final var name = frontierSat.parameter("SATELLITE_NAME").orElseThrow();
+        final var time = frontierSat.parameter("UNIX_EPOCH_TIME").orElseThrow();
+        final var nameValue = StoredParameterValue.ofFrame(SATELLITE, 7, GENERATED, new ParameterValue(name,
+                0x43545331L, Optional.of(new StringValue("CTS1"))));
+        final var timeValue = StoredParameterValue.ofFrame(SATELLITE, 7, GENERATED, new ParameterValue(time,
+                1_794_145_884_338L, Optional.of(new TimeValue(Instant.parse("2026-11-08T13:51:24.338Z")))));
+
+        assertThat(ParameterResponse.from(name).kind()).isEqualTo(ParameterResponse.Kind.STRING);
+        assertThat(ParameterResponse.from(time).kind()).isEqualTo(ParameterResponse.Kind.TIME);
+        assertThat(nameValue.engineering(name.type())).isEqualTo("CTS1");
+        assertThat(timeValue.engineering(time.type())).isEqualTo("2026-11-08T13:51:24.338Z");
+        assertThat(timeValue.frameId()).isEqualTo(7L);
+        assertThat(timeValue.packetId()).isNull();
     }
 }

@@ -33,7 +33,7 @@ class EventService {
 
     private static Map<String, Parameter> auxiliary(StoredEvent event, Optional<MissionDatabase> database) {
         return database.flatMap(db -> Optional.ofNullable(event.container()).flatMap(db::container))
-                .map(container -> container.entries().stream()
+                .map(container -> container.parameters().stream()
                         .collect(Collectors.toMap(Parameter::name, parameter -> parameter)))
                 .orElse(Map.of());
     }

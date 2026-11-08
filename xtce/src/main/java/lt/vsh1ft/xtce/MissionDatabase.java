@@ -24,7 +24,7 @@ public record MissionDatabase(String name, List<Parameter> parameters, SequenceC
         var container = root;
         while (true) {
             for (var entry : container.entries()) {
-                decoded.put(entry.name(), entry.decode(reader));
+                decoded.put(entry.parameter().name(), entry.decode(reader));
             }
             final var matching = container.children().stream().filter(child -> child.matches(decoded)).toList();
             if (matching.isEmpty()) {

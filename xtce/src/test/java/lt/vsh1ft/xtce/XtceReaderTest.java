@@ -8,13 +8,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 class XtceReaderTest {
@@ -152,8 +155,55 @@ class XtceReaderTest {
                                   <ContainerRef containerRef="ROOT"/>
                                 </Message></MessageSet></TelemetryMetaData>"""),
                         "Unsupported XTCE element MessageSet in TelemetryMetaData in SpaceSystem 'TEST'"),
-                arguments("string type", types("<StringParameterType name=\"s_t\"/>"),
-                        "Unsupported XTCE element StringParameterType 's_t'"),
+                arguments("boolean type", types("<BooleanParameterType name=\"b_t\"/>"),
+                        "Unsupported XTCE element BooleanParameterType 'b_t'"),
+                arguments("string with only a unit", types("<StringParameterType name=\"s_t\"><UnitSet/>"
+                                + "</StringParameterType>"),
+                        "StringParameterType 's_t' needs exactly one StringDataEncoding and nothing else"),
+                arguments("string without encoding", types("<StringParameterType name=\"s_t\"/>"),
+                        "StringParameterType 's_t' needs exactly one StringDataEncoding and nothing else"),
+                arguments("UTF-8 string", types(string("UTF-8", "<SizeInBits><Fixed><FixedValue>32</FixedValue>"
+                                + "</Fixed></SizeInBits>")),
+                        "StringDataEncoding in StringParameterType 's_t' must have encoding=\"US-ASCII\"; other "
+                                + "character sets are not supported"),
+                arguments("variable string", types(string("US-ASCII", "<Variable maxSizeInBits=\"64\">"
+                                + "<DynamicValue><ParameterInstanceRef parameterRef=\"ID\"/></DynamicValue>"
+                                + "</Variable>")),
+                        "Unsupported XTCE element Variable in StringDataEncoding in StringParameterType 's_t'"),
+                arguments("terminated string", types(string("US-ASCII", "<SizeInBits><Fixed><FixedValue>32"
+                                + "</FixedValue></Fixed><TerminationChar>00</TerminationChar></SizeInBits>")),
+                        "Unsupported XTCE element TerminationChar in SizeInBits in StringDataEncoding in "
+                                + "StringParameterType 's_t'"),
+                arguments("odd string size", types(string("US-ASCII", "<SizeInBits><Fixed><FixedValue>12"
+                                + "</FixedValue></Fixed></SizeInBits>")),
+                        "StringDataEncoding in StringParameterType 's_t' is 12 bits; strings of whole bytes up to 64 "
+                                + "bits are supported"),
+                arguments("long string", types(string("US-ASCII", "<SizeInBits><Fixed><FixedValue>72"
+                                + "</FixedValue></Fixed></SizeInBits>")),
+                        "StringDataEncoding in StringParameterType 's_t' is 72 bits; strings of whole bytes up to 64 "
+                                + "bits are supported"),
+                arguments("time without epoch", types("<AbsoluteTimeParameterType name=\"t_t\"><Encoding>"
+                                + "<IntegerDataEncoding sizeInBits=\"32\"/></Encoding></AbsoluteTimeParameterType>"),
+                        "AbsoluteTimeParameterType 't_t' needs an Encoding and a ReferenceTime with an Epoch"),
+                arguments("time without encoding", types("<AbsoluteTimeParameterType name=\"t_t\">"
+                                + "<ReferenceTime><Epoch>UNIX</Epoch></ReferenceTime></AbsoluteTimeParameterType>"),
+                        "AbsoluteTimeParameterType 't_t' needs an Encoding and a ReferenceTime with an Epoch"),
+                arguments("time in days", types(time("units=\"days\"", "<IntegerDataEncoding/>", "UNIX")),
+                        "Encoding in AbsoluteTimeParameterType 't_t' has units=\"days\"; only \"seconds\" is "
+                                + "supported"),
+                arguments("float time", types(time("", "<FloatDataEncoding/>", "UNIX")),
+                        "Unsupported XTCE element FloatDataEncoding in Encoding in AbsoluteTimeParameterType 't_t'"),
+                arguments("TAI epoch", types(time("", "<IntegerDataEncoding/>", "TAI")),
+                        "Epoch in ReferenceTime in AbsoluteTimeParameterType 't_t' is TAI; only a date, a date and "
+                                + "time or UNIX are supported"),
+                arguments("time offset from a parameter", types("<AbsoluteTimeParameterType name=\"t_t\">"
+                                + "<Encoding><IntegerDataEncoding/></Encoding><ReferenceTime><OffsetFrom "
+                                + "parameterRef=\"ID\"/></ReferenceTime></AbsoluteTimeParameterType>"),
+                        "Unsupported XTCE element OffsetFrom in ReferenceTime in AbsoluteTimeParameterType 't_t'"),
+                arguments("time type inheritance", types("<AbsoluteTimeParameterType name=\"t_t\" "
+                                + "baseType=\"x\"><Encoding><IntegerDataEncoding/></Encoding><ReferenceTime>"
+                                + "<Epoch>UNIX</Epoch></ReferenceTime></AbsoluteTimeParameterType>"),
+                        "AbsoluteTimeParameterType 't_t' has attribute baseType, which is not supported"),
                 arguments("type inheritance",
                         types("<IntegerParameterType name=\"t\" baseType=\"uint8_t\"><IntegerDataEncoding/>"
                                 + "</IntegerParameterType>"),
@@ -180,14 +230,36 @@ class XtceReaderTest {
                                         + "</IntegerParameterType>"),
                         "IntegerDataEncoding in IntegerParameterType 't' uses encoding signMagnitude; only unsigned "
                                 + "and twosComplement are supported"),
-                arguments("33 bits", types(
-                                "<IntegerParameterType name=\"t\"><IntegerDataEncoding sizeInBits=\"33\"/>"
+                arguments("65 bits", types(
+                                "<IntegerParameterType name=\"t\"><IntegerDataEncoding sizeInBits=\"65\"/>"
                                         + "</IntegerParameterType>"),
-                        "IntegerDataEncoding in IntegerParameterType 't' is 33 bits; at most 32 are supported"),
-                arguments("little endian", types("<IntegerParameterType name=\"t\"><IntegerDataEncoding "
-                                + "sizeInBits=\"16\" byteOrder=\"leastSignificantByteFirst\"/></IntegerParameterType>"),
-                        "IntegerDataEncoding in IntegerParameterType 't' has byteOrder=\"leastSignificantByteFirst\";"
-                                + " only \"mostSignificantByteFirst\" is supported"),
+                        "IntegerDataEncoding in IntegerParameterType 't' is 65 bits; at most 64 are supported"),
+                arguments("little endian of 12 bits", types("<IntegerParameterType name=\"t\"><IntegerDataEncoding "
+                                + "sizeInBits=\"12\" byteOrder=\"leastSignificantByteFirst\"/></IntegerParameterType>"),
+                        "IntegerDataEncoding in IntegerParameterType 't' is little-endian but 12 bits; little-endian "
+                                + "integers must be whole bytes"),
+                arguments("arbitrary byte order", types("<IntegerParameterType name=\"t\"><IntegerDataEncoding "
+                                + "sizeInBits=\"16\" byteOrder=\"1,0\"/></IntegerParameterType>"),
+                        "IntegerDataEncoding in IntegerParameterType 't' has byteOrder=\"1,0\"; only "
+                                + "mostSignificantByteFirst and leastSignificantByteFirst are supported"),
+                arguments("entry at the container start", containers(entry("<LocationInContainerInBits "
+                                + "referenceLocation=\"containerStart\"><FixedValue>8</FixedValue>"
+                                + "</LocationInContainerInBits>")),
+                        "LocationInContainerInBits in ParameterRefEntry in EntryList in SequenceContainer 'A' has "
+                                + "referenceLocation=\"containerStart\"; only \"previousEntry\" is supported"),
+                arguments("dynamic entry location", containers(entry("<LocationInContainerInBits><DynamicValue>"
+                                + "<ParameterInstanceRef parameterRef=\"ID\"/></DynamicValue>"
+                                + "</LocationInContainerInBits>")),
+                        "Unsupported XTCE element DynamicValue in LocationInContainerInBits in ParameterRefEntry in "
+                                + "EntryList in SequenceContainer 'A'"),
+                arguments("overlapping entry", containers(entry("<LocationInContainerInBits><FixedValue>-8"
+                                + "</FixedValue></LocationInContainerInBits>")),
+                        "LocationInContainerInBits in ParameterRefEntry in EntryList in SequenceContainer 'A' is -8 "
+                                + "bits; an entry can't overlap the one before it"),
+                arguments("repeated entry", containers(entry("<RepeatEntry><Count><FixedValue>2</FixedValue>"
+                                + "</Count></RepeatEntry>")),
+                        "Unsupported XTCE element RepeatEntry in ParameterRefEntry in EntryList in SequenceContainer "
+                                + "'A'"),
                 arguments("calibrated integer", types("""
                                 <IntegerParameterType name="t"><IntegerDataEncoding><DefaultCalibrator>
                                   <PolynomialCalibrator><Term exponent="1" coefficient="2"/></PolynomialCalibrator>
@@ -389,6 +461,59 @@ class XtceReaderTest {
 
         assertThatThrownBy(() -> XtceReader.read(broken)).isInstanceOf(InvalidMissionDatabaseException.class)
                 .hasMessage("Not a valid XTCE 1.2 document: disk gone");
+    }
+
+    @Test
+    void stringsTimesLittleEndianIntegersAndEntryOffsetsAreRead() {
+        final var database = Xtce.read(document(UINT8 + string("US-ASCII", "<SizeInBits><Fixed><FixedValue>32"
+                        + "</FixedValue></Fixed></SizeInBits>")
+                        + time("scale=\"0.001\"", "<IntegerDataEncoding sizeInBits=\"64\" "
+                        + "byteOrder=\"leastSignificantByteFirst\"/>", "UNIX")
+                        + "<IntegerParameterType name=\"le_t\" signed=\"true\"><IntegerDataEncoding "
+                        + "sizeInBits=\"16\" encoding=\"twosComplement\" byteOrder=\"leastSignificantByteFirst\"/>"
+                        + "</IntegerParameterType>",
+                ID + "<Parameter name=\"NAME\" parameterTypeRef=\"s_t\"/><Parameter name=\"TIME\" "
+                        + "parameterTypeRef=\"t_t\"/><Parameter name=\"LE\" parameterTypeRef=\"le_t\"/>",
+                ROOT.replace("<ParameterRefEntry parameterRef=\"ID\"/>", "<ParameterRefEntry parameterRef=\"ID\"/>"
+                        + "<ParameterRefEntry parameterRef=\"NAME\"/><ParameterRefEntry parameterRef=\"TIME\"/>"
+                        + "<ParameterRefEntry parameterRef=\"LE\"><LocationInContainerInBits><FixedValue>8"
+                        + "</FixedValue></LocationInContainerInBits></ParameterRefEntry>")));
+
+        final var decoded = database.decode(Xtce.bytes("21 43545331 B2986DBBA1010000 FF FEFF"));
+
+        assertThat(decoded.values()).extracting(ParameterValue::engineering).containsExactly(
+                Optional.of(new IntegerValue(0x21)), Optional.of(new StringValue("CTS1")),
+                Optional.of(new TimeValue(Instant.parse("2026-11-08T13:51:24.338Z"))),
+                Optional.of(new IntegerValue(-2)));
+        assertThat(database.root().entries().get(3).offsetInBits()).isEqualTo(8);
+    }
+
+    @ParameterizedTest
+    @CsvSource({"2026-11-08, 2026-11-08T00:00:00Z", "2026-11-08T13:51:24Z, 2026-11-08T13:51:24Z",
+            "2026-11-08T13:51:24, 2026-11-08T13:51:24Z", "2026-11-08T15:51:24+02:00, 2026-11-08T13:51:24Z",
+            "UNIX, 1970-01-01T00:00:00Z"})
+    void epochIsADateADateAndTimeOrUnix(String epoch, Instant start) {
+        final var database = Xtce.read(document(UINT8 + time("", "<IntegerDataEncoding/>", epoch),
+                ID + "<Parameter name=\"TIME\" parameterTypeRef=\"t_t\"/>",
+                ROOT.replace("<ParameterRefEntry parameterRef=\"ID\"/>", "<ParameterRefEntry parameterRef=\"ID\"/>"
+                        + "<ParameterRefEntry parameterRef=\"TIME\"/>")));
+
+        assertThat(database.decode(new byte[] {0, 10}).generationTime()).hasValue(start.plusSeconds(10));
+    }
+
+    private static String string(String encoding, String size) {
+        return "<StringParameterType name=\"s_t\"><StringDataEncoding encoding=\"" + encoding + "\">" + size
+                + "</StringDataEncoding></StringParameterType>";
+    }
+
+    private static String time(String encodingAttributes, String dataEncoding, String epoch) {
+        return "<AbsoluteTimeParameterType name=\"t_t\"><Encoding " + encodingAttributes + ">" + dataEncoding
+                + "</Encoding><ReferenceTime><Epoch>" + epoch + "</Epoch></ReferenceTime></AbsoluteTimeParameterType>";
+    }
+
+    private static String entry(String location) {
+        return "<SequenceContainer name=\"A\"><EntryList><ParameterRefEntry parameterRef=\"ID\">" + location
+                + "</ParameterRefEntry></EntryList><BaseContainer containerRef=\"ROOT\"/></SequenceContainer>";
     }
 
     private static Arguments arguments(String problem, String xtce, String message) {

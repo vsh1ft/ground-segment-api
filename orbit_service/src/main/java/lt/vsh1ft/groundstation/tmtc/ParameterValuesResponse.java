@@ -26,7 +26,7 @@ public record ParameterValuesResponse(
                 values.stream().map(value -> Value.of(parameter, value)).toList(), nextBefore);
     }
 
-    @Schema(description = "One value of the parameter, decoded from one packet")
+    @Schema(description = "One value of the parameter, decoded from one packet or one received frame")
     public record Value(
             @Schema(description = "Archive identifier; higher means archived later", example = "4711")
             long id,
@@ -39,16 +39,22 @@ public record ParameterValuesResponse(
             long raw,
 
             @Schema(description = "The calibrated value: a number for INTEGER and FLOAT parameters, a label for "
-                    + "ENUMERATED ones; null when the raw value has no enumeration label",
+                    + "ENUMERATED ones, the text for STRING ones, a UTC time for TIME ones; null when the raw value "
+                    + "has no enumeration label",
                     example = "7.411", nullable = true, oneOf = {Long.class, Double.class, String.class})
             Object engineering,
 
-            @Schema(description = "Archive identifier of the packet the value was decoded from", example = "12")
-            long packetId) {
+            @Schema(description = "Archive identifier of the packet the value was decoded from; null for a value "
+                    + "from a received frame", example = "12", nullable = true)
+            Long packetId,
+
+            @Schema(description = "Archive identifier of the received frame the value was decoded from; null for a "
+                    + "value from a packet", example = "4712", nullable = true)
+            Long frameId) {
 
         static Value of(Parameter parameter, StoredParameterValue value) {
             return new Value(value.id(), value.generationTime(), value.raw(), value.engineering(parameter.type()),
-                    value.packetId());
+                    value.packetId(), value.frameId());
         }
     }
 }

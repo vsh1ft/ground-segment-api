@@ -3,6 +3,8 @@ package lt.vsh1ft.xtce;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,10 +39,63 @@ class ValueTypesTest {
     }
 
     @Test
-    void encodingSizeMustBeBetweenOneAndThirtyTwoBits() {
+    void encodingSizeMustBeBetweenOneAndSixtyFourBits() {
         assertThatThrownBy(() -> new IntegerEncoding(0, false)).isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("sizeInBits must be between 1 and 32, was 0");
-        assertThatThrownBy(() -> new IntegerEncoding(33, false)).isInstanceOf(IllegalArgumentException.class);
+                .hasMessage("sizeInBits must be between 1 and 64, was 0");
+        assertThatThrownBy(() -> new IntegerEncoding(65, false)).isInstanceOf(IllegalArgumentException.class);
+        assertThat(new IntegerEncoding(64, true).littleEndian()).isFalse();
+    }
+
+    @Test
+    void littleEndianEncodingMustBeWholeBytes() {
+        assertThatThrownBy(() -> new IntegerEncoding(12, false, true)).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("a little-endian integer must be whole bytes, was 12 bits");
+        assertThat(new IntegerEncoding(8, false, true).littleEndian()).isTrue();
+    }
+
+    @Test
+    void stringIsAWholeNumberOfUnsignedBytesInOrder() {
+        assertThatThrownBy(() -> new StringParameterType("s", new IntegerEncoding(12, false)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new StringParameterType("s", new IntegerEncoding(16, true)))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new StringParameterType("s", new IntegerEncoding(16, false, true)))
+                .isInstanceOf(IllegalArgumentException.class);
+        final var name = new StringParameterType("s", new IntegerEncoding(32, false));
+        assertThat(name.unit()).isNull();
+        assertThat(name.parse("CTS1")).isEqualTo(new StringValue("CTS1"));
+        assertThat(name.monitor(0)).isEqualTo(MonitoringLevel.IN_LIMITS);
+    }
+
+    @Test
+    void absoluteTimeNeedsAnEpochScaleAndOffset() {
+        final var encoding = new IntegerEncoding(32, false);
+        assertThatThrownBy(() -> new AbsoluteTimeParameterType("t", encoding, null, BigDecimal.ONE, BigDecimal.ZERO))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new AbsoluteTimeParameterType("t", encoding, Instant.EPOCH, null, BigDecimal.ZERO))
+                .isInstanceOf(NullPointerException.class);
+        assertThatThrownBy(() -> new AbsoluteTimeParameterType("t", encoding, Instant.EPOCH, BigDecimal.ONE, null))
+                .isInstanceOf(NullPointerException.class);
+        final var time = new AbsoluteTimeParameterType("t", encoding, Instant.EPOCH, BigDecimal.ONE, BigDecimal.ZERO);
+        assertThat(time.unit()).isNull();
+        assertThat(time.parse("2026-11-08T13:51:24Z")).isEqualTo(new TimeValue(Instant.parse("2026-11-08T13:51:24Z")));
+        assertThat(time.monitor(0)).isEqualTo(MonitoringLevel.IN_LIMITS);
+    }
+
+    @Test
+    void textAndTimeValuesHaveNoNumber() {
+        assertThat(new StringValue("CTS1").number()).isEmpty();
+        assertThat(new TimeValue(Instant.EPOCH).number()).isEmpty();
+    }
+
+    @Test
+    void entryCannotOverlapTheOneBeforeIt() {
+        final var parameter = new Parameter("P", null, new StringParameterType("s", new IntegerEncoding(8, false)));
+
+        assertThatThrownBy(() -> new SequenceContainer.Entry(parameter, -1))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("an entry can't overlap the one before it, offset was -1");
+        assertThat(new SequenceContainer.Entry(parameter).offsetInBits()).isZero();
     }
 
     @Test

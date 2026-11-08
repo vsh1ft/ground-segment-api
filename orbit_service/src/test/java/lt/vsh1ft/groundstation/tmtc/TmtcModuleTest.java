@@ -15,8 +15,10 @@ import lt.vsh1ft.ccsds.MissionTime;
 import lt.vsh1ft.ccsds.PusTmSecondaryHeader;
 import lt.vsh1ft.ccsds.TmPacket;
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
+import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.contact.ContactWatch;
 import lt.vsh1ft.groundstation.contact.Visibility;
+import lt.vsh1ft.groundstation.pass.GroundStationSource;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,6 +57,12 @@ class TmtcModuleTest {
 
     @MockitoBean
     private ContactWatch contacts;
+
+    @MockitoBean
+    private SatelliteService satellites;
+
+    @MockitoBean
+    private GroundStationSource stations;
 
     @BeforeEach
     void emptyArchive() {
