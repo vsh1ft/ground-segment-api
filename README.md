@@ -2,7 +2,7 @@
 
 A ground-segment backend for satellite passes, tracking and telemetry, built API first. It's in an early
 stage: today it keeps a catalog of satellites and a list of ground stations, predicts passes of the catalog
-satellites over the stations, and archives telemetry from a simulated spacecraft. The `orbit_service`
+satellites over the stations, and archives and decodes telemetry from a simulated spacecraft. The `orbit_service`
 module downloads the latest orbital elements from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates
 them with [Orekit](https://www.orekit.org/) (SGP4) and serves the passes over HTTP: when the satellite rises above
 the station's minimum elevation, its highest point, and when it sets, in UTC.
@@ -165,6 +165,37 @@ older page pass `nextBefore` as `before`; it is `null` on the last page:
 `generationTime` is the spacecraft's on-board time (TAI since 1958) converted to UTC. When the link is down the
 service retries every 5 seconds.
 
+### Parameters
+
+```
+GET /satellites/99999/parameters
+GET /satellites/99999/parameters/BATTERY_VOLTAGE/values?limit=2&from=2026-11-08T09:00:00Z
+```
+
+Every packet is also decoded with the satellite's **mission database**, an [XTCE](https://www.omg.org/spec/XTCE/)
+1.2 file ([`mdb/simulator.xml`](orbit_service/src/main/resources/mdb/simulator.xml) for the simulator), and each
+value is archived with its raw value as sent and its engineering value after calibration. The first endpoint lists
+what the database defines (name, description, kind, unit, enumeration labels); the second returns a parameter's
+history, most recently archived first, with the same `from`/`to`, `limit` and `before` paging as packets:
+
+```
+{
+  "parameter": "BATTERY_VOLTAGE",
+  "unit": "V",
+  "values": [
+    {"id": 112, "generationTime": "2026-11-08T09:49:04.272079Z", "raw": 7409, "engineering": 7.409, "packetId": 28},
+    {"id": 93, "generationTime": "2026-11-08T09:49:03.273804Z", "raw": 7409, "engineering": 7.409, "packetId": 27}
+  ],
+  "nextBefore": 93
+}
+```
+
+`engineering` is a number for integer and float parameters and a label for enumerations (`"NOMINAL"`), or `null`
+when the spacecraft sent a value the enumeration doesn't know. The header fields (`APID`, `SEQUENCE_COUNT`,
+`TIME_COARSE` …) are parameters too. The mission database is validated against the official XTCE schema on startup;
+a file the service can't fully understand stops the startup rather than decoding wrongly. The
+[XTCE tutorial](docs/tutorial/xtce-mission-database.md) explains the format and the decoding.
+
 ### Errors
 
 Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for invalid
@@ -195,7 +226,7 @@ Each top-level package under `lt.vsh1ft.groundstation` is a module; its sub-pack
 station ──► pass ──► catalog ──► elements ──► shared
               └─────────────────────►┘
 radio ─────────────► catalog
-tmtc                 (depends on no other module; uses the ccsds library)
+tmtc ──────────────────────────────────────► shared   (uses the ccsds and xtce libraries)
 ```
 
 | Module | Responsibility |
@@ -205,14 +236,15 @@ tmtc                 (depends on no other module; uses the ccsds library)
 | `catalog` | the satellite catalog, `/satellites` and the scheduled refresh from CelesTrak |
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
 | `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
-| `tmtc` | telemetry: the TCP link to the spacecraft, the packet archive and `/satellites/{noradId}/telemetry/packets` |
+| `tmtc` | telemetry: the TCP link to the spacecraft, the packet and parameter archives, the mission database, `/satellites/{noradId}/telemetry/packets` and `/satellites/{noradId}/parameters` |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
 
-Two more Gradle projects sit next to `orbit_service`:
+Three more Gradle projects sit next to `orbit_service`:
 
 | Project | Responsibility |
 |---|---|
 | `ccsds` | plain-Java library (no dependencies) for CCSDS space packets, PUS-C TM headers, CUC time and the CRC; used by both sides of the link |
+| `xtce` | plain-Java library (no dependencies) that reads an XTCE 1.2 mission database, validated against the official schema, and decodes packets into parameter values |
 | `spacecraft_simulator` | plain-Java program that stands in for the satellite: it sends housekeeping telemetry over TCP |
 
 `pass` finds stations through its `GroundStationSource` interface, which `station` implements, so no two modules
@@ -258,7 +290,7 @@ It sends a housekeeping packet every second on TCP port 10015; the environment v
 ```
 
 A JaCoCo coverage report is written to `<project>/build/reports/jacoco/test/html/index.html` after each test run;
-`./gradlew check` requires 100 % line and branch coverage in `orbit_service` and `ccsds`.
+`./gradlew check` requires 100 % line and branch coverage in `orbit_service`, `ccsds` and `xtce`.
 
 Requirements are listed in [`docs/requirements/`](docs/requirements), one YAML file per area (catalog, passes,
 radio, interfaces, operations, ...), each requirement with an ID such as `CAT-050` and

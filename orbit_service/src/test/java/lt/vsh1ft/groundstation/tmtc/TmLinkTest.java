@@ -31,7 +31,7 @@ class TmLinkTest {
     private static final Instant NOW = Instant.parse("2026-11-08T10:00:00Z");
     private static final int WAIT_MS = 5_000;
 
-    private final TmPacketArchive archive = mock(TmPacketArchive.class);
+    private final TelemetryReception reception = mock(TelemetryReception.class);
     private ServerSocket simulator;
     private TmLink link;
 
@@ -56,7 +56,7 @@ class TmLinkTest {
         try (var connection = simulator.accept()) {
             connection.getOutputStream().write(concat(REFERENCE, REFERENCE));
 
-            verify(archive, timeout(WAIT_MS).times(2)).store(SATELLITE, TmPacket.decode(REFERENCE), NOW);
+            verify(reception, timeout(WAIT_MS).times(2)).receive(SATELLITE, TmPacket.decode(REFERENCE), NOW);
         }
     }
 
@@ -71,7 +71,7 @@ class TmLinkTest {
         try (var second = simulator.accept()) {
             second.getOutputStream().write(REFERENCE);
 
-            verify(archive, timeout(WAIT_MS).times(2)).store(SATELLITE, TmPacket.decode(REFERENCE), NOW);
+            verify(reception, timeout(WAIT_MS).times(2)).receive(SATELLITE, TmPacket.decode(REFERENCE), NOW);
         }
     }
 
@@ -87,7 +87,7 @@ class TmLinkTest {
         try (var connection = simulator.accept()) {
             connection.getOutputStream().write(REFERENCE);
 
-            verify(archive, timeout(WAIT_MS)).store(SATELLITE, TmPacket.decode(REFERENCE), NOW);
+            verify(reception, timeout(WAIT_MS)).receive(SATELLITE, TmPacket.decode(REFERENCE), NOW);
         }
     }
 
@@ -104,9 +104,9 @@ class TmLinkTest {
         try (var second = simulator.accept()) {
             second.getOutputStream().write(REFERENCE);
 
-            verify(archive, timeout(WAIT_MS)).store(SATELLITE, TmPacket.decode(REFERENCE), NOW);
+            verify(reception, timeout(WAIT_MS)).receive(SATELLITE, TmPacket.decode(REFERENCE), NOW);
         }
-        verify(archive, times(1)).store(any(), any(), any());
+        verify(reception, times(1)).receive(any(), any(), any());
     }
 
     @Test
@@ -123,8 +123,8 @@ class TmLinkTest {
 
     private TmLink start(int port) {
         final var properties = new TmLinkProperties(SATELLITE.value(), "localhost", port, Duration.ofMillis(200),
-                Duration.ofMillis(50));
-        final var started = new TmLink(properties, archive, Clock.fixed(NOW, ZoneOffset.UTC));
+                Duration.ofMillis(50), null);
+        final var started = new TmLink(properties, reception, Clock.fixed(NOW, ZoneOffset.UTC));
         started.start();
         return started;
     }

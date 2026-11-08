@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SpaceSystem xmlns="http://www.omg.org/spec/XTCE/20180204" name="SIMULATOR"
+             shortDescription="Spacecraft simulator, telemetry as in ICD-TM-001">
+    <LongDescription>Mission database for the spacecraft simulator: the CCSDS primary header, the PUS-C TM
+        secondary header and housekeeping structure 1 of APID 100. See docs/icd/tm-link.md.</LongDescription>
+    <Header version="1" date="2026-11-08" validationStatus="Working"/>
+    <TelemetryMetaData>
+        <ParameterTypeSet>
+            <IntegerParameterType name="uint1_t" signed="false">
+                <IntegerDataEncoding sizeInBits="1"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint2_t" signed="false">
+                <IntegerDataEncoding sizeInBits="2"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint3_t" signed="false">
+                <IntegerDataEncoding sizeInBits="3"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint4_t" signed="false">
+                <IntegerDataEncoding sizeInBits="4"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint8_t" signed="false">
+                <IntegerDataEncoding sizeInBits="8"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint11_t" signed="false">
+                <IntegerDataEncoding sizeInBits="11"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint14_t" signed="false">
+                <IntegerDataEncoding sizeInBits="14"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint16_t" signed="false">
+                <IntegerDataEncoding sizeInBits="16"/>
+            </IntegerParameterType>
+            <IntegerParameterType name="uint32_t" signed="false">
+                <IntegerDataEncoding sizeInBits="32"/>
+            </IntegerParameterType>
+            <FloatParameterType name="voltage_t">
+                <UnitSet><Unit>V</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="unsigned">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.001"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <FloatParameterType name="temperature_t">
+                <UnitSet><Unit>degC</Unit></UnitSet>
+                <IntegerDataEncoding sizeInBits="16" encoding="twosComplement">
+                    <DefaultCalibrator>
+                        <PolynomialCalibrator>
+                            <Term exponent="1" coefficient="0.1"/>
+                        </PolynomialCalibrator>
+                    </DefaultCalibrator>
+                </IntegerDataEncoding>
+            </FloatParameterType>
+            <EnumeratedParameterType name="mode_t">
+                <IntegerDataEncoding sizeInBits="8"/>
+                <EnumerationList>
+                    <Enumeration value="0" label="SAFE"/>
+                    <Enumeration value="1" label="NOMINAL"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
+        </ParameterTypeSet>
+        <ParameterSet>
+            <Parameter name="PACKET_VERSION" parameterTypeRef="uint3_t" shortDescription="CCSDS packet version number"/>
+            <Parameter name="PACKET_TYPE" parameterTypeRef="uint1_t" shortDescription="0 telemetry, 1 telecommand"/>
+            <Parameter name="SECONDARY_HEADER_FLAG" parameterTypeRef="uint1_t"
+                       shortDescription="1 when a secondary header follows"/>
+            <Parameter name="APID" parameterTypeRef="uint11_t" shortDescription="Application process ID"/>
+            <Parameter name="SEQUENCE_FLAGS" parameterTypeRef="uint2_t" shortDescription="3 = unsegmented"/>
+            <Parameter name="SEQUENCE_COUNT" parameterTypeRef="uint14_t" shortDescription="Per-APID packet counter"/>
+            <Parameter name="PACKET_DATA_LENGTH" parameterTypeRef="uint16_t"
+                       shortDescription="Bytes after the primary header, minus 1"/>
+            <Parameter name="PUS_VERSION" parameterTypeRef="uint4_t" shortDescription="2 = PUS-C"/>
+            <Parameter name="TIME_REFERENCE_STATUS" parameterTypeRef="uint4_t"
+                       shortDescription="Spacecraft time reference status"/>
+            <Parameter name="SERVICE_TYPE" parameterTypeRef="uint8_t" shortDescription="PUS service type"/>
+            <Parameter name="MESSAGE_SUBTYPE" parameterTypeRef="uint8_t" shortDescription="PUS message subtype"/>
+            <Parameter name="MESSAGE_TYPE_COUNTER" parameterTypeRef="uint16_t"
+                       shortDescription="Counter per service type and subtype"/>
+            <Parameter name="DESTINATION_ID" parameterTypeRef="uint16_t" shortDescription="0 = ground"/>
+            <Parameter name="TIME_COARSE" parameterTypeRef="uint32_t"
+                       shortDescription="On-board time, whole seconds since 1958-01-01 TAI"/>
+            <Parameter name="TIME_FINE" parameterTypeRef="uint16_t"
+                       shortDescription="On-board time, units of 2^-16 s"/>
+            <Parameter name="HK_STRUCTURE_ID" parameterTypeRef="uint8_t"
+                       shortDescription="Housekeeping parameter report structure ID"/>
+            <Parameter name="BATTERY_VOLTAGE" parameterTypeRef="voltage_t" shortDescription="Battery voltage"/>
+            <Parameter name="PLATFORM_TEMPERATURE" parameterTypeRef="temperature_t"
+                       shortDescription="Platform temperature"/>
+            <Parameter name="SPACECRAFT_MODE" parameterTypeRef="mode_t" shortDescription="Spacecraft mode"/>
+        </ParameterSet>
+        <ContainerSet>
+            <SequenceContainer name="CCSDS_PACKET" abstract="true">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="PACKET_VERSION"/>
+                    <ParameterRefEntry parameterRef="PACKET_TYPE"/>
+                    <ParameterRefEntry parameterRef="SECONDARY_HEADER_FLAG"/>
+                    <ParameterRefEntry parameterRef="APID"/>
+                    <ParameterRefEntry parameterRef="SEQUENCE_FLAGS"/>
+                    <ParameterRefEntry parameterRef="SEQUENCE_COUNT"/>
+                    <ParameterRefEntry parameterRef="PACKET_DATA_LENGTH"/>
+                </EntryList>
+            </SequenceContainer>
+            <SequenceContainer name="PUS_TM" abstract="true">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="PUS_VERSION"/>
+                    <ParameterRefEntry parameterRef="TIME_REFERENCE_STATUS"/>
+                    <ParameterRefEntry parameterRef="SERVICE_TYPE"/>
+                    <ParameterRefEntry parameterRef="MESSAGE_SUBTYPE"/>
+                    <ParameterRefEntry parameterRef="MESSAGE_TYPE_COUNTER"/>
+                    <ParameterRefEntry parameterRef="DESTINATION_ID"/>
+                    <ParameterRefEntry parameterRef="TIME_COARSE"/>
+                    <ParameterRefEntry parameterRef="TIME_FINE"/>
+                </EntryList>
+                <BaseContainer containerRef="CCSDS_PACKET">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="PACKET_TYPE" value="0"/>
+                            <Comparison parameterRef="SECONDARY_HEADER_FLAG" value="1"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="PUS_HK_REPORT" abstract="true">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="HK_STRUCTURE_ID"/>
+                </EntryList>
+                <BaseContainer containerRef="PUS_TM">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="SERVICE_TYPE" value="3"/>
+                            <Comparison parameterRef="MESSAGE_SUBTYPE" value="25"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="HK_STRUCTURE_1" shortDescription="Platform housekeeping, ICD section 4.1">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="BATTERY_VOLTAGE"/>
+                    <ParameterRefEntry parameterRef="PLATFORM_TEMPERATURE"/>
+                    <ParameterRefEntry parameterRef="SPACECRAFT_MODE"/>
+                </EntryList>
+                <BaseContainer containerRef="PUS_HK_REPORT">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="APID" value="100"/>
+                            <Comparison parameterRef="HK_STRUCTURE_ID" value="1"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+        </ContainerSet>
+    </TelemetryMetaData>
+</SpaceSystem>

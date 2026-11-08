@@ -7,7 +7,7 @@ import java.util.Objects;
 
 public record TmPacket(Apid apid, int sequenceCount, PusTmSecondaryHeader secondaryHeader, byte[] userData) {
 
-    private static final int CRC_LENGTH = 2;
+    public static final int CRC_LENGTH = 2;
     public static final int MAX_USER_DATA_LENGTH =
             PrimaryHeader.MAX_DATA_FIELD_LENGTH - PusTmSecondaryHeader.LENGTH - CRC_LENGTH;
 

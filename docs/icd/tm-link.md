@@ -2,9 +2,10 @@
 
 | | |
 |---|---|
-| Document | ICD-TM-001, issue 1 (2026-11-08) |
+| Document | ICD-TM-001, issue 2 (2026-11-08) |
 | Interface | `spacecraft_simulator` (provider) to `orbit_service` module `tmtc` (user) |
 | Code | `ccsds` module, shared by both sides |
+| Mission database | `orbit_service/src/main/resources/mdb/simulator.xml` (XTCE 1.2): sections 3 and 4 in machine-readable form |
 | Requirements | IF-040, IF-050, TM-010 to TM-040 (`docs/requirements/`) |
 
 ## 1. Scope
@@ -18,6 +19,7 @@ Reference documents:
 - CCSDS 133.0-B-2 *Space Packet Protocol*
 - CCSDS 301.0-B-4 *Time Code Formats*
 - ECSS-E-ST-70-41C *Telemetry and telecommand packet utilization* (PUS-C)
+- OMG *XML Telemetric and Command Exchange (XTCE)* 1.2, for the mission database
 
 ## 2. Transport
 
@@ -115,6 +117,10 @@ parameters follow.
 
 Total: 6 bytes. In the simulator, battery voltage and temperature follow a sine over a 92-minute orbit.
 
+The mission database describes this structure as container `HK_STRUCTURE_1` (restricted to APID 100 and structure
+ID 1), with calibrations 0.001 V per raw unit for the battery voltage and 0.1 °C for the temperature. The table
+above and the XTCE file must change together.
+
 ## 5. Example
 
 Housekeeping report: APID 100, sequence count 5, message type counter 1, time coarse `0x12345678` / fine
@@ -134,3 +140,4 @@ FB 2C                                      CRC-16-CCITT
 | Issue | Date | Change |
 |---|---|---|
 | 1 | 2026-11-08 | first issue: TM over TCP, housekeeping structure 1 |
+| 2 | 2026-11-08 | mission database (XTCE) referenced as the machine-readable form of sections 3 and 4; spacecraft identification by link configuration |

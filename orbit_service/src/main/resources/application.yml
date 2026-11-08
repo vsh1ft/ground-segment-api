@@ -47,3 +47,4 @@ groundstation:
       port: 10015
       connect-timeout: 2s
       reconnect-delay: 5s
+      mission-database: classpath:mdb/simulator.xml

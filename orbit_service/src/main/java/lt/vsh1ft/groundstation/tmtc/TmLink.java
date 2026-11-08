@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 class TmLink implements SmartLifecycle {
 
     private final TmLinkProperties properties;
-    private final TmPacketArchive archive;
+    private final TelemetryReception reception;
     private final Clock clock;
 
     private NoradId satellite;
@@ -63,7 +63,7 @@ class TmLink implements SmartLifecycle {
             downReported = false;
             final var reader = new TmPacketReader(socket.getInputStream());
             for (var packet = reader.next(); packet.isPresent(); packet = reader.next()) {
-                archive.store(satellite, packet.get(), clock.instant());
+                reception.receive(satellite, packet.get(), clock.instant());
             }
             reportDown("closed by the simulator");
         } catch (IOException | RuntimeException e) {

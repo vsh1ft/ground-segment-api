@@ -1,8 +1,10 @@
 package lt.vsh1ft.groundstation.tmtc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
 
 import lt.vsh1ft.ccsds.Apid;
@@ -36,6 +38,12 @@ class TmtcModuleTest {
 
     @Autowired
     private JdbcAggregateOperations aggregates;
+
+    @Autowired
+    private TelemetryReception reception;
+
+    @Autowired
+    private ParameterService parameters;
 
     @BeforeEach
     void emptyArchive() {
@@ -95,6 +103,51 @@ class TmtcModuleTest {
         final var found = archive.packets(SATELLITE, new PacketsQuery(null, null, null, null, 100, 5, 1));
 
         assertThat(found.packets()).extracting(TmPacketResponse::sequenceCount).containsExactly(2);
+    }
+
+    @Test
+    @Requirement({"PAR-020", "PAR-050"})
+    void receivedHousekeepingIsQueryableAsParameterValues() {
+        reception.receive(SATELLITE, SimulatorTelemetry.LIVE, T0);
+
+        final var battery = parameters.values(SATELLITE, "BATTERY_VOLTAGE", values(20, null));
+        final var mode = parameters.values(SATELLITE, "SPACECRAFT_MODE", values(20, null));
+        final var apid = parameters.values(SATELLITE, "APID", values(20, null));
+
+        assertThat(battery.unit()).isEqualTo("V");
+        assertThat(battery.values()).singleElement().satisfies(value -> {
+            assertThat(value.raw()).isEqualTo(7411);
+            assertThat((double) value.engineering()).isCloseTo(7.411, within(1e-9));
+            assertThat(value.generationTime()).isCloseTo(SimulatorTelemetry.LIVE_GENERATED,
+                    within(1, ChronoUnit.MILLIS));
+            assertThat(value.packetId()).isPositive();
+        });
+        assertThat(mode.values().getFirst().engineering()).isEqualTo("NOMINAL");
+        assertThat(apid.values().getFirst().engineering()).isEqualTo(100L);
+    }
+
+    @Test
+    @Requirement("PAR-050")
+    void parameterValuesArePagedNewestFirstAndFilteredByGenerationTime() {
+        for (int second = 0; second < 4; second++) {
+            reception.receive(SATELLITE, SimulatorTelemetry.housekeeping(second, T0.plusSeconds(second),
+                    "011CF%d009E01".formatted(second)), T0);
+        }
+        reception.receive(OTHER_SATELLITE, SimulatorTelemetry.LIVE, T0);
+
+        final var first = parameters.values(SATELLITE, "BATTERY_VOLTAGE", values(2, null));
+        final var second = parameters.values(SATELLITE, "BATTERY_VOLTAGE", values(2, first.nextBefore()));
+        final var window = parameters.values(SATELLITE, "BATTERY_VOLTAGE",
+                new ValuesQuery(null, null, T0.plusSeconds(1), T0.plusSeconds(3)));
+
+        assertThat(first.values()).extracting(ParameterValuesResponse.Value::raw).containsExactly(0x1CF3L, 0x1CF2L);
+        assertThat(second.values()).extracting(ParameterValuesResponse.Value::raw).containsExactly(0x1CF1L, 0x1CF0L);
+        assertThat(second.nextBefore()).isNull();
+        assertThat(window.values()).extracting(ParameterValuesResponse.Value::raw).containsExactly(0x1CF2L, 0x1CF1L);
+    }
+
+    private static ValuesQuery values(int limit, Long before) {
+        return new ValuesQuery(limit, before, null, null);
     }
 
     private static PacketsQuery query(int limit, Long before) {

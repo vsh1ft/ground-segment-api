@@ -17,8 +17,8 @@ class TmPacketArchive {
 
     private final JdbcAggregateOperations aggregates;
 
-    void store(NoradId satellite, TmPacket packet, Instant receivedAt) {
-        aggregates.insert(StoredTmPacket.received(satellite, packet, receivedAt));
+    long store(NoradId satellite, TmPacket packet, Instant receivedAt) {
+        return aggregates.insert(StoredTmPacket.received(satellite, packet, receivedAt)).id();
     }
 
     TmPacketsResponse packets(NoradId satellite, PacketsQuery query) {

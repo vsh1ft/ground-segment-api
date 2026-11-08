@@ -1,0 +1,34 @@
+- id: PAR-010
+  text: >-
+    The service shall load the mission database of the TM link's satellite from an XTCE 1.2 file when it starts,
+    validate it against the XTCE 1.2 schema, and refuse to start if the file can't be read, is not valid XTCE, or
+    uses XTCE features outside the supported subset.
+  verification: T
+
+- id: PAR-020
+  text: >-
+    Every archived packet shall be decoded with the satellite's mission database, following container inheritance
+    and restriction criteria, and each decoded parameter value shall be stored with its raw value, its engineering
+    value (unsigned or two's complement integers, polynomial calibration, enumeration labels) and the packet's
+    generation time. A raw value without an enumeration label shall be stored without an engineering value.
+  verification: T
+
+- id: PAR-030
+  text: >-
+    A packet that matches no complete container of the mission database, or that is too short for its layout, shall
+    stay archived without parameter values, be logged as a warning, and not disturb the TM link.
+  verification: T
+
+- id: PAR-040
+  text: >-
+    The service shall list the parameters of a satellite's mission database with name, description, kind (integer,
+    float or enumerated), unit and enumeration labels.
+  verification: T
+
+- id: PAR-050
+  text: >-
+    The service shall list the archived values of one parameter of a satellite, most recently archived first, with
+    raw and engineering value, generation time and source packet, filterable by generation time (from inclusive, to
+    exclusive), with at most a requested number of values (20 by default, 100 at most) and a cursor to the next,
+    older page.
+  verification: T

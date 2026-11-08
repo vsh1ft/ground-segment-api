@@ -3,4 +3,4 @@ plugins {
 }
 
 rootProject.name = 'ground-segment-api'
-include 'orbit_service', 'ccsds', 'spacecraft_simulator'
+include 'orbit_service', 'ccsds', 'xtce', 'spacecraft_simulator'
