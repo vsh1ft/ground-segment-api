@@ -1,0 +1,20 @@
+- id: EVT-010
+  text: >-
+    Every PUS event report received (TM[5,1] to TM[5,4]) shall be logged as an event of the satellite, with its
+    generation time, its packet and a severity taken from the subtype (INFO, LOW, MEDIUM, HIGH), even when the
+    packet can't be decoded or the satellite has no mission database.
+  verification: T
+
+- id: EVT-020
+  text: >-
+    An event shall carry the event definition ID as sent and, when the mission database knows it, the event name
+    (the label of the EVENT_ID enumeration), its description (the enumeration's short description) and the
+    auxiliary values defined by the event's container.
+  verification: T
+
+- id: EVT-030
+  text: >-
+    The service shall list a satellite's events, most recently archived first, filterable by minimum severity and
+    by generation time (from inclusive, to exclusive), with at most a requested number of events (20 by default, 100
+    at most) and a cursor to the next, older page.
+  verification: T

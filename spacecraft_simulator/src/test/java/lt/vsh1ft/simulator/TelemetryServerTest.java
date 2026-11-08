@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -19,7 +20,8 @@ class TelemetryServerTest {
 
     private static final Instant START = Instant.parse("2026-11-08T00:00:00Z");
 
-    private final TmPacket packet = new TelemetryGenerator(new Spacecraft(START)).housekeeping(START);
+    private final TmPacket packet = new TelemetryGenerator(new Spacecraft(START, Duration.ofMinutes(92))).step(START)
+            .getFirst();
     private final ScheduledExecutorService sender = Executors.newSingleThreadScheduledExecutor();
     private TelemetryServer server;
 

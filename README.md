@@ -2,7 +2,7 @@
 
 A ground-segment backend for satellite passes, tracking and telemetry, built API first. It's in an early
 stage: today it keeps a catalog of satellites and a list of ground stations, predicts passes of the catalog
-satellites over the stations, and archives and decodes telemetry from a simulated spacecraft. The `orbit_service`
+satellites over the stations, and archives and decodes telemetry and events from a simulated spacecraft. The `orbit_service`
 module downloads the latest orbital elements from [CelesTrak](https://celestrak.org/) as OMM (JSON), propagates
 them with [Orekit](https://www.orekit.org/) (SGP4) and serves the passes over HTTP: when the satellite rises above
 the station's minimum elevation, its highest point, and when it sets, in UTC.
@@ -196,6 +196,37 @@ when the spacecraft sent a value the enumeration doesn't know. The header fields
 a file the service can't fully understand stops the startup rather than decoding wrongly. The
 [XTCE tutorial](docs/tutorial/xtce-mission-database.md) explains the format and the decoding.
 
+### Events
+
+```
+GET /satellites/99999/events?minSeverity=LOW&limit=20
+```
+
+Events are what the spacecraft reports when something happens (PUS service 5), as opposed to the periodic
+housekeeping. The simulator raises them when battery voltage or temperature cross a threshold, and its on-board
+fault protection (FDIR) puts the spacecraft into SAFE mode while the battery is low. The severity comes from the
+packet's PUS subtype (`INFO`, `LOW`, `MEDIUM`, `HIGH`); the name, the text and the auxiliary values come from the
+mission database. Filter with `minSeverity` ("this severity or worse") and `from`/`to`, and page with `limit` and
+`before` as elsewhere. Output from a live run, `minSeverity=LOW`:
+
+```
+{
+  "events": [
+    {"id": 6, "severity": "MEDIUM", "eventId": 3, "name": "TEMPERATURE_HIGH",
+     "description": "Platform temperature above 33.0 degC", "generationTime": "2026-11-08T10:23:54.735825Z",
+     "packetId": 162, "values": [{"parameter": "EVENT_TEMPERATURE", "raw": 333, "engineering": 33.300000000000004}]},
+    {"id": 3, "severity": "HIGH", "eventId": 5, "name": "SAFE_MODE_ENTERED",
+     "description": "FDIR switched the spacecraft to SAFE mode", "generationTime": "2026-11-08T10:22:51.736633Z",
+     "packetId": 96, "values": []}
+  ],
+  "nextBefore": 3
+}
+```
+
+An event report the service can't decode (unknown event ID, no mission database) is still listed with its
+severity, just without a name: an anomaly nobody can name is the one an operator most needs to see. The
+[events tutorial](docs/tutorial/pus-events.md) explains the packets and the decoding.
+
 ### Errors
 
 Errors are returned as [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457) problem details: 400 for invalid
@@ -236,7 +267,7 @@ tmtc ─────────────────────────
 | `catalog` | the satellite catalog, `/satellites` and the scheduled refresh from CelesTrak |
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
 | `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
-| `tmtc` | telemetry: the TCP link to the spacecraft, the packet and parameter archives, the mission database, `/satellites/{noradId}/telemetry/packets` and `/satellites/{noradId}/parameters` |
+| `tmtc` | telemetry: the TCP link to the spacecraft, the packet and parameter archives, the event log, the mission database, `/satellites/{noradId}/telemetry/packets`, `/parameters` and `/events` |
 | `shared` | NORAD ID, error categories, the RFC 9457 error handler, OpenAPI and Orekit setup |
 
 Three more Gradle projects sit next to `orbit_service`:
@@ -279,9 +310,10 @@ The spacecraft simulator runs as a separate process:
 ./gradlew :spacecraft_simulator:run
 ```
 
-It sends a housekeeping packet every second on TCP port 10015; the environment variables `SIMULATOR_TM_PORT` and
-`SIMULATOR_HOUSEKEEPING_PERIOD` (ISO-8601, e.g. `PT5S`) change that. The service connects to it as set in
-`groundstation.tmtc.link`, and either can be started first.
+It sends a housekeeping packet every second on TCP port 10015, plus event reports when something happens; the
+environment variables `SIMULATOR_TM_PORT` and `SIMULATOR_HOUSEKEEPING_PERIOD` (ISO-8601, e.g. `PT5S`) change that.
+`SIMULATOR_ORBIT_PERIOD` (default `PT92M`) sets how long one orbit takes; with `PT2M` every event appears within two
+minutes. The service connects to it as set in `groundstation.tmtc.link`, and either can be started first.
 
 ## Tests
 

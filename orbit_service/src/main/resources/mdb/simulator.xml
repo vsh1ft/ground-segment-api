@@ -2,7 +2,8 @@
 <SpaceSystem xmlns="http://www.omg.org/spec/XTCE/20180204" name="SIMULATOR"
              shortDescription="Spacecraft simulator, telemetry as in ICD-TM-001">
     <LongDescription>Mission database for the spacecraft simulator: the CCSDS primary header, the PUS-C TM
-        secondary header and housekeeping structure 1 of APID 100. See docs/icd/tm-link.md.</LongDescription>
+        secondary header, housekeeping structure 1 and the event reports of APID 100. See
+        docs/icd/tm-link.md.</LongDescription>
     <Header version="1" date="2026-11-08" validationStatus="Working"/>
     <TelemetryMetaData>
         <ParameterTypeSet>
@@ -60,6 +61,22 @@
                     <Enumeration value="1" label="NOMINAL"/>
                 </EnumerationList>
             </EnumeratedParameterType>
+            <EnumeratedParameterType name="event_id_t">
+                <IntegerDataEncoding sizeInBits="16"/>
+                <EnumerationList>
+                    <Enumeration value="1" label="BATTERY_LOW" shortDescription="Battery voltage below 7.15 V"/>
+                    <Enumeration value="2" label="BATTERY_RECOVERED"
+                                 shortDescription="Battery voltage back at 7.25 V or more"/>
+                    <Enumeration value="3" label="TEMPERATURE_HIGH"
+                                 shortDescription="Platform temperature above 33.0 degC"/>
+                    <Enumeration value="4" label="TEMPERATURE_NORMAL"
+                                 shortDescription="Platform temperature back at 30.0 degC or less"/>
+                    <Enumeration value="5" label="SAFE_MODE_ENTERED"
+                                 shortDescription="FDIR switched the spacecraft to SAFE mode"/>
+                    <Enumeration value="6" label="NOMINAL_MODE_RESUMED"
+                                 shortDescription="FDIR returned the spacecraft to NOMINAL mode"/>
+                </EnumerationList>
+            </EnumeratedParameterType>
         </ParameterTypeSet>
         <ParameterSet>
             <Parameter name="PACKET_VERSION" parameterTypeRef="uint3_t" shortDescription="CCSDS packet version number"/>
@@ -89,6 +106,11 @@
             <Parameter name="PLATFORM_TEMPERATURE" parameterTypeRef="temperature_t"
                        shortDescription="Platform temperature"/>
             <Parameter name="SPACECRAFT_MODE" parameterTypeRef="mode_t" shortDescription="Spacecraft mode"/>
+            <Parameter name="EVENT_ID" parameterTypeRef="event_id_t" shortDescription="Event definition ID"/>
+            <Parameter name="EVENT_BATTERY_VOLTAGE" parameterTypeRef="voltage_t"
+                       shortDescription="Battery voltage reported with a battery event"/>
+            <Parameter name="EVENT_TEMPERATURE" parameterTypeRef="temperature_t"
+                       shortDescription="Platform temperature reported with a temperature event"/>
         </ParameterSet>
         <ContainerSet>
             <SequenceContainer name="CCSDS_PACKET" abstract="true">
@@ -146,6 +168,90 @@
                         <ComparisonList>
                             <Comparison parameterRef="APID" value="100"/>
                             <Comparison parameterRef="HK_STRUCTURE_ID" value="1"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="PUS_EVENT" abstract="true" shortDescription="PUS service 5 event report">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="EVENT_ID"/>
+                </EntryList>
+                <BaseContainer containerRef="PUS_TM">
+                    <RestrictionCriteria>
+                        <Comparison parameterRef="SERVICE_TYPE" value="5"/>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="EVENT_BATTERY_LOW">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="EVENT_BATTERY_VOLTAGE"/>
+                </EntryList>
+                <BaseContainer containerRef="PUS_EVENT">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="APID" value="100"/>
+                            <Comparison parameterRef="EVENT_ID" value="BATTERY_LOW"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="EVENT_BATTERY_RECOVERED">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="EVENT_BATTERY_VOLTAGE"/>
+                </EntryList>
+                <BaseContainer containerRef="PUS_EVENT">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="APID" value="100"/>
+                            <Comparison parameterRef="EVENT_ID" value="BATTERY_RECOVERED"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="EVENT_TEMPERATURE_HIGH">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="EVENT_TEMPERATURE"/>
+                </EntryList>
+                <BaseContainer containerRef="PUS_EVENT">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="APID" value="100"/>
+                            <Comparison parameterRef="EVENT_ID" value="TEMPERATURE_HIGH"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="EVENT_TEMPERATURE_NORMAL">
+                <EntryList>
+                    <ParameterRefEntry parameterRef="EVENT_TEMPERATURE"/>
+                </EntryList>
+                <BaseContainer containerRef="PUS_EVENT">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="APID" value="100"/>
+                            <Comparison parameterRef="EVENT_ID" value="TEMPERATURE_NORMAL"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="EVENT_SAFE_MODE_ENTERED">
+                <EntryList/>
+                <BaseContainer containerRef="PUS_EVENT">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="APID" value="100"/>
+                            <Comparison parameterRef="EVENT_ID" value="SAFE_MODE_ENTERED"/>
+                        </ComparisonList>
+                    </RestrictionCriteria>
+                </BaseContainer>
+            </SequenceContainer>
+            <SequenceContainer name="EVENT_NOMINAL_MODE_RESUMED">
+                <EntryList/>
+                <BaseContainer containerRef="PUS_EVENT">
+                    <RestrictionCriteria>
+                        <ComparisonList>
+                            <Comparison parameterRef="APID" value="100"/>
+                            <Comparison parameterRef="EVENT_ID" value="NOMINAL_MODE_RESUMED"/>
                         </ComparisonList>
                     </RestrictionCriteria>
                 </BaseContainer>

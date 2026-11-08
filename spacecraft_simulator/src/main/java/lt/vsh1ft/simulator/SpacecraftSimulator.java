@@ -15,15 +15,16 @@ public final class SpacecraftSimulator {
     public static void main(String[] args) throws IOException {
         final var config = SimulatorConfig.from(System.getenv());
         final var clock = Clock.systemUTC();
-        final var generator = new TelemetryGenerator(new Spacecraft(clock.instant()));
+        final var generator = new TelemetryGenerator(new Spacecraft(clock.instant(), config.orbitPeriod()));
         final var server = new TelemetryServer(config.port());
         server.start();
 
         final var scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleAtFixedRate(() -> server.broadcast(generator.housekeeping(clock.instant()).encode()),
+        scheduler.scheduleAtFixedRate(
+                () -> generator.step(clock.instant()).forEach(packet -> server.broadcast(packet.encode())),
                 0, config.housekeepingPeriod().toMillis(), TimeUnit.MILLISECONDS);
-        LOG.log(System.Logger.Level.INFO, "Sending housekeeping every {0} on TCP port {1}",
-                config.housekeepingPeriod(), String.valueOf(server.port()));
+        LOG.log(System.Logger.Level.INFO, "Sending housekeeping every {0} on TCP port {1}; orbit period {2}",
+                config.housekeepingPeriod(), String.valueOf(server.port()), config.orbitPeriod());
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             scheduler.shutdownNow();

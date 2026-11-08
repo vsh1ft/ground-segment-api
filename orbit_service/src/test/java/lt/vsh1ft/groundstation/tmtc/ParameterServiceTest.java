@@ -23,7 +23,7 @@ class ParameterServiceTest {
     @Test
     @Requirement("PAR-040")
     void everyParameterOfTheMissionDatabaseIsListedInDatabaseOrder() {
-        assertThat(service.parameters(SATELLITE)).hasSize(19).first()
+        assertThat(service.parameters(SATELLITE)).hasSize(22).first()
                 .extracting(ParameterResponse::name).isEqualTo("PACKET_VERSION");
     }
 

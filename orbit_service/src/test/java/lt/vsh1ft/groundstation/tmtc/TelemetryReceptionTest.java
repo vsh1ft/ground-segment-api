@@ -17,6 +17,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import lt.vsh1ft.ccsds.MessageType;
 import lt.vsh1ft.ccsds.TmPacket;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
@@ -28,10 +29,12 @@ import org.mockito.ArgumentCaptor;
 class TelemetryReceptionTest {
 
     private static final Instant RECEIVED = Instant.parse("2026-11-08T08:53:42Z");
+    private static final Instant GENERATED = Instant.parse("2026-11-08T09:00:00Z");
 
     private final TmPacketArchive packets = mock(TmPacketArchive.class);
     private final ParameterArchive parameters = mock(ParameterArchive.class);
-    private final TelemetryReception reception = new TelemetryReception(packets, parameters,
+    private final EventArchive events = mock(EventArchive.class);
+    private final TelemetryReception reception = new TelemetryReception(packets, parameters, events,
             SimulatorTelemetry.databases());
 
     @Test
@@ -48,6 +51,7 @@ class TelemetryReceptionTest {
             assertThat(mode.parameter().name()).isEqualTo("SPACECRAFT_MODE");
             assertThat(mode.engineering()).isEqualTo(Optional.of(new EnumeratedValue("NOMINAL")));
         });
+        verifyNoInteractions(events);
     }
 
     @Test
@@ -80,5 +84,48 @@ class TelemetryReceptionTest {
 
         verify(packets).store(other, LIVE, RECEIVED);
         verify(parameters, never()).store(any(), anyLong(), any(), any());
+    }
+
+    @Test
+    @Requirement({"EVT-010", "EVT-020"})
+    void eventReportIsLoggedWithItsNameDescriptionAndContainerAndItsValuesStored() {
+        final var batteryLow = SimulatorTelemetry.packet(MessageType.LOW_SEVERITY_ANOMALY_REPORT, 812, GENERATED,
+                "00011BED");
+        given(packets.store(SATELLITE, batteryLow, RECEIVED)).willReturn(40L);
+
+        reception.receive(SATELLITE, batteryLow, RECEIVED);
+
+        verify(events).store(new StoredEvent(null, SATELLITE.value(), 40L, Severity.LOW, 1, "BATTERY_LOW",
+                "Battery voltage below 7.15 V", "EVENT_BATTERY_LOW", GENERATED));
+        verify(parameters).store(eq(SATELLITE), eq(40L), eq(GENERATED), any());
+    }
+
+    @Test
+    @Requirement("EVT-010")
+    void eventWithAnIdTheDatabaseDoesNotKnowIsLoggedWithoutAName() {
+        final var unknown = SimulatorTelemetry.packet(MessageType.HIGH_SEVERITY_ANOMALY_REPORT, 1, GENERATED, "0063");
+        given(packets.store(SATELLITE, unknown, RECEIVED)).willReturn(41L);
+
+        reception.receive(SATELLITE, unknown, RECEIVED);
+
+        verify(events).store(new StoredEvent(null, SATELLITE.value(), 41L, Severity.HIGH, 99, null, null, null,
+                GENERATED));
+        verifyNoInteractions(parameters);
+    }
+
+    @Test
+    @Requirement("EVT-010")
+    void eventThatCannotBeDecodedIsStillLoggedWithItsSeverity() {
+        final var empty = SimulatorTelemetry.packet(MessageType.MEDIUM_SEVERITY_ANOMALY_REPORT, 1, GENERATED, "");
+        final var other = new NoradId(25544);
+        given(packets.store(SATELLITE, empty, RECEIVED)).willReturn(42L);
+        given(packets.store(other, empty, RECEIVED)).willReturn(43L);
+
+        reception.receive(SATELLITE, empty, RECEIVED);
+        reception.receive(other, empty, RECEIVED);
+
+        verify(events).store(new StoredEvent(null, SATELLITE.value(), 42L, Severity.MEDIUM, null, null, null, null,
+                GENERATED));
+        verify(events).store(new StoredEvent(null, 25544, 43L, Severity.MEDIUM, null, null, null, null, GENERATED));
     }
 }

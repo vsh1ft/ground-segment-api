@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| Document | ICD-TM-001, issue 2 (2026-11-08) |
+| Document | ICD-TM-001, issue 3 (2026-11-08) |
 | Interface | `spacecraft_simulator` (provider) to `orbit_service` module `tmtc` (user) |
 | Code | `ccsds` module, shared by both sides |
 | Mission database | `orbit_service/src/main/resources/mdb/simulator.xml` (XTCE 1.2): sections 3 and 4 in machine-readable form |
-| Requirements | IF-040, IF-050, TM-010 to TM-040 (`docs/requirements/`) |
+| Requirements | IF-040, IF-050, TM-010 to TM-050, PAR-010 to PAR-050, EVT-010 to EVT-030 (`docs/requirements/`) |
 
 ## 1. Scope
 
@@ -102,6 +102,10 @@ TAI − UTC must be updated on both sides at once.
 | APID | Source | Service / subtype | Name | Period |
 |---|---|---|---|---|
 | 100 | platform | 3 / 25 | housekeeping parameter report | `SIMULATOR_HOUSEKEEPING_PERIOD`, 1 s by default |
+| 100 | platform | 5 / 1 to 5 / 4 | event reports: informative, low, medium and high severity anomaly | when an event occurs (section 4.2) |
+
+Event reports of a step are sent before that step's housekeeping report, so the housekeeping that shows a new mode
+follows the event that explains it.
 
 ### 4.1 Housekeeping parameter report, structure 1
 
@@ -115,13 +119,41 @@ parameters follow.
 | 3 | platform temperature | int16, two's complement | 0.1 °C | −50 to 350 (−5.0 to 35.0 °C) |
 | 5 | spacecraft mode | uint8 enum | | `0` SAFE, `1` NOMINAL |
 
-Total: 6 bytes. In the simulator, battery voltage and temperature follow a sine over a 92-minute orbit.
+Total: 6 bytes. In the simulator, battery voltage and temperature follow a sine over one orbit,
+`SIMULATOR_ORBIT_PERIOD` (ISO-8601, 92 minutes by default).
 
 The mission database describes this structure as container `HK_STRUCTURE_1` (restricted to APID 100 and structure
 ID 1), with calibrations 0.001 V per raw unit for the battery voltage and 0.1 °C for the temperature. The table
 above and the XTCE file must change together.
 
-## 5. Example
+### 4.2 Event reports
+
+The subtype of a TM[5,x] report is its severity: 1 informative, 2 low, 3 medium, 4 high severity anomaly. The user
+data is the event definition ID, followed by auxiliary data that depends on the event.
+
+| Offset | Field | Type |
+|---|---|---|
+| 0 | event definition ID | uint16 |
+| 2 | auxiliary data | per event, see below; 0 or 2 bytes |
+
+| ID | Name | Subtype | Raised when | Auxiliary data |
+|---|---|---|---|---|
+| 1 | `BATTERY_LOW` | 2 | battery voltage falls below 7150 mV | battery voltage, uint16, mV |
+| 2 | `BATTERY_RECOVERED` | 1 | battery voltage is back at 7250 mV or more after `BATTERY_LOW` | battery voltage, uint16, mV |
+| 3 | `TEMPERATURE_HIGH` | 3 | platform temperature rises above 33.0 °C | platform temperature, int16, 0.1 °C |
+| 4 | `TEMPERATURE_NORMAL` | 1 | platform temperature is back at 30.0 °C or less after `TEMPERATURE_HIGH` | platform temperature, int16, 0.1 °C |
+| 5 | `SAFE_MODE_ENTERED` | 4 | FDIR reaction to `BATTERY_LOW`: the spacecraft mode becomes SAFE | none |
+| 6 | `NOMINAL_MODE_RESUMED` | 1 | FDIR reaction to `BATTERY_RECOVERED`: the spacecraft mode becomes NOMINAL | none |
+
+Each event is raised once per crossing: the different thresholds for raising and clearing (hysteresis) keep a value
+near a threshold from raising a burst of events. Over one orbit the simulator raises each event once.
+
+In the mission database, `EVENT_ID` is an enumeration whose labels are the names above and whose short descriptions
+are the event texts. Container `PUS_EVENT` (service 5) holds the event ID; one child container per event, named
+`EVENT_` + name and restricted to APID 100 and its label, holds the auxiliary data (`EVENT_BATTERY_VOLTAGE` or
+`EVENT_TEMPERATURE`). The containers deliberately don't check the subtype: the severity is the spacecraft's.
+
+## 5. Examples
 
 Housekeeping report: APID 100, sequence count 5, message type counter 1, time coarse `0x12345678` / fine
 `0x8000`, and user data `01 02 03 04`. This example is for codec tests; it is not structure 1.
@@ -135,9 +167,21 @@ Housekeeping report: APID 100, sequence count 5, message type counter 1, time co
 FB 2C                                      CRC-16-CCITT
 ```
 
+Event report `BATTERY_LOW` at 2026-11-08T09:00:00Z, battery at 7149 mV, sequence count 812, first TM[5,2]:
+
+```
+08 64 C3 2C 00 12                          APID 100, count 812, data length 18
+20 05 02 00 00 00 00 81 82 98 B5 00 00     service 5, subtype 2 (low severity), counter 0, destination 0,
+                                           CUC 0x818298B5.0000 = 09:00:00 UTC
+00 01                                      event definition ID 1 = BATTERY_LOW
+1B ED                                      auxiliary data: 7149 mV
+00 9A                                      CRC-16-CCITT
+```
+
 ## 6. Changes
 
 | Issue | Date | Change |
 |---|---|---|
 | 1 | 2026-11-08 | first issue: TM over TCP, housekeeping structure 1 |
 | 2 | 2026-11-08 | mission database (XTCE) referenced as the machine-readable form of sections 3 and 4; spacecraft identification by link configuration |
+| 3 | 2026-11-08 | event reports TM[5,1] to TM[5,4] (section 4.2, second example); configurable orbit period |

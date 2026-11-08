@@ -14,6 +14,10 @@ public record MissionDatabase(String name, List<Parameter> parameters, SequenceC
         return parameters.stream().filter(parameter -> parameter.name().equals(name)).findFirst();
     }
 
+    public Optional<SequenceContainer> container(String name) {
+        return find(root, name);
+    }
+
     public DecodedPacket decode(byte[] packet) {
         final var reader = new BitReader(packet);
         final var decoded = new LinkedHashMap<String, ParameterValue>();
@@ -32,5 +36,15 @@ public record MissionDatabase(String name, List<Parameter> parameters, SequenceC
             }
             container = matching.getFirst().container();
         }
+    }
+
+    private static Optional<SequenceContainer> find(SequenceContainer container, String name) {
+        if (container.name().equals(name)) {
+            return Optional.of(container);
+        }
+        return container.children().stream()
+                .map(child -> find(child.container(), name))
+                .flatMap(Optional::stream)
+                .findFirst();
     }
 }

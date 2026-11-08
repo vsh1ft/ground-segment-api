@@ -66,12 +66,12 @@ public final class XtceReader {
         final boolean calibrated = kind.equals("FloatParameterType");
         String unit = null;
         Encoding encoding = null;
-        Map<Long, String> labels = Map.of();
+        Enumeration enumeration = new Enumeration(Map.of(), Map.of());
         for (var child : Xml.children(type)) {
             switch (child.getLocalName()) {
                 case "UnitSet" -> unit = readUnit(child);
                 case "IntegerDataEncoding" -> encoding = readEncoding(child, calibrated);
-                case "EnumerationList" -> labels = readLabels(child);
+                case "EnumerationList" -> enumeration = readEnumeration(child);
                 default -> throw unsupported(child);
             }
         }
@@ -85,7 +85,8 @@ public final class XtceReader {
         } else if (calibrated) {
             parameterType = new FloatParameterType(name, unit, encoding.encoding(), encoding.calibrator());
         } else {
-            parameterType = new EnumeratedParameterType(name, encoding.encoding(), labels);
+            parameterType = new EnumeratedParameterType(name, encoding.encoding(), enumeration.labels(),
+                    enumeration.descriptions());
         }
         types.put(name, parameterType);
     }
@@ -140,16 +141,20 @@ public final class XtceReader {
         return new PolynomialCalibrator(terms);
     }
 
-    private Map<Long, String> readLabels(Element enumerationList) {
+    private Enumeration readEnumeration(Element enumerationList) {
         final var labels = new LinkedHashMap<Long, String>();
+        final var descriptions = new LinkedHashMap<Long, String>();
         for (var enumeration : Xml.children(enumerationList)) {
             attributes(enumeration, "value", "label", SHORT_DESCRIPTION);
             final long value = Long.parseLong(enumeration.getAttribute("value"));
             if (labels.putIfAbsent(value, enumeration.getAttribute("label")) != null) {
                 throw invalid(enumerationList, "has value " + value + " more than once");
             }
+            if (enumeration.hasAttribute(SHORT_DESCRIPTION)) {
+                descriptions.put(value, enumeration.getAttribute(SHORT_DESCRIPTION));
+            }
         }
-        return labels;
+        return new Enumeration(labels, descriptions);
     }
 
     private void readParameter(Element element) {
@@ -319,6 +324,9 @@ public final class XtceReader {
     }
 
     private record Encoding(IntegerEncoding encoding, PolynomialCalibrator calibrator) {
+    }
+
+    private record Enumeration(Map<Long, String> labels, Map<Long, String> descriptions) {
     }
 
     private record PendingComparison(Parameter parameter, String value, boolean calibrated) {

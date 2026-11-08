@@ -2,12 +2,8 @@ package lt.vsh1ft.groundstation.tmtc;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Optional;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import lt.vsh1ft.xtce.EnumeratedParameterType;
-import lt.vsh1ft.xtce.FloatParameterType;
-import lt.vsh1ft.xtce.IntegerParameterType;
 import lt.vsh1ft.xtce.Parameter;
 
 @Schema(description = "Archived values of one parameter of a satellite, most recently archived first")
@@ -51,17 +47,8 @@ public record ParameterValuesResponse(
             long packetId) {
 
         static Value of(Parameter parameter, StoredParameterValue value) {
-            return new Value(value.id(), value.generationTime(), value.raw(), engineering(parameter, value),
+            return new Value(value.id(), value.generationTime(), value.raw(), value.engineering(parameter.type()),
                     value.packetId());
-        }
-
-        private static Object engineering(Parameter parameter, StoredParameterValue value) {
-            final var number = Optional.ofNullable(value.engineeringNumber());
-            return switch (parameter.type()) {
-                case IntegerParameterType type -> number.map(Double::longValue).orElse(null);
-                case FloatParameterType type -> number.orElse(null);
-                case EnumeratedParameterType type -> value.engineeringText();
-            };
         }
     }
 }

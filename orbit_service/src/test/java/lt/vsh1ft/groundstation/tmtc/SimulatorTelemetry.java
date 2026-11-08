@@ -33,8 +33,11 @@ final class SimulatorTelemetry {
     }
 
     static TmPacket housekeeping(int sequenceCount, Instant generated, String userDataHex) {
-        final var header = new PusTmSecondaryHeader(0, MessageType.HOUSEKEEPING_PARAMETER_REPORT, sequenceCount, 0,
-                MissionTime.toCuc(generated));
+        return packet(MessageType.HOUSEKEEPING_PARAMETER_REPORT, sequenceCount, generated, userDataHex);
+    }
+
+    static TmPacket packet(MessageType type, int sequenceCount, Instant generated, String userDataHex) {
+        final var header = new PusTmSecondaryHeader(0, type, sequenceCount, 0, MissionTime.toCuc(generated));
         return new TmPacket(new Apid(100), sequenceCount, header, HexFormat.of().parseHex(userDataHex));
     }
 }

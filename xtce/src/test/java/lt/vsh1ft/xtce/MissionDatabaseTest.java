@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 class MissionDatabaseTest {
 
     private static final String HEADERS = "0864C0210014 200319002100008182973AEC54";
+    private static final String EVENT_HEADERS = "0864C32C0012 2005";
     private static final MissionDatabase HOUSEKEEPING = Xtce.housekeeping();
 
     @Test
@@ -92,7 +93,7 @@ class MissionDatabaseTest {
     @Test
     void comparisonOnTheRawValueIgnoresTheCalibration() {
         final var mode = new Parameter("MODE", null, new EnumeratedParameterType("mode_t",
-                new IntegerEncoding(8, false), Map.of(1L, "NOMINAL")));
+                new IntegerEncoding(8, false), Map.of(1L, "NOMINAL"), Map.of()));
         final var raw = new Comparison(mode, new IntegerValue(1), false);
         final var root = new SequenceContainer("ROOT", true, List.of(mode), List.of(
                 new SequenceContainer.Child(new SequenceContainer("NOMINAL_ONLY", false, List.of(), List.of()),
@@ -100,6 +101,51 @@ class MissionDatabaseTest {
 
         assertThat(new MissionDatabase("TEST", List.of(mode), root).decode(new byte[] {1}).container().name())
                 .isEqualTo("NOMINAL_ONLY");
+    }
+
+    @Test
+    void eventReportIsDecodedByComparingTheEventIdLabel() {
+        final var decoded = HOUSEKEEPING.decode(Xtce.bytes(EVENT_HEADERS + "02 00000000 818298B50000 0001 1BED 009A"));
+
+        assertThat(decoded.container().name()).isEqualTo("EVENT_BATTERY_LOW");
+        assertThat(engineering(decoded, "EVENT_ID")).isEqualTo(new EnumeratedValue("BATTERY_LOW"));
+        assertThat(engineering(decoded, "EVENT_BATTERY_VOLTAGE")).isInstanceOfSatisfying(FloatValue.class,
+                voltage -> assertThat(voltage.value()).isCloseTo(7.149, within(1e-9)));
+    }
+
+    @Test
+    void eventWithoutAuxiliaryDataEndsInItsOwnEmptyContainer() {
+        final var decoded = HOUSEKEEPING.decode(Xtce.bytes("0864C32D0010 2005 0400000000 818298B50000 0005 B226"));
+
+        assertThat(decoded.container().name()).isEqualTo("EVENT_SAFE_MODE_ENTERED");
+        assertThat(decoded.complete()).isTrue();
+        assertThat(decoded.container().entries()).isEmpty();
+    }
+
+    @Test
+    void unknownEventIdEndsInTheAbstractEventReportWithItsRawId() {
+        final var decoded = HOUSEKEEPING.decode(Xtce.bytes(EVENT_HEADERS + "04 00000000 818298B50000 0063"));
+
+        assertThat(decoded.container().name()).isEqualTo("PUS_EVENT");
+        assertThat(decoded.complete()).isFalse();
+        assertThat(value(decoded, "EVENT_ID").raw()).isEqualTo(99);
+        assertThat(value(decoded, "EVENT_ID").engineering()).isEmpty();
+    }
+
+    @Test
+    void enumerationLabelsCarryTheirDescriptions() {
+        final var eventId = (EnumeratedParameterType) HOUSEKEEPING.parameter("EVENT_ID").orElseThrow().type();
+
+        assertThat(eventId.description(1)).hasValue("Battery voltage below 7.15 V");
+        assertThat(eventId.description(99)).isEmpty();
+    }
+
+    @Test
+    void containersAreFoundByNameAnywhereInTheTree() {
+        assertThat(HOUSEKEEPING.container("CCSDS_PACKET")).hasValue(HOUSEKEEPING.root());
+        assertThat(HOUSEKEEPING.container("EVENT_TEMPERATURE_HIGH")).hasValueSatisfying(container ->
+                assertThat(container.entries()).extracting(Parameter::name).containsExactly("EVENT_TEMPERATURE"));
+        assertThat(HOUSEKEEPING.container("EVENT_SOLAR_FLARE")).isEmpty();
     }
 
     @Test

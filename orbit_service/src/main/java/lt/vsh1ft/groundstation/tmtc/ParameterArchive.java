@@ -1,6 +1,7 @@
 package lt.vsh1ft.groundstation.tmtc;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,11 @@ class ParameterArchive {
         final var page = found.stream().limit(query.limit()).toList();
         final var nextBefore = found.size() > query.limit() ? page.getLast().id() : null;
         return ParameterValuesResponse.of(parameter, page, nextBefore);
+    }
+
+    List<StoredParameterValue> ofPackets(NoradId satellite, Collection<Long> packetIds) {
+        final var criteria = Criteria.where("noradId").is(satellite.value()).and("packetId").in(packetIds);
+        return aggregates.findAll(Query.query(criteria).sort(Sort.by("id")), StoredParameterValue.class);
     }
 
     private static Criteria matching(NoradId satellite, Parameter parameter, ValuesQuery query) {

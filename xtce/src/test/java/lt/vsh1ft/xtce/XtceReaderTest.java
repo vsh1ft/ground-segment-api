@@ -32,14 +32,14 @@ class XtceReaderTest {
         final var database = Xtce.housekeeping();
 
         assertThat(database.name()).isEqualTo("SIMULATOR");
-        assertThat(database.parameters()).hasSize(19);
+        assertThat(database.parameters()).hasSize(22);
         assertThat(database.parameter("BATTERY_VOLTAGE").orElseThrow().type()).isEqualTo(new FloatParameterType(
                 "voltage_t", "V", new IntegerEncoding(16, false),
                 new PolynomialCalibrator(List.of(new PolynomialCalibrator.Term(1, 0.001)))));
         assertThat(database.parameter("PLATFORM_TEMPERATURE").orElseThrow().type().encoding())
                 .isEqualTo(new IntegerEncoding(16, true));
         assertThat(database.parameter("SPACECRAFT_MODE").orElseThrow().type()).isEqualTo(new EnumeratedParameterType(
-                "mode_t", new IntegerEncoding(8, false), Map.of(0L, "SAFE", 1L, "NOMINAL")));
+                "mode_t", new IntegerEncoding(8, false), Map.of(0L, "SAFE", 1L, "NOMINAL"), Map.of()));
         assertThat(database.parameter("APID").orElseThrow().type())
                 .isEqualTo(new IntegerParameterType("uint11_t", null, new IntegerEncoding(11, false)));
 

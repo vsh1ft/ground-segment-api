@@ -45,6 +45,9 @@ class TmtcModuleTest {
     @Autowired
     private ParameterService parameters;
 
+    @Autowired
+    private EventService events;
+
     @BeforeEach
     void emptyArchive() {
         aggregates.deleteAll(StoredTmPacket.class);
@@ -144,6 +147,39 @@ class TmtcModuleTest {
         assertThat(second.values()).extracting(ParameterValuesResponse.Value::raw).containsExactly(0x1CF1L, 0x1CF0L);
         assertThat(second.nextBefore()).isNull();
         assertThat(window.values()).extracting(ParameterValuesResponse.Value::raw).containsExactly(0x1CF2L, 0x1CF1L);
+    }
+
+    @Test
+    @Requirement({"EVT-010", "EVT-020", "EVT-030"})
+    void eventLogListsTheSpacecraftsEventsWithTheirValuesNewestFirst() {
+        reception.receive(SATELLITE, SimulatorTelemetry.packet(MessageType.LOW_SEVERITY_ANOMALY_REPORT, 1,
+                T0, "00011BED"), T0);
+        reception.receive(SATELLITE, SimulatorTelemetry.packet(MessageType.HIGH_SEVERITY_ANOMALY_REPORT, 2,
+                T0, "0005"), T0);
+        reception.receive(SATELLITE, SimulatorTelemetry.housekeeping(3, T0, "011BED009E00"), T0);
+        reception.receive(SATELLITE, SimulatorTelemetry.packet(MessageType.INFORMATIVE_EVENT_REPORT, 4,
+                T0.plusSeconds(60), "00021C52"), T0);
+        reception.receive(OTHER_SATELLITE, SimulatorTelemetry.packet(MessageType.HIGH_SEVERITY_ANOMALY_REPORT, 5,
+                T0, "0005"), T0);
+
+        final var all = events.events(SATELLITE, new EventsQuery(null, null, null, null, null));
+        final var serious = events.events(SATELLITE, new EventsQuery(null, null, null, null, Severity.LOW));
+        final var page = events.events(SATELLITE, new EventsQuery(1, null, null, T0.plusSeconds(60), null));
+        final var next = events.events(SATELLITE, new EventsQuery(1, page.nextBefore(), null, null, null));
+        final var later = events.events(SATELLITE, new EventsQuery(null, null, T0.plusSeconds(60), null, null));
+
+        assertThat(all.events()).extracting(EventsResponse.Event::name)
+                .containsExactly("BATTERY_RECOVERED", "SAFE_MODE_ENTERED", "BATTERY_LOW");
+        assertThat(all.events().getLast().values()).singleElement().satisfies(voltage -> {
+            assertThat(voltage.parameter()).isEqualTo("EVENT_BATTERY_VOLTAGE");
+            assertThat(voltage.raw()).isEqualTo(7149);
+            assertThat((double) voltage.engineering()).isCloseTo(7.149, within(1e-9));
+        });
+        assertThat(serious.events()).extracting(EventsResponse.Event::severity)
+                .containsExactly(Severity.HIGH, Severity.LOW);
+        assertThat(page.events()).extracting(EventsResponse.Event::name).containsExactly("SAFE_MODE_ENTERED");
+        assertThat(next.events()).extracting(EventsResponse.Event::name).containsExactly("BATTERY_LOW");
+        assertThat(later.events()).extracting(EventsResponse.Event::name).containsExactly("BATTERY_RECOVERED");
     }
 
     private static ValuesQuery values(int limit, Long before) {

@@ -54,7 +54,7 @@ class ValueTypesTest {
     @Test
     void literalsAreParsedAsTheEngineeringValueOfTheirType() {
         final var encoding = new IntegerEncoding(8, false);
-        final var mode = new EnumeratedParameterType("mode_t", encoding, Map.of(1L, "NOMINAL"));
+        final var mode = new EnumeratedParameterType("mode_t", encoding, Map.of(1L, "NOMINAL"), Map.of());
 
         assertThat(new IntegerParameterType("t", null, encoding).parse("42")).isEqualTo(new IntegerValue(42));
         assertThat(new FloatParameterType("f", null, encoding, PolynomialCalibrator.IDENTITY).parse("0.5"))
