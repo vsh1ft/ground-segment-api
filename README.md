@@ -115,16 +115,16 @@ minimum elevation -5 to 90 degrees.
 ### Passes
 
 ```
-$ curl 'http://localhost:8080/passes?satellite=25544&station=3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42&duration=PT12H'
+$ curl 'http://localhost:8080/passes?satellite=25544&station=68333219-d374-47ec-bc7d-2d004548d999&duration=PT12H'
 {
   "satellite": 25544,
-  "station": "3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42",
-  "elementsEpoch": "2026-11-02T06:12:45.123Z",
+  "station": "68333219-d374-47ec-bc7d-2d004548d999",
+  "elementsEpoch": "2026-11-07T11:10:49.950Z",
   "passes": [
     {
-      "start": "2026-11-02T19:56:46.676Z",
-      "peak": {"time": "2026-11-02T19:58:12.161Z", "elevationDeg": 6.2},
-      "end": "2026-11-02T19:59:38.080Z"
+      "start": "2026-11-08T19:57:30.558Z", "startAzimuthDeg": 236.17, "startDirection": "SW",
+      "peak": {"time": "2026-11-08T20:01:34.655Z", "elevationDeg": 36.58, "azimuthDeg": 163.18, "direction": "SSE"},
+      "end": "2026-11-08T20:05:40.363Z", "endAzimuthDeg": 90.3, "endDirection": "E"
     }
   ]
 }
@@ -134,6 +134,10 @@ $ curl 'http://localhost:8080/passes?satellite=25544&station=3f2a9c1e-7b4d-4e8a-
 duration, 1 day by default and at most 7 days. Passes are predicted from the newest stored orbital elements;
 `elementsEpoch` is their epoch. SGP4 accuracy drops the further a pass is from it, roughly 1-3 km per day in low
 Earth orbit.
+
+Each pass says where to look: the azimuth where the satellite rises, where it is highest and where it sets, in
+degrees clockwise from true north, and the same direction on the 16-point compass. The example pass rises in the
+southwest, crosses the southern sky at 36.6° and sets in the east.
 
 ### Telemetry
 

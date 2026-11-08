@@ -21,7 +21,8 @@ class PassForecastServiceTest {
 
     @Test
     void forecastStartsNowAndReturnsWhatThePredictorFound() {
-        final var pass = new Pass(NOW.plusSeconds(600), NOW.plusSeconds(1200), new Pass.Peak(NOW.plusSeconds(900), 42.0));
+        final var pass = new Pass(new Pass.Crossing(NOW.plusSeconds(600), 300.0),
+                new Pass.Crossing(NOW.plusSeconds(1200), 100.0), new Pass.Peak(NOW.plusSeconds(900), 42.0, 200.0));
         final var requestedStarts = new ArrayList<Instant>();
         final PassPredictor predictor = (_, _, from, _) -> {
             requestedStarts.add(from);

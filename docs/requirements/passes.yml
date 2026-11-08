@@ -12,14 +12,16 @@
 
 - id: PASS-030
   text: >-
-    Each pass shall have a start, a peak with its time and elevation, and an end; passes that are already in
-    progress at the start of the window or still in progress at its end shall be left out.
+    Each pass shall have a start and an end, each with its time and azimuth, and a peak with its time, elevation
+    and azimuth; passes that are already in progress at the start of the window or still in progress at its end
+    shall be left out.
   verification: T
 
 - id: PASS-040
   text: >-
-    Pass times shall be returned in UTC truncated to milliseconds and elevations rounded to hundredths of a
-    degree.
+    Pass times shall be returned in UTC truncated to milliseconds, elevations and azimuths rounded to hundredths
+    of a degree (azimuths from 0 up to but excluding 360, clockwise from true north), and each azimuth also as the
+    nearest point of the 16-point compass.
   verification: T
 
 - id: PASS-050
@@ -38,6 +40,12 @@
   text: >-
     Predicting the same window from the same element set shall give the same passes, and a prediction shall
     contain only passes that lie inside its window.
+  verification: T
+
+- id: PASS-080
+  text: >-
+    Predicted azimuths at the start, peak and end of a pass shall agree with an independent SGP4 implementation
+    (Skyfield) within 0.1 degree.
   verification: T
 
 - id: PERF-010

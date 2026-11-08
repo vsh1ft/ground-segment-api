@@ -56,8 +56,9 @@ class PassControllerTest {
 
     @Test
     @Requirement("PASS-040")
-    void passesAreReturnedInUtc() {
-        final var pass = new Pass(AOS, AOS.plusSeconds(172), new Pass.Peak(AOS.plusSeconds(86), 6.2));
+    void passesAreReturnedInUtcWithTheDirectionOfRisePeakAndSet() {
+        final var pass = new Pass(new Pass.Crossing(AOS, 338.2149), new Pass.Crossing(AOS.plusSeconds(172), 102.4671),
+                new Pass.Peak(AOS.plusSeconds(86), 6.2, 40.1234));
         given(service.forecast(ISS, VILNIUS, Duration.ofHours(12))).willReturn(forecastOf(pass));
 
         final var response = mvc.get().uri(ISS_OVER_VILNIUS + "&duration=PT12H").exchange();
@@ -69,9 +70,10 @@ class PassControllerTest {
                           "station": "3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42",
                           "elementsEpoch": "2026-11-01T18:56:25.712Z",
                           "passes": [{
-                            "start": "2026-11-02T19:56:46Z",
-                            "peak": {"time": "2026-11-02T19:58:12Z", "elevationDeg": 6.2},
-                            "end": "2026-11-02T19:59:38Z"
+                            "start": "2026-11-02T19:56:46Z", "startAzimuthDeg": 338.21, "startDirection": "NNW",
+                            "peak": {"time": "2026-11-02T19:58:12Z", "elevationDeg": 6.2, "azimuthDeg": 40.12,
+                                     "direction": "NE"},
+                            "end": "2026-11-02T19:59:38Z", "endAzimuthDeg": 102.47, "endDirection": "ESE"
                           }]
                         }
                         """);
@@ -81,7 +83,8 @@ class PassControllerTest {
     @Requirement("PASS-040")
     void timesAreTruncatedToMilliseconds() {
         final var aos = Instant.parse("2026-11-03T20:43:05.676060570Z");
-        final var pass = new Pass(aos, aos.plusSeconds(300), new Pass.Peak(aos.plusSeconds(150), 18.6));
+        final var pass = new Pass(new Pass.Crossing(aos, 300.0), new Pass.Crossing(aos.plusSeconds(300), 100.0),
+                new Pass.Peak(aos.plusSeconds(150), 18.6, 200.0));
         given(service.forecast(eq(ISS), any(), any())).willReturn(forecastOf(pass));
 
         assertThat(mvc.get().uri(ISS_OVER_VILNIUS)).hasStatusOk().bodyJson()
@@ -92,12 +95,16 @@ class PassControllerTest {
 
     @Test
     @Requirement("PASS-040")
-    void elevationIsRoundedToHundredthsOfADegree() {
-        final var pass = new Pass(AOS, AOS.plusSeconds(300), new Pass.Peak(AOS.plusSeconds(150), 43.08517791061351));
+    void anglesAreRoundedToHundredthsOfADegreeAndJustBelowNorthBecomesNorth() {
+        final var pass = new Pass(new Pass.Crossing(AOS, 359.996), new Pass.Crossing(AOS.plusSeconds(300), 0.004),
+                new Pass.Peak(AOS.plusSeconds(150), 43.08517791061351, 11.2649));
         given(service.forecast(eq(ISS), any(), any())).willReturn(forecastOf(pass));
 
-        assertThat(mvc.get().uri(ISS_OVER_VILNIUS)).hasStatusOk()
-                .bodyJson().extractingPath("$.passes[0].peak.elevationDeg").isEqualTo(43.09);
+        assertThat(mvc.get().uri(ISS_OVER_VILNIUS)).hasStatusOk().bodyJson().isLenientlyEqualTo("""
+                {"passes": [{"startAzimuthDeg": 0.0, "startDirection": "N",
+                             "peak": {"elevationDeg": 43.09, "azimuthDeg": 11.26, "direction": "NNE"},
+                             "endAzimuthDeg": 0.0, "endDirection": "N"}]}
+                """);
     }
 
     @Test

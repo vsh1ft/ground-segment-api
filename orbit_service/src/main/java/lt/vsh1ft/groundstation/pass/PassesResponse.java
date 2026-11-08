@@ -24,6 +24,8 @@ public record PassesResponse(
         @Schema(description = "Passes in time order")
         List<PassView> passes) {
 
+    private static final double FULL_CIRCLE_DEG = 360.0;
+
     static PassesResponse of(NoradId satellite, UUID station, PassForecast forecast) {
         return new PassesResponse(satellite.value(), station, truncatedToMillis(forecast.elementsEpoch()),
                 forecast.passes().stream().map(PassView::of).toList());
@@ -35,18 +37,36 @@ public record PassesResponse(
                     example = "2026-11-02T19:56:46.676Z")
             Instant start,
 
+            @Schema(description = "Where it rises: azimuth in degrees clockwise from true north, rounded to two "
+                    + "decimals", example = "338.21")
+            double startAzimuthDeg,
+
+            @Schema(description = "Where it rises, on the 16-point compass", example = "NNW")
+            CompassPoint startDirection,
+
             @Schema(description = "Highest point of the pass")
             Peak peak,
 
             @Schema(description = "When the satellite sets below the minimum elevation (UTC, millisecond precision)",
                     example = "2026-11-02T19:59:38.080Z")
-            Instant end) {
+            Instant end,
+
+            @Schema(description = "Where it sets: azimuth in degrees clockwise from true north, rounded to two "
+                    + "decimals", example = "102.47")
+            double endAzimuthDeg,
+
+            @Schema(description = "Where it sets, on the 16-point compass", example = "ESE")
+            CompassPoint endDirection) {
 
         static PassView of(Pass pass) {
+            final var startAzimuth = roundedAzimuth(pass.start().azimuthDeg());
+            final var peakAzimuth = roundedAzimuth(pass.peak().azimuthDeg());
+            final var endAzimuth = roundedAzimuth(pass.end().azimuthDeg());
             return new PassView(
-                    truncatedToMillis(pass.start()),
-                    new Peak(truncatedToMillis(pass.peak().time()), roundedToHundredths(pass.peak().elevationDeg())),
-                    truncatedToMillis(pass.end()));
+                    truncatedToMillis(pass.start().time()), startAzimuth, CompassPoint.of(startAzimuth),
+                    new Peak(truncatedToMillis(pass.peak().time()), roundedToHundredths(pass.peak().elevationDeg()),
+                            peakAzimuth, CompassPoint.of(peakAzimuth)),
+                    truncatedToMillis(pass.end().time()), endAzimuth, CompassPoint.of(endAzimuth));
         }
     }
 
@@ -58,7 +78,14 @@ public record PassesResponse(
 
             @Schema(description = "Highest elevation above the horizon in degrees, rounded to two decimals",
                     example = "6.2")
-            double elevationDeg) {
+            double elevationDeg,
+
+            @Schema(description = "Azimuth at the highest point in degrees clockwise from true north, rounded to two "
+                    + "decimals", example = "40.12")
+            double azimuthDeg,
+
+            @Schema(description = "Direction of the highest point on the 16-point compass", example = "NE")
+            CompassPoint direction) {
     }
 
     private static Instant truncatedToMillis(Instant instant) {
@@ -67,5 +94,9 @@ public record PassesResponse(
 
     private static double roundedToHundredths(double value) {
         return Math.round(value * 100) / 100.0;
+    }
+
+    private static double roundedAzimuth(double azimuthDeg) {
+        return roundedToHundredths(azimuthDeg) % FULL_CIRCLE_DEG;
     }
 }
