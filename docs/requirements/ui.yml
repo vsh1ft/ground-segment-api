@@ -1,0 +1,19 @@
+- id: UI-010
+  text: >-
+    The service shall serve a web page at its root address from which a user can, without calling the API by hand,
+    manage stations, find and add satellites, upload a TLE, see upcoming passes of chosen satellites over a station,
+    and see the telemetry, frames, alarms, events and link reports of a satellite.
+  verification: T
+
+- id: UI-020
+  text: >-
+    For a pass the page shall show where to point (a sky plot of azimuth and elevation from rise to set) and which
+    frequency to tune (the Doppler-corrected frequency of each active transmitter, or of a frequency the user
+    enters, at rise, the highest point and set, and its shift over the pass).
+  verification: I
+
+- id: UI-030
+  text: >-
+    The page shall need no build step and load nothing from other sites, follow the operating system's light or
+    dark mode, offer every chart as a table too, and never mark a state by colour alone.
+  verification: I

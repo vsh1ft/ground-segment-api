@@ -7,6 +7,23 @@ module downloads the latest orbital elements from [CelesTrak](https://celestrak.
 them with [Orekit](https://www.orekit.org/) (SGP4) and serves the passes over HTTP: when the satellite rises above
 the station's minimum elevation, its highest point, and when it sets, in UTC.
 
+## Web page
+
+For using the service without calling the API by hand, the running app serves a web page at
+[http://localhost:8080/](http://localhost:8080/):
+
+- **Passes**: add your station (or use the browser's location), pick satellites, and see their upcoming passes
+  together, with how high each gets and which way it crosses the sky. A pass opens a sky plot of where to point
+  and the Doppler-corrected frequency to tune for each transmitter, or for a frequency you enter.
+- **Satellites**: search the catalog, add a satellite from CelesTrak, upload a TLE, and see its transmitters.
+- **Stations**: add, edit and remove stations.
+- **Telemetry**: decoded values over time as a chart, received frames with their receptions (and uploading a frame
+  your own station heard), alarms to acknowledge, events and link reports.
+
+The page is plain HTML, CSS and JavaScript modules in `orbit_service/src/main/resources/static`: no build step and
+nothing loaded from other sites. It follows the system's light or dark mode, and every chart can be shown as a
+table. The chosen station and satellites are remembered in the browser.
+
 ## API
 
 Interactive documentation is served by the running app at

@@ -72,6 +72,15 @@ class GroundStationApplicationTest {
     }
 
     @Test
+    @Requirement("UI-010")
+    void webPageIsServedAtTheRootAddress() {
+        assertThat(mvc.get().uri("/")).hasStatusOk().hasForwardedUrl("index.html");
+        assertThat(mvc.get().uri("/index.html")).hasStatusOk()
+                .bodyText().contains("<script type=\"module\" src=\"js/app.js\"></script>");
+        assertThat(mvc.get().uri("/js/app.js")).hasStatusOk().hasContentType("text/javascript");
+    }
+
+    @Test
     @Requirement("PASS-010")
     void passesAreServedForASatelliteAndStationAddedOverTheApi() {
         assertThat(mvc.post().uri("/satellites/25544")).hasStatus(HttpStatus.CREATED);
