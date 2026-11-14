@@ -5,6 +5,7 @@ import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.ccsds.TmPacket;
 import lt.vsh1ft.groundstation.contact.Visibility;
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.core.JdbcAggregateOperations;
@@ -22,14 +23,12 @@ class TmPacketArchive {
         return aggregates.insert(StoredTmPacket.received(satellite, packet, receivedAt, visibility)).id();
     }
 
-    TmPacketsResponse packets(NoradId satellite, PacketsQuery query) {
+    CursorPage<StoredTmPacket> packets(NoradId satellite, PacketsQuery query) {
         final var newestFirst = Query.query(matching(satellite, query))
                 .sort(Sort.by(Sort.Direction.DESC, "id"))
                 .limit(query.limit() + 1);
-        final var found = aggregates.findAll(newestFirst, StoredTmPacket.class);
-        final var page = found.stream().limit(query.limit()).toList();
-        final var nextBefore = found.size() > query.limit() ? page.getLast().id() : null;
-        return new TmPacketsResponse(page.stream().map(TmPacketResponse::from).toList(), nextBefore);
+        return CursorPage.of(aggregates.findAll(newestFirst, StoredTmPacket.class), query.limit(),
+                StoredTmPacket::id);
     }
 
     private static Criteria matching(NoradId satellite, PacketsQuery query) {

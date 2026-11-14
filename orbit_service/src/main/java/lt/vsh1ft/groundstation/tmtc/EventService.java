@@ -22,11 +22,11 @@ class EventService {
     EventsResponse events(NoradId satellite, EventsQuery query) {
         final var page = events.events(satellite, query);
         final var database = databases.of(satellite);
-        final Map<Long, List<StoredParameterValue>> valuesByPacket = database.isEmpty() || page.events().isEmpty()
+        final Map<Long, List<StoredParameterValue>> valuesByPacket = database.isEmpty() || page.items().isEmpty()
                 ? Map.of()
-                : parameters.ofPackets(satellite, page.events().stream().map(StoredEvent::packetId).toList())
+                : parameters.ofPackets(satellite, page.items().stream().map(StoredEvent::packetId).toList())
                         .stream().collect(Collectors.groupingBy(StoredParameterValue::packetId));
-        return new EventsResponse(page.events().stream()
+        return new EventsResponse(page.items().stream()
                 .map(event -> event(event, auxiliary(event, database), valuesByPacket))
                 .toList(), page.nextBefore());
     }

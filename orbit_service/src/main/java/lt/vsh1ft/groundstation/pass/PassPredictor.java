@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.station.GroundStation;
 
 public interface PassPredictor {
 

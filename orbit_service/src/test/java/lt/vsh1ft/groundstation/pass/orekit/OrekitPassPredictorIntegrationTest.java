@@ -9,7 +9,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-import lt.vsh1ft.groundstation.pass.GroundStation;
+import lt.vsh1ft.groundstation.station.GroundStation;
 import lt.vsh1ft.groundstation.pass.Pass;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.shared.OrekitDataLoader;

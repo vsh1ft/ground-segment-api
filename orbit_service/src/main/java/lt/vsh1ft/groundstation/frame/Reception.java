@@ -1,10 +1,10 @@
-package lt.vsh1ft.groundstation.tmtc;
+package lt.vsh1ft.groundstation.frame;
 
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
 
-import lt.vsh1ft.groundstation.pass.GroundStation;
+import lt.vsh1ft.groundstation.station.GroundStation;
 
 public record Reception(ReceptionSource source, UUID stationId, String station, Double latitudeDeg,
                         Double longitudeDeg, Double altitudeM, Long observation, Instant receivedAt) {

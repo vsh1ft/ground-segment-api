@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.xtce.Parameter;
 
 @Schema(description = "Archived values of one parameter of a satellite, most recently archived first")
@@ -21,9 +22,9 @@ public record ParameterValuesResponse(
                 example = "4692", nullable = true)
         Long nextBefore) {
 
-    static ParameterValuesResponse of(Parameter parameter, List<StoredParameterValue> values, Long nextBefore) {
+    static ParameterValuesResponse of(Parameter parameter, CursorPage<StoredParameterValue> page) {
         return new ParameterValuesResponse(parameter.name(), parameter.type().unit(),
-                values.stream().map(value -> Value.of(parameter, value)).toList(), nextBefore);
+                page.map(value -> Value.of(parameter, value)), page.nextBefore());
     }
 
     @Schema(description = "One value of the parameter, decoded from one packet or one received frame")

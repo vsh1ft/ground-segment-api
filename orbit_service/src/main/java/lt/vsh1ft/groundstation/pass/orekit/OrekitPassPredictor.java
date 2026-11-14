@@ -7,7 +7,7 @@ import java.util.function.ObjDoubleConsumer;
 
 import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.groundstation.elements.TleSource;
-import lt.vsh1ft.groundstation.pass.GroundStation;
+import lt.vsh1ft.groundstation.station.GroundStation;
 import lt.vsh1ft.groundstation.pass.PassAssembler;
 import lt.vsh1ft.groundstation.pass.PassForecast;
 import lt.vsh1ft.groundstation.pass.PassPredictor;

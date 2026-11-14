@@ -1,4 +1,4 @@
-package lt.vsh1ft.groundstation.tmtc;
+package lt.vsh1ft.groundstation.frame;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -13,8 +13,9 @@ import java.util.UUID;
 
 import lt.vsh1ft.groundstation.catalog.SatelliteNotInCatalogException;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
-import lt.vsh1ft.groundstation.pass.GroundStation;
-import lt.vsh1ft.groundstation.pass.GroundStationSource;
+import lt.vsh1ft.groundstation.station.GroundStation;
+import lt.vsh1ft.groundstation.station.GroundStationSource;
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.station.StationNotFoundException;
 import lt.vsh1ft.groundstation.traceability.Requirement;
@@ -36,9 +37,9 @@ class FrameControllerTest {
     private static final UUID STATION = UUID.fromString("3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42");
     private static final GroundStation VILNIUS = new GroundStation("Vilnius", 54.67519, 25.23422, 114.0, 5.0);
     private static final Instant HEARD = Instant.parse("2026-11-08T19:03:34.120Z");
-    private static final FrameResponse FRAME = new FrameResponse(4712, HEARD, "BEACON_EXTENDED_V5",
-            Instant.parse("2026-11-08T13:51:24.338Z"), true, 3, "C2A28A", List.of(new FrameResponse.Reception(
-            ReceptionSource.OWN, "Vilnius", STATION, 54.67519, 25.23422, 114.0, null, HEARD)));
+    private static final ReceivedFrame FRAME = new ReceivedFrame(4712, HEARD, "BEACON_EXTENDED_V5",
+            Instant.parse("2026-11-08T13:51:24.338Z"), true, new byte[] {(byte) 0xC2, (byte) 0xA2, (byte) 0x8A},
+            List.of(new Reception(ReceptionSource.OWN, STATION, "Vilnius", 54.67519, 25.23422, 114.0, null, HEARD)));
     private static final String UPLOAD = """
             {"station": "3f2a9c1e-7b4d-4e8a-9c2f-1a6b5d8e0f42", "receivedAt": "2026-11-08T19:03:34.120Z",
              "frame": "c2a28a"}
@@ -63,7 +64,7 @@ class FrameControllerTest {
     @Requirement("SAT-040")
     void framesAreListedWithTheirReceptions() {
         final var query = new FramesQuery(5, 4713L, ReceptionSource.OWN, STATION);
-        given(archive.frames(FRONTIERSAT, query)).willReturn(new FramesResponse(List.of(FRAME), null));
+        given(archive.frames(FRONTIERSAT, query)).willReturn(new CursorPage<>(List.of(FRAME), null));
 
         assertThat(mvc.get().uri("/satellites/69015/frames?limit=5&before=4713&source=OWN&station=" + STATION))
                 .hasStatusOk().bodyJson().isStrictlyEqualTo("""
@@ -82,7 +83,7 @@ class FrameControllerTest {
     @Test
     @Requirement("SAT-040")
     void limitOfOneHundredIsAcceptedAndZeroAndOneHundredAndOneAreNot() {
-        given(archive.frames(any(), any())).willReturn(new FramesResponse(List.of(), null));
+        given(archive.frames(any(), any())).willReturn(new CursorPage<>(List.of(), null));
 
         assertThat(mvc.get().uri("/satellites/69015/frames?limit=100")).hasStatusOk();
         assertThat(mvc.get().uri("/satellites/69015/frames?limit=0")).hasStatus(HttpStatus.BAD_REQUEST);

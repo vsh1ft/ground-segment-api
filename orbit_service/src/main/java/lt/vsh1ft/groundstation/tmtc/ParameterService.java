@@ -21,7 +21,7 @@ class ParameterService {
     ParameterValuesResponse values(NoradId satellite, String name, ValuesQuery query) {
         final var parameter = database(satellite).parameter(name)
                 .orElseThrow(() -> new UnknownParameterException(satellite, name));
-        return archive.values(satellite, parameter, query);
+        return ParameterValuesResponse.of(parameter, archive.values(satellite, parameter, query));
     }
 
     private MissionDatabase database(NoradId satellite) {

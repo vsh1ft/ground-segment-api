@@ -11,14 +11,14 @@ import java.util.Map;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.core.io.ClassPathResource;
 
-final class FrontierSat {
+public final class FrontierSat {
 
-    static final NoradId SATELLITE = new NoradId(69015);
+    public static final NoradId SATELLITE = new NoradId(69015);
 
     private FrontierSat() {
     }
 
-    static byte[] beacon() {
+    public static byte[] beacon() {
         return HexFormat.of().parseHex(text("satnogs/frontiersat-beacon.hex").strip());
     }
 

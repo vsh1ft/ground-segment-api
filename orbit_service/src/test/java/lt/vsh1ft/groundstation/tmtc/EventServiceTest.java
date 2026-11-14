@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import java.time.Instant;
 import java.util.List;
 
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
@@ -31,7 +32,7 @@ class EventServiceTest {
     @Test
     @Requirement("EVT-020")
     void eventsCarryOnlyTheAuxiliaryValuesOfTheirOwnContainer() {
-        given(events.events(SATELLITE, DEFAULTS)).willReturn(new EventArchive.Page(
+        given(events.events(SATELLITE, DEFAULTS)).willReturn(new CursorPage<>(
                 List.of(BATTERY_LOW, UNKNOWN, OUTDATED), 7L));
         given(parameters.ofPackets(SATELLITE, List.of(40L, 41L, 42L))).willReturn(List.of(
                 value(40L, "SERVICE_TYPE", 5, 5.0, null),
@@ -52,7 +53,7 @@ class EventServiceTest {
     void eventsOfASatelliteWithoutAMissionDatabaseAreListedWithoutValues() {
         final var other = new NoradId(25544);
         final var event = new StoredEvent(1L, 25544, 5L, Severity.MEDIUM, null, null, null, null, GENERATED);
-        given(events.events(other, DEFAULTS)).willReturn(new EventArchive.Page(List.of(event), null));
+        given(events.events(other, DEFAULTS)).willReturn(new CursorPage<>(List.of(event), null));
 
         assertThat(service.events(other, DEFAULTS).events()).singleElement()
                 .extracting(EventsResponse.Event::values).isEqualTo(List.of());
@@ -61,7 +62,7 @@ class EventServiceTest {
 
     @Test
     void emptyLogNeedsNoValues() {
-        given(events.events(SATELLITE, DEFAULTS)).willReturn(new EventArchive.Page(List.of(), null));
+        given(events.events(SATELLITE, DEFAULTS)).willReturn(new CursorPage<>(List.of(), null));
 
         assertThat(service.events(SATELLITE, DEFAULTS).events()).isEmpty();
         verifyNoInteractions(parameters);

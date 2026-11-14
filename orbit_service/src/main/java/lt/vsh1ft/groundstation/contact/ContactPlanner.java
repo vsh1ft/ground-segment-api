@@ -7,7 +7,7 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
-import lt.vsh1ft.groundstation.pass.GroundStationSource;
+import lt.vsh1ft.groundstation.station.GroundStationSource;
 import lt.vsh1ft.groundstation.pass.PassPredictor;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.stereotype.Component;

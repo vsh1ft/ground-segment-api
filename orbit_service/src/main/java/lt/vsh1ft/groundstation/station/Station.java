@@ -3,7 +3,6 @@ package lt.vsh1ft.groundstation.station;
 import java.util.UUID;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import lt.vsh1ft.groundstation.pass.GroundStation;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.relational.core.mapping.Table;
 

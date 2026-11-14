@@ -1,12 +1,12 @@
-package lt.vsh1ft.groundstation.tmtc;
+package lt.vsh1ft.groundstation.frame;
+
+import static lt.vsh1ft.groundstation.shared.SqlTime.instant;
+import static lt.vsh1ft.groundstation.shared.SqlTime.utc;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import lombok.RequiredArgsConstructor;
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Component;
@@ -21,6 +22,11 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 class FrameArchive {
+
+    private static final String SELECT_FRAMES = """
+            SELECT id, raw, first_received_at, generation_time, container, crc_checked FROM received_frame""";
+    private static final String HEARD_BY = """
+            EXISTS (SELECT 1 FROM frame_reception r WHERE r.frame_id = received_frame.id AND r.%s)""";
 
     private final JdbcClient jdbc;
 
@@ -70,26 +76,13 @@ class FrameArchive {
                 .update() == 1;
     }
 
-    FrameResponse frame(long id) {
-        return withReceptions(jdbc.sql(FRAME_COLUMNS + " WHERE id = :id").param("id", id)
+    ReceivedFrame frame(long id) {
+        return withReceptions(jdbc.sql(SELECT_FRAMES + " WHERE id = :id").param("id", id)
                 .query(FrameArchive::frame).list()).getFirst();
     }
 
-    FramesResponse frames(NoradId satellite, FramesQuery query) {
-        final var conditions = new ArrayList<String>();
-        conditions.add("norad_id = :noradId");
-        if (query.before() != null) {
-            conditions.add("id < :before");
-        }
-        if (query.source() != null) {
-            conditions.add("EXISTS (SELECT 1 FROM frame_reception r WHERE r.frame_id = received_frame.id "
-                    + "AND r.source = :source)");
-        }
-        if (query.station() != null) {
-            conditions.add("EXISTS (SELECT 1 FROM frame_reception r WHERE r.frame_id = received_frame.id "
-                    + "AND r.station_id = :station)");
-        }
-        final var found = jdbc.sql(FRAME_COLUMNS + " WHERE " + String.join(" AND ", conditions)
+    CursorPage<ReceivedFrame> frames(NoradId satellite, FramesQuery query) {
+        final var found = jdbc.sql(SELECT_FRAMES + " WHERE " + String.join(" AND ", conditions(query))
                         + " ORDER BY id DESC LIMIT :limit")
                 .param("noradId", satellite.value())
                 .param("before", query.before())
@@ -98,53 +91,56 @@ class FrameArchive {
                 .param("limit", query.limit() + 1)
                 .query(FrameArchive::frame)
                 .list();
-        final var page = withReceptions(found.stream().limit(query.limit()).toList());
-        return new FramesResponse(page, found.size() > query.limit() ? page.getLast().id() : null);
+        final var page = CursorPage.of(found, query.limit(), ReceivedFrame::id);
+        return new CursorPage<>(withReceptions(page.items()), page.nextBefore());
     }
 
-    private List<FrameResponse> withReceptions(List<FrameResponse> frames) {
+    private static List<String> conditions(FramesQuery query) {
+        final var conditions = new ArrayList<String>();
+        conditions.add("norad_id = :noradId");
+        if (query.before() != null) {
+            conditions.add("id < :before");
+        }
+        if (query.source() != null) {
+            conditions.add(HEARD_BY.formatted("source = :source"));
+        }
+        if (query.station() != null) {
+            conditions.add(HEARD_BY.formatted("station_id = :station"));
+        }
+        return conditions;
+    }
+
+    private List<ReceivedFrame> withReceptions(List<ReceivedFrame> frames) {
         if (frames.isEmpty()) {
             return frames;
         }
-        final Map<Long, List<FrameResponse.Reception>> receptions = jdbc.sql("""
+        final Map<Long, List<Reception>> receptions = jdbc.sql("""
                         SELECT frame_id, source, station, station_id, latitude_deg, longitude_deg, altitude_m,
                                observation, received_at
                         FROM frame_reception WHERE frame_id IN (:ids) ORDER BY received_at, id
                         """)
-                .param("ids", frames.stream().map(FrameResponse::id).toList())
+                .param("ids", frames.stream().map(ReceivedFrame::id).toList())
                 .query((row, number) -> Map.entry(row.getLong("frame_id"), reception(row)))
                 .list().stream()
                 .collect(Collectors.groupingBy(Map.Entry::getKey,
                         Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
-        return frames.stream().map(frame -> new FrameResponse(frame.id(), frame.firstReceivedAt(), frame.container(),
-                frame.generationTime(), frame.crcChecked(), frame.length(), frame.raw(),
-                receptions.getOrDefault(frame.id(), List.of()))).toList();
+        return frames.stream()
+                .map(frame -> frame.withReceptions(receptions.getOrDefault(frame.id(), List.of())))
+                .toList();
     }
 
-    private static final String FRAME_COLUMNS = """
-            SELECT id, raw, first_received_at, generation_time, container, crc_checked FROM received_frame""";
-
-    private static FrameResponse frame(ResultSet row, int number) throws SQLException {
-        final var raw = row.getBytes("raw");
-        return new FrameResponse(row.getLong("id"), instant(row, "first_received_at"), row.getString("container"),
-                instant(row, "generation_time"), row.getObject("crc_checked", Boolean.class), raw.length,
-                HexFormat.of().withUpperCase().formatHex(raw), List.of());
+    private static ReceivedFrame frame(ResultSet row, int number) throws SQLException {
+        return new ReceivedFrame(row.getLong("id"), instant(row, "first_received_at"), row.getString("container"),
+                instant(row, "generation_time"), row.getObject("crc_checked", Boolean.class), row.getBytes("raw"),
+                List.of());
     }
 
-    private static FrameResponse.Reception reception(ResultSet row) throws SQLException {
-        return new FrameResponse.Reception(ReceptionSource.valueOf(row.getString("source")), row.getString("station"),
-                row.getObject("station_id", UUID.class), row.getObject("latitude_deg", Double.class),
-                row.getObject("longitude_deg", Double.class), row.getObject("altitude_m", Double.class),
-                row.getObject("observation", Long.class), instant(row, "received_at"));
-    }
-
-    private static OffsetDateTime utc(Instant instant) {
-        return instant.atOffset(ZoneOffset.UTC);
-    }
-
-    private static Instant instant(ResultSet row, String column) throws SQLException {
-        final var time = row.getObject(column, OffsetDateTime.class);
-        return time == null ? null : time.toInstant();
+    private static Reception reception(ResultSet row) throws SQLException {
+        return new Reception(ReceptionSource.valueOf(row.getString("source")),
+                row.getObject("station_id", UUID.class), row.getString("station"),
+                row.getObject("latitude_deg", Double.class), row.getObject("longitude_deg", Double.class),
+                row.getObject("altitude_m", Double.class), row.getObject("observation", Long.class),
+                instant(row, "received_at"));
     }
 
     record Decoding(String container, Instant generationTime, Boolean crcChecked) {

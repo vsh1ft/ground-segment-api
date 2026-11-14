@@ -40,8 +40,8 @@ class TelemetryReceptionTest {
     private final EventArchive events = mock(EventArchive.class);
     private final ApplicationEventPublisher publisher = mock(ApplicationEventPublisher.class);
     private final ContactWatch contacts = mock(ContactWatch.class);
-    private final TelemetryReception reception = new TelemetryReception(packets, parameters, events,
-            SimulatorTelemetry.databases(), publisher, contacts);
+    private final TelemetryReception reception = new TelemetryReception(packets,
+            new ParameterValueReception(parameters, publisher), events, SimulatorTelemetry.databases(), contacts);
 
     @BeforeEach
     void everyPacketIsReceivedInAPass() {
@@ -56,7 +56,7 @@ class TelemetryReceptionTest {
         reception.receive(SATELLITE, LIVE, RECEIVED);
 
         verify(packets).store(SATELLITE, LIVE, RECEIVED, Visibility.OUTSIDE_PASS);
-        verify(parameters).store(eq(SATELLITE), anyLong(), eq(LIVE_GENERATED), any());
+        verify(parameters).store(eq(SATELLITE), any(), eq(LIVE_GENERATED), any());
     }
 
     @Test
@@ -68,13 +68,13 @@ class TelemetryReceptionTest {
 
         @SuppressWarnings("unchecked")
         final ArgumentCaptor<List<ParameterValue>> values = ArgumentCaptor.forClass(List.class);
-        verify(parameters).store(eq(SATELLITE), eq(12L), eq(LIVE_GENERATED), values.capture());
+        verify(parameters).store(eq(SATELLITE), eq(TelemetrySource.packet(12L)), eq(LIVE_GENERATED), values.capture());
         assertThat(values.getValue()).hasSize(19).last().satisfies(mode -> {
             assertThat(mode.parameter().name()).isEqualTo("SPACECRAFT_MODE");
             assertThat(mode.engineering()).isEqualTo(Optional.of(new EnumeratedValue("NOMINAL")));
         });
         verifyNoInteractions(events);
-        verify(publisher).publishEvent(new ParameterValuesReceived(SATELLITE, 12L, LIVE_GENERATED,
+        verify(publisher).publishEvent(new ParameterValuesReceived(SATELLITE, TelemetrySource.packet(12L), LIVE_GENERATED,
                 values.getValue()));
     }
 
@@ -107,7 +107,7 @@ class TelemetryReceptionTest {
         reception.receive(other, LIVE, RECEIVED);
 
         verify(packets).store(other, LIVE, RECEIVED, Visibility.IN_PASS);
-        verify(parameters, never()).store(any(), anyLong(), any(), any());
+        verify(parameters, never()).store(any(), any(), any(), any());
     }
 
     @Test
@@ -121,7 +121,7 @@ class TelemetryReceptionTest {
 
         verify(events).store(new StoredEvent(null, SATELLITE.value(), 40L, Severity.LOW, 1, "BATTERY_LOW",
                 "Battery voltage below 7.15 V", "EVENT_BATTERY_LOW", GENERATED));
-        verify(parameters).store(eq(SATELLITE), eq(40L), eq(GENERATED), any());
+        verify(parameters).store(eq(SATELLITE), eq(TelemetrySource.packet(40L)), eq(GENERATED), any());
     }
 
     @Test

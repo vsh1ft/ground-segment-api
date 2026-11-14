@@ -19,12 +19,11 @@ public class TransmitterService {
     private final JdbcAggregateOperations aggregates;
     private final SatelliteService catalog;
 
-    public List<TransmitterResponse> transmitters(NoradId satellite, TransmitterStatus status) {
+    public List<Transmitter> transmitters(NoradId satellite, TransmitterStatus status) {
         catalog.ensureInCatalog(satellite);
-        final var found = status == null
+        return status == null
                 ? repository.findByNoradIdOrderByDownlinkLowHzAscDescriptionAsc(satellite.value())
                 : repository.findByNoradIdAndStatusOrderByDownlinkLowHzAscDescriptionAsc(satellite.value(), status);
-        return found.stream().map(TransmitterResponse::from).toList();
     }
 
     @Transactional

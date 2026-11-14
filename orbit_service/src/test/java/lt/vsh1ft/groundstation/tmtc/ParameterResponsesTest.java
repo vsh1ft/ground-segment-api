@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import lt.vsh1ft.xtce.EnumeratedValue;
 import lt.vsh1ft.xtce.FloatValue;
@@ -59,10 +60,12 @@ class ParameterResponsesTest {
     @Test
     @Requirement("PAR-050")
     void engineeringValuesAreServedAsWholeNumbersDecimalsOrLabels() {
-        final var apid = ParameterValuesResponse.of(APID, List.of(row(APID, 100, 100.0, null)), null);
-        final var battery = ParameterValuesResponse.of(BATTERY, List.of(row(BATTERY, 7411, 7.411, null)), 41L);
-        final var mode = ParameterValuesResponse.of(MODE, List.of(row(MODE, 1, null, "NOMINAL"),
-                row(MODE, 7, null, null)), null);
+        final var apid = ParameterValuesResponse.of(APID,
+                new CursorPage<>(List.of(row(APID, 100, 100.0, null)), null));
+        final var battery = ParameterValuesResponse.of(BATTERY,
+                new CursorPage<>(List.of(row(BATTERY, 7411, 7.411, null)), 41L));
+        final var mode = ParameterValuesResponse.of(MODE, new CursorPage<>(List.of(row(MODE, 1, null, "NOMINAL"),
+                row(MODE, 7, null, null)), null));
 
         assertThat(apid.values().getFirst().engineering()).isEqualTo(100L);
         assertThat(battery.unit()).isEqualTo("V");
@@ -74,7 +77,7 @@ class ParameterResponsesTest {
     }
 
     private static StoredParameterValue stored(ParameterValue value) {
-        return StoredParameterValue.of(SATELLITE, 12, GENERATED, value);
+        return StoredParameterValue.of(SATELLITE, TelemetrySource.packet(12), GENERATED, value);
     }
 
     private static StoredParameterValue row(Parameter parameter, long raw, Double number, String text) {
@@ -88,9 +91,9 @@ class ParameterResponsesTest {
         final var frontierSat = FrontierSat.databases().of(FrontierSat.SATELLITE).orElseThrow();
         final var name = frontierSat.parameter("SATELLITE_NAME").orElseThrow();
         final var time = frontierSat.parameter("UNIX_EPOCH_TIME").orElseThrow();
-        final var nameValue = StoredParameterValue.ofFrame(SATELLITE, 7, GENERATED, new ParameterValue(name,
+        final var nameValue = StoredParameterValue.of(SATELLITE, TelemetrySource.frame(7), GENERATED, new ParameterValue(name,
                 0x43545331L, Optional.of(new StringValue("CTS1"))));
-        final var timeValue = StoredParameterValue.ofFrame(SATELLITE, 7, GENERATED, new ParameterValue(time,
+        final var timeValue = StoredParameterValue.of(SATELLITE, TelemetrySource.frame(7), GENERATED, new ParameterValue(time,
                 1_794_145_884_338L, Optional.of(new TimeValue(Instant.parse("2026-11-08T13:51:24.338Z")))));
 
         assertThat(ParameterResponse.from(name).kind()).isEqualTo(ParameterResponse.Kind.STRING);

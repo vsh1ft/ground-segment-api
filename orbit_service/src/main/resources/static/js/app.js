@@ -1,4 +1,5 @@
-import { el, empty, errorBox } from './ui.js';
+import { el } from './dom.js';
+import { emptyState, errorBox } from './ui.js';
 import { renderPass } from './views/pass.js';
 import { renderPasses } from './views/passes.js';
 import { renderSatellites } from './views/satellites.js';
@@ -25,7 +26,7 @@ async function route() {
         link.classList.toggle('active', link.dataset.nav === (navigation[name] ?? name)));
     const view = views[name];
     if (!view) {
-        main.append(el('h1', {}, 'Not found'), empty('There is no such page.'), el('a', { href: '#/passes' }, 'Upcoming passes'));
+        main.append(el('h1', {}, 'Not found'), emptyState('There is no such page.'), el('a', { href: '#/passes' }, 'Upcoming passes'));
         return;
     }
     try {

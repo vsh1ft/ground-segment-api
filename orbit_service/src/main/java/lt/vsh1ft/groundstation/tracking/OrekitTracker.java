@@ -5,7 +5,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import lt.vsh1ft.groundstation.pass.GroundStation;
+import lt.vsh1ft.groundstation.station.GroundStation;
 import org.hipparchus.util.FastMath;
 import org.orekit.bodies.GeodeticPoint;
 import org.orekit.frames.FramesFactory;

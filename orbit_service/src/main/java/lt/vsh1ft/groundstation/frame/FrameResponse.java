@@ -1,6 +1,7 @@
-package lt.vsh1ft.groundstation.tmtc;
+package lt.vsh1ft.groundstation.frame;
 
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,6 +41,12 @@ public record FrameResponse(
         receptions = List.copyOf(receptions);
     }
 
+    static FrameResponse from(ReceivedFrame frame) {
+        return new FrameResponse(frame.id(), frame.firstReceivedAt(), frame.container(), frame.generationTime(),
+                frame.crcChecked(), frame.raw().length, HexFormat.of().withUpperCase().formatHex(frame.raw()),
+                frame.receptions().stream().map(Reception::from).toList());
+    }
+
     @Schema(description = "One time a station received the frame")
     public record Reception(
             @Schema(description = "SATNOGS or OWN", example = "SATNOGS")
@@ -66,5 +73,11 @@ public record FrameResponse(
 
             @Schema(description = "When the station received the frame, UTC", example = "2026-11-08T19:03:34Z")
             Instant receivedAt) {
+
+        static Reception from(lt.vsh1ft.groundstation.frame.Reception reception) {
+            return new Reception(reception.source(), reception.station(), reception.stationId(),
+                    reception.latitudeDeg(), reception.longitudeDeg(), reception.altitudeM(),
+                    reception.observation(), reception.receivedAt());
+        }
     }
 }

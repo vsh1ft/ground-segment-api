@@ -30,4 +30,10 @@ public record TrackPoint(
     public TrackPoint {
         frequenciesHz = List.copyOf(frequenciesHz);
     }
+
+    static TrackPoint of(OrekitTracker.Geometry geometry, List<Frequency> frequencies) {
+        return new TrackPoint(geometry.time(), geometry.azimuthDeg(), geometry.elevationDeg(), geometry.rangeKm(),
+                geometry.rangeRateKmPerS(),
+                frequencies.stream().map(frequency -> frequency.correctedHz(geometry.rangeRateKmPerS())).toList());
+    }
 }

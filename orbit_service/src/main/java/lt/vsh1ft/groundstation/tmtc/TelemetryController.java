@@ -12,6 +12,6 @@ public class TelemetryController implements TelemetryApi {
 
     @Override
     public TmPacketsResponse packets(int noradId, PacketsQuery query) {
-        return archive.packets(new NoradId(noradId), query);
+        return TmPacketsResponse.of(archive.packets(new NoradId(noradId), query));
     }
 }

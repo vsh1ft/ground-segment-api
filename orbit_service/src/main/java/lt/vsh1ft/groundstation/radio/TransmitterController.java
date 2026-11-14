@@ -14,6 +14,6 @@ public class TransmitterController implements TransmittersApi {
 
     @Override
     public List<TransmitterResponse> transmitters(int noradId, TransmitterStatus status) {
-        return service.transmitters(new NoradId(noradId), status);
+        return service.transmitters(new NoradId(noradId), status).stream().map(TransmitterResponse::from).toList();
     }
 }

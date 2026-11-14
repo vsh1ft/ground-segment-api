@@ -454,23 +454,24 @@ field:
 Each top-level package under `lt.vsh1ft.groundstation` is a module; its sub-packages are internal to it.
 
 ```
-station ──► pass ──► catalog ──► elements ──► shared
-              └─────────────────────►┘
-radio ─────────────► catalog
-tracking ──► pass, elements, radio, catalog
-satnogs ──► tmtc, catalog                               (imports SatNOGS frames)
-tmtc ──► contact ──► pass                              (tmtc uses the ccsds and xtce libraries)
+pass ──► station, catalog ──► elements ──► shared
+radio ──► catalog
+tracking ──► station, elements, radio, catalog
+satnogs ──► frame, catalog                              (imports SatNOGS frames)
+frame ──► tmtc, station, catalog                        (decodes frames with tmtc's mission databases)
+tmtc ──► contact ──► pass, station                      (tmtc uses the ccsds and xtce libraries)
 alarm ──► tmtc, contact                                 (listens to stored values and to silence)
 ```
 
 | Module | Responsibility |
 |---|---|
-| `station` | ground stations: storage and `/stations` |
+| `station` | ground stations: what a station is, their storage and `/stations` |
 | `pass` | pass prediction and `/passes`; Orekit propagation in the internal `pass.orekit` package |
 | `catalog` | the satellite catalog, `/satellites` and the scheduled refresh from CelesTrak |
 | `elements` | orbital elements: CelesTrak download, OMM storage, conversion to TLE |
 | `radio` | satellite transmitters: daily sync from the SatNOGS DB and `/satellites/{noradId}/transmitters` |
-| `tmtc` | telemetry: the TCP link to the spacecraft, frames from real satellites, the packet, frame and parameter archives, the event log, the mission databases, `/satellites/{noradId}/telemetry/packets`, `/frames`, `/parameters` and `/events` |
+| `tmtc` | telemetry: the TCP link to the spacecraft, the packet and parameter archives, the event log, the mission databases, `/satellites/{noradId}/telemetry/packets`, `/parameters` and `/events` |
+| `frame` | frames received from real satellites: the frame archive with every reception, and `/satellites/{noradId}/frames` |
 | `contact` | the contact plan of the TM link (its satellite's passes over its station), packet visibility, the silence watch, frame loss per pass and `/satellites/{noradId}/link-reports` |
 | `tracking` | `/satellites/{noradId}/track`: azimuth, elevation, range, range rate and Doppler-corrected transmitter frequencies |
 | `satnogs` | the hourly import of frames from the SatNOGS Network API |
@@ -485,8 +486,7 @@ Three more Gradle projects sit next to `orbit_service`:
 | `xtce` | plain-Java library (no dependencies) that reads an XTCE 1.2 mission database, validated against the official schema, and decodes packets into parameter values and checks them against limits |
 | `spacecraft_simulator` | plain-Java program that stands in for the satellite: it sends housekeeping telemetry over TCP, and with a TLE only while it is in view of the station (Orekit) |
 
-`pass` finds stations through its `GroundStationSource` interface, which `station` implements, so no two modules
-depend on each other. `catalog` publishes a `CatalogRefreshed` event after every refresh and `radio` listens
+No two modules depend on each other. `catalog` publishes a `CatalogRefreshed` event after every refresh and `radio` listens
 to it, so `catalog` doesn't know `radio` exists; in the same way `tmtc` publishes `ParameterValuesReceived` and
 doesn't know `alarm` exists, and `contact` publishes `SilenceStarted` and `SilenceEnded`. `ModularityTest` fails the build on dependency cycles or on access to another module's
 internals, and writes PlantUML module diagrams to `build/spring-modulith-docs`. The running app describes its

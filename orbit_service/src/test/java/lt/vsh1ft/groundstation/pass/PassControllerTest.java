@@ -16,6 +16,8 @@ import lt.vsh1ft.groundstation.catalog.SatelliteNotInCatalogException;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.station.GroundStation;
+import lt.vsh1ft.groundstation.station.GroundStationSource;
 import lt.vsh1ft.groundstation.station.StationNotFoundException;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeEach;

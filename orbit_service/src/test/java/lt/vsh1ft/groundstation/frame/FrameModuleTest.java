@@ -1,4 +1,4 @@
-package lt.vsh1ft.groundstation.tmtc;
+package lt.vsh1ft.groundstation.frame;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
@@ -7,6 +7,7 @@ import static org.mockito.Mockito.doCallRealMethod;
 import static org.mockito.Mockito.doReturn;
 
 import java.nio.ByteBuffer;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
@@ -17,9 +18,13 @@ import java.util.zip.CRC32C;
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.contact.ContactWatch;
-import lt.vsh1ft.groundstation.pass.GroundStation;
-import lt.vsh1ft.groundstation.pass.GroundStationSource;
+import lt.vsh1ft.groundstation.elements.OmmArchive;
+import lt.vsh1ft.groundstation.elements.OmmDownloader;
+import lt.vsh1ft.groundstation.elements.TleReader;
+import lt.vsh1ft.groundstation.station.GroundStation;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.tmtc.FrontierSat;
+import lt.vsh1ft.groundstation.tmtc.ParameterValuesReceived;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,13 +32,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.modulith.test.ApplicationModuleTest;
+import org.springframework.modulith.test.ApplicationModuleTest.BootstrapMode;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.context.event.ApplicationEvents;
 import org.springframework.test.context.event.RecordApplicationEvents;
 
-@ApplicationModuleTest
+@ApplicationModuleTest(BootstrapMode.DIRECT_DEPENDENCIES)
 @RecordApplicationEvents
 @Import(PostgresTestcontainer.class)
 @TestPropertySource(properties = "groundstation.tmtc.link.host=tm-link.invalid")
@@ -51,9 +58,6 @@ class FrameModuleTest {
     private FrameReception reception;
 
     @Autowired
-    private ParameterService parameters;
-
-    @Autowired
     private JdbcTemplate jdbc;
 
     @Autowired
@@ -69,7 +73,16 @@ class FrameModuleTest {
     private SatelliteService satellites;
 
     @MockitoBean
-    private GroundStationSource stations;
+    private OmmDownloader downloader;
+
+    @MockitoBean
+    private OmmArchive elements;
+
+    @MockitoBean
+    private TleReader tles;
+
+    @MockitoBean
+    private TaskScheduler scheduler;
 
     @BeforeEach
     void noFrames() {
@@ -88,20 +101,20 @@ class FrameModuleTest {
         assertThat(frame.generationTime()).isEqualTo(MEASURED);
         assertThat(frame.firstReceivedAt()).isEqualTo(HEARD);
         assertThat(frame.crcChecked()).isTrue();
-        assertThat(frame.length()).isEqualTo(202);
-        assertThat(frame.raw()).startsWith("C2A28A0021435453310100");
-        assertThat(frame.receptions()).singleElement().isEqualTo(new FrameResponse.Reception(ReceptionSource.SATNOGS,
-                "Dtec Station", null, 25.12, 55.377, 32.0, 15386644L, HEARD));
-        final var temperature = parameters.values(FRONTIERSAT, "OBC_TEMPERATURE", new ValuesQuery(null, null, null,
-                null)).values();
-        assertThat(temperature).singleElement().satisfies(value -> {
-            assertThat(value.engineering()).isEqualTo(29.25);
-            assertThat(value.generationTime()).isEqualTo(MEASURED);
-            assertThat(value.frameId()).isEqualTo(outcome.frameId());
-            assertThat(value.packetId()).isNull();
-        });
-        assertThat(parameters.values(FRONTIERSAT, "END_MESSAGE", new ValuesQuery(null, null, null, null)).values())
-                .singleElement().extracting(ParameterValuesResponse.Value::engineering).isEqualTo(" S5");
+        assertThat(frame.raw()).hasSize(202).startsWith(0xC2, 0xA2, 0x8A, 0x00, 0x21);
+        assertThat(frame.receptions()).singleElement().isEqualTo(new Reception(ReceptionSource.SATNOGS, null,
+                "Dtec Station", 25.12, 55.377, 32.0, 15386644L, HEARD));
+        final var temperature = jdbc.queryForMap("""
+                SELECT engineering_number, generation_time, frame_id, packet_id FROM parameter_value
+                WHERE norad_id = 69015 AND parameter = 'OBC_TEMPERATURE'
+                """);
+        assertThat(temperature.get("engineering_number")).isEqualTo(29.25);
+        assertThat(((Timestamp) temperature.get("generation_time")).toInstant()).isEqualTo(MEASURED);
+        assertThat(temperature.get("frame_id")).isEqualTo(outcome.frameId());
+        assertThat(temperature.get("packet_id")).isNull();
+        assertThat(jdbc.queryForObject("""
+                SELECT engineering_text FROM parameter_value WHERE norad_id = 69015 AND parameter = 'END_MESSAGE'
+                """, String.class)).isEqualTo(" S5");
         assertThat(events.stream(ParameterValuesReceived.class)).singleElement()
                 .satisfies(received -> assertThat(received.generationTime()).isEqualTo(MEASURED));
     }
@@ -117,12 +130,12 @@ class FrameModuleTest {
         assertThat(second).isEqualTo(new FrameReception.Outcome(first.frameId(), false, true));
         assertThat(again).isEqualTo(new FrameReception.Outcome(first.frameId(), false, false));
         assertThat(archive.frame(first.frameId()).receptions())
-                .extracting(FrameResponse.Reception::source, FrameResponse.Reception::station,
-                        FrameResponse.Reception::stationId)
+                .extracting(Reception::source, Reception::station, Reception::stationId)
                 .containsExactly(tuple(ReceptionSource.SATNOGS, "Dtec Station", null),
                         tuple(ReceptionSource.OWN, "Vilnius", VILNIUS_ID));
-        assertThat(parameters.values(FRONTIERSAT, "OBC_TEMPERATURE", new ValuesQuery(null, null, null, null))
-                .values()).hasSize(1);
+        assertThat(jdbc.queryForObject("""
+                SELECT count(*) FROM parameter_value WHERE norad_id = 69015 AND parameter = 'OBC_TEMPERATURE'
+                """, Integer.class)).isEqualTo(1);
         assertThat(events.stream(ParameterValuesReceived.class)).hasSize(1);
     }
 
@@ -139,7 +152,7 @@ class FrameModuleTest {
         assertThat(frame.container()).isEqualTo("BEACON_EXTENDED_V5");
         assertThat(frame.generationTime()).isEqualTo(MEASURED);
         assertThat(full).isEqualTo(new FrameReception.Outcome(first.frameId(), false, true));
-        assertThat(frame.receptions()).extracting(FrameResponse.Reception::source)
+        assertThat(frame.receptions()).extracting(Reception::source)
                 .containsExactly(ReceptionSource.SATNOGS, ReceptionSource.OWN);
         assertThat(events.stream(ParameterValuesReceived.class)).hasSize(1);
     }
@@ -204,7 +217,7 @@ class FrameModuleTest {
     }
 
     private List<Long> ids(FramesQuery query) {
-        return archive.frames(FRONTIERSAT, query).frames().stream().map(FrameResponse::id).toList();
+        return archive.frames(FRONTIERSAT, query).map(ReceivedFrame::id);
     }
 
     private static byte[] withCrc(byte[] content) {

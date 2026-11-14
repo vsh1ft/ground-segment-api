@@ -68,7 +68,7 @@ public class SatelliteService {
         }
         final var omm = download(satellite);
         transactions.executeWithoutResult(_ -> {
-            aggregates.insert(Satellite.from(omm));
+            insert(omm);
             elements.save(omm);
         });
         log.info("Added {} ({}) to the catalog, epoch {}", omm.objectName(), satellite, omm.epoch());
@@ -76,13 +76,14 @@ public class SatelliteService {
 
     public UploadedElements upload(NoradId satellite, String tle) {
         final var omm = tles.read(satellite, tle);
-        final boolean added = !satellites.existsById(satellite.value());
-        transactions.executeWithoutResult(_ -> {
-            if (added) {
-                aggregates.insert(Satellite.from(omm));
+        final boolean added = Boolean.TRUE.equals(transactions.execute(_ -> {
+            final var absent = !satellites.existsById(satellite.value());
+            if (absent) {
+                insert(omm);
             }
             elements.save(omm);
-        });
+            return absent;
+        }));
         log.info("Stored uploaded elements of {} ({}), epoch {}{}", omm.objectName(), satellite, omm.epoch(),
                 added ? "; added it to the catalog" : "");
         return new UploadedElements(ElementSet.from(omm), added);
@@ -93,7 +94,7 @@ public class SatelliteService {
             satellites.findById(latest.noradId()).ifPresentOrElse(
                     existing -> satellites.save(existing.renamedFrom(latest)),
                     () -> {
-                        aggregates.insert(Satellite.from(latest));
+                        insert(latest);
                         log.info("Added {} ({}) to the catalog", latest.objectName(), latest.noradId());
                     });
             elements.save(latest);
@@ -108,6 +109,10 @@ public class SatelliteService {
     public void delete(NoradId satellite) {
         ensureInCatalog(satellite);
         satellites.deleteById(satellite.value());
+    }
+
+    private void insert(StoredOmm omm) {
+        aggregates.insert(Satellite.from(omm));
     }
 
     private Page<SatelliteSummary> matching(String term, Pageable pageable) {

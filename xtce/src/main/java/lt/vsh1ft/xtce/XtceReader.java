@@ -1,34 +1,24 @@
 package lt.vsh1ft.xtce;
 
+import static lt.vsh1ft.xtce.XtceElements.NAME;
+import static lt.vsh1ft.xtce.XtceElements.SHORT_DESCRIPTION;
+import static lt.vsh1ft.xtce.XtceElements.attribute;
+import static lt.vsh1ft.xtce.XtceElements.attributes;
+import static lt.vsh1ft.xtce.XtceElements.invalid;
+import static lt.vsh1ft.xtce.XtceElements.unsupported;
+
 import java.io.InputStream;
-import java.math.BigDecimal;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import org.w3c.dom.Attr;
 import org.w3c.dom.Element;
 
 public final class XtceReader {
 
-    private static final String NAME = "name";
-    private static final String SHORT_DESCRIPTION = "shortDescription";
-    private static final String FIXED_VALUE = "FixedValue";
-
     private final Map<String, ParameterType> types = new LinkedHashMap<>();
     private final Map<String, Parameter> parameters = new LinkedHashMap<>();
-    private final Map<String, ContainerDefinition> containers = new LinkedHashMap<>();
-    private final Set<String> built = new HashSet<>();
+    private final ContainerTreeReader containers = new ContainerTreeReader(parameters);
 
     private XtceReader() {
     }
@@ -50,7 +40,8 @@ public final class XtceReader {
                 default -> throw unsupported(child);
             }
         }
-        return new MissionDatabase(spaceSystem.getAttribute(NAME), List.copyOf(parameters.values()), buildTree());
+        return new MissionDatabase(spaceSystem.getAttribute(NAME), List.copyOf(parameters.values()),
+                containers.tree());
     }
 
     private void readTelemetry(Element telemetry) {
@@ -58,266 +49,14 @@ public final class XtceReader {
             switch (set.getLocalName()) {
                 case "ParameterTypeSet" -> Xml.children(set).forEach(this::readType);
                 case "ParameterSet" -> Xml.children(set).forEach(this::readParameter);
-                case "ContainerSet" -> Xml.children(set).forEach(this::readContainer);
+                case "ContainerSet" -> Xml.children(set).forEach(containers::read);
                 default -> throw unsupported(set);
             }
         }
     }
 
     private void readType(Element type) {
-        final var kind = type.getLocalName();
-        if (kind.equals("StringParameterType")) {
-            readStringType(type);
-            return;
-        }
-        if (kind.equals("AbsoluteTimeParameterType")) {
-            readTimeType(type);
-            return;
-        }
-        switch (kind) {
-            case "IntegerParameterType" -> attributes(type, NAME, SHORT_DESCRIPTION, "signed", "sizeInBits");
-            case "FloatParameterType" -> attributes(type, NAME, SHORT_DESCRIPTION, "sizeInBits");
-            case "EnumeratedParameterType" -> attributes(type, NAME, SHORT_DESCRIPTION);
-            default -> throw unsupported(type);
-        }
-        final boolean calibrated = kind.equals("FloatParameterType");
-        String unit = null;
-        Encoding encoding = null;
-        Enumeration enumeration = new Enumeration(Map.of(), Map.of());
-        var limits = AlarmRanges.NONE;
-        for (var child : Xml.children(type)) {
-            switch (child.getLocalName()) {
-                case "UnitSet" -> unit = readUnit(child);
-                case "IntegerDataEncoding" -> encoding = readEncoding(child, calibrated);
-                case "EnumerationList" -> enumeration = readEnumeration(child);
-                case "DefaultAlarm" -> {
-                    if (kind.equals("EnumeratedParameterType")) {
-                        throw unsupported(child);
-                    }
-                    limits = readAlarm(child);
-                }
-                default -> throw unsupported(child);
-            }
-        }
-        if (encoding == null) {
-            throw invalid(type, "has no IntegerDataEncoding");
-        }
-        final var name = type.getAttribute(NAME);
-        final ParameterType parameterType;
-        if (kind.equals("IntegerParameterType")) {
-            parameterType = new IntegerParameterType(name, unit, encoding.encoding(), limits);
-        } else if (calibrated) {
-            parameterType = new FloatParameterType(name, unit, encoding.encoding(), encoding.calibrator(), limits);
-        } else {
-            parameterType = new EnumeratedParameterType(name, encoding.encoding(), enumeration.labels(),
-                    enumeration.descriptions());
-        }
-        types.put(name, parameterType);
-    }
-
-    private void readStringType(Element type) {
-        attributes(type, NAME, SHORT_DESCRIPTION);
-        final var children = Xml.children(type);
-        if (children.size() != 1 || !children.getFirst().getLocalName().equals("StringDataEncoding")) {
-            throw invalid(type, "needs exactly one StringDataEncoding and nothing else");
-        }
-        final var encoding = children.getFirst();
-        attributes(encoding, "encoding", "byteOrder", "bitOrder");
-        if (!encoding.getAttribute("encoding").equals("US-ASCII")) {
-            throw invalid(encoding, "must have encoding=\"US-ASCII\"; other character sets are not supported");
-        }
-        requireDefault(encoding, "byteOrder", "mostSignificantByteFirst");
-        requireDefault(encoding, "bitOrder", "mostSignificantBitFirst");
-        final var size = Xml.children(encoding).getFirst();
-        if (!size.getLocalName().equals("SizeInBits")) {
-            throw unsupported(size);
-        }
-        final var parts = Xml.children(size);
-        if (parts.size() != 1) {
-            throw unsupported(parts.get(1));
-        }
-        final long sizeInBits = Long.parseLong(Xml.children(parts.getFirst()).getFirst().getTextContent().strip());
-        if (sizeInBits % Byte.SIZE != 0 || sizeInBits > IntegerEncoding.MAX_SIZE_IN_BITS) {
-            throw invalid(encoding, "is " + sizeInBits + " bits; strings of whole bytes up to "
-                    + IntegerEncoding.MAX_SIZE_IN_BITS + " bits are supported");
-        }
-        final var name = type.getAttribute(NAME);
-        types.put(name, new StringParameterType(name, new IntegerEncoding((int) sizeInBits, false)));
-    }
-
-    private void readTimeType(Element type) {
-        attributes(type, NAME, SHORT_DESCRIPTION);
-        Element encoding = null;
-        Instant epoch = null;
-        for (var child : Xml.children(type)) {
-            if (child.getLocalName().equals("Encoding")) {
-                encoding = child;
-            } else {
-                epoch = readEpoch(child);
-            }
-        }
-        if (encoding == null || epoch == null) {
-            throw invalid(type, "needs an Encoding and a ReferenceTime with an Epoch");
-        }
-        attributes(encoding, "units", "scale", "offset");
-        requireDefault(encoding, "units", "seconds");
-        final var data = Xml.children(encoding).getFirst();
-        if (!data.getLocalName().equals("IntegerDataEncoding")) {
-            throw unsupported(data);
-        }
-        final var name = type.getAttribute(NAME);
-        types.put(name, new AbsoluteTimeParameterType(name, readEncoding(data, false).encoding(), epoch,
-                new BigDecimal(attribute(encoding, "scale", "1")), new BigDecimal(attribute(encoding, "offset", "0"))));
-    }
-
-    private static Instant readEpoch(Element referenceTime) {
-        final var epoch = Xml.children(referenceTime).getFirst();
-        if (!epoch.getLocalName().equals("Epoch")) {
-            throw unsupported(epoch);
-        }
-        final var value = epoch.getTextContent().strip();
-        if (value.equals("UNIX")) {
-            return Instant.EPOCH;
-        }
-        try {
-            if (!value.contains("T")) {
-                return LocalDate.parse(value).atStartOfDay(ZoneOffset.UTC).toInstant();
-            }
-            final var time = DateTimeFormatter.ISO_DATE_TIME.parseBest(value, OffsetDateTime::from,
-                    LocalDateTime::from);
-            return time instanceof OffsetDateTime zoned ? zoned.toInstant()
-                    : ((LocalDateTime) time).toInstant(ZoneOffset.UTC);
-        } catch (DateTimeParseException e) {
-            throw invalid(epoch, "is " + value + "; only a date, a date and time or UNIX are supported");
-        }
-    }
-
-    private String readUnit(Element unitSet) {
-        final var units = Xml.children(unitSet);
-        if (units.size() > 1) {
-            throw invalid(unitSet, "has more than one Unit, which is not supported");
-        }
-        units.forEach(unit -> attributes(unit));
-        return units.isEmpty() ? null : units.getFirst().getTextContent().strip();
-    }
-
-    private Encoding readEncoding(Element encoding, boolean calibrated) {
-        attributes(encoding, "encoding", "sizeInBits", "byteOrder", "bitOrder");
-        final boolean signed = switch (attribute(encoding, "encoding", "unsigned")) {
-            case "unsigned" -> false;
-            case "twosComplement" -> true;
-            default -> throw invalid(encoding, "uses encoding " + encoding.getAttribute("encoding")
-                    + "; only unsigned and twosComplement are supported");
-        };
-        final long sizeInBits = Long.parseLong(attribute(encoding, "sizeInBits", "8"));
-        if (sizeInBits > IntegerEncoding.MAX_SIZE_IN_BITS) {
-            throw invalid(encoding, "is " + sizeInBits + " bits; at most " + IntegerEncoding.MAX_SIZE_IN_BITS
-                    + " are supported");
-        }
-        final boolean littleEndian = switch (attribute(encoding, "byteOrder", "mostSignificantByteFirst")) {
-            case "mostSignificantByteFirst" -> false;
-            case "leastSignificantByteFirst" -> true;
-            default -> throw invalid(encoding, "has byteOrder=\"" + encoding.getAttribute("byteOrder")
-                    + "\"; only mostSignificantByteFirst and leastSignificantByteFirst are supported");
-        };
-        if (littleEndian && sizeInBits % Byte.SIZE != 0) {
-            throw invalid(encoding, "is little-endian but " + sizeInBits + " bits; little-endian integers must be "
-                    + "whole bytes");
-        }
-        requireDefault(encoding, "bitOrder", "mostSignificantBitFirst");
-        var calibrator = PolynomialCalibrator.IDENTITY;
-        for (var child : Xml.children(encoding)) {
-            if (!calibrated || !child.getLocalName().equals("DefaultCalibrator")) {
-                throw unsupported(child);
-            }
-            calibrator = readCalibrator(child);
-        }
-        return new Encoding(new IntegerEncoding((int) sizeInBits, signed, littleEndian), calibrator);
-    }
-
-    private PolynomialCalibrator readCalibrator(Element defaultCalibrator) {
-        attributes(defaultCalibrator, NAME, SHORT_DESCRIPTION);
-        final var calibrator = Xml.children(defaultCalibrator).getFirst();
-        if (!calibrator.getLocalName().equals("PolynomialCalibrator")) {
-            throw unsupported(calibrator);
-        }
-        attributes(calibrator, NAME, SHORT_DESCRIPTION);
-        final var terms = new ArrayList<PolynomialCalibrator.Term>();
-        for (var term : Xml.children(calibrator)) {
-            attributes(term, "coefficient", "exponent");
-            terms.add(new PolynomialCalibrator.Term(Integer.parseInt(term.getAttribute("exponent")),
-                    Double.parseDouble(term.getAttribute("coefficient"))));
-        }
-        return new PolynomialCalibrator(terms);
-    }
-
-    private AlarmRanges readAlarm(Element defaultAlarm) {
-        attributes(defaultAlarm, NAME, SHORT_DESCRIPTION, "minViolations");
-        requireDefault(defaultAlarm, "minViolations", "1");
-        var limits = AlarmRanges.NONE;
-        for (var child : Xml.children(defaultAlarm)) {
-            if (!child.getLocalName().equals("StaticAlarmRanges")) {
-                throw unsupported(child);
-            }
-            limits = readRanges(child);
-        }
-        return limits;
-    }
-
-    private AlarmRanges readRanges(Element staticAlarmRanges) {
-        attributes(staticAlarmRanges, NAME, SHORT_DESCRIPTION, "rangeForm");
-        requireDefault(staticAlarmRanges, "rangeForm", "outside");
-        var warning = AlarmRange.UNBOUNDED;
-        var critical = AlarmRange.UNBOUNDED;
-        for (var range : Xml.children(staticAlarmRanges)) {
-            switch (range.getLocalName()) {
-                case "WarningRange" -> warning = readRange(range);
-                case "CriticalRange" -> critical = readRange(range);
-                default -> throw unsupported(range);
-            }
-        }
-        try {
-            return new AlarmRanges(warning, critical);
-        } catch (IllegalArgumentException e) {
-            throw invalid(staticAlarmRanges, "is inconsistent: " + e.getMessage());
-        }
-    }
-
-    private AlarmRange readRange(Element range) {
-        attributes(range, "minInclusive", "minExclusive", "maxInclusive", "maxExclusive");
-        final var min = bound(range, "minInclusive", "minExclusive", Double.NEGATIVE_INFINITY);
-        final var max = bound(range, "maxInclusive", "maxExclusive", Double.POSITIVE_INFINITY);
-        try {
-            return new AlarmRange(min.value(), min.inclusive(), max.value(), max.inclusive());
-        } catch (IllegalArgumentException e) {
-            throw invalid(range, "is empty: " + e.getMessage());
-        }
-    }
-
-    private static Bound bound(Element range, String inclusive, String exclusive, double open) {
-        if (range.hasAttribute(inclusive) && range.hasAttribute(exclusive)) {
-            throw invalid(range, "has both " + inclusive + " and " + exclusive);
-        }
-        if (range.hasAttribute(exclusive)) {
-            return new Bound(Double.parseDouble(range.getAttribute(exclusive)), false);
-        }
-        return new Bound(Double.parseDouble(attribute(range, inclusive, String.valueOf(open))), true);
-    }
-
-    private Enumeration readEnumeration(Element enumerationList) {
-        final var labels = new LinkedHashMap<Long, String>();
-        final var descriptions = new LinkedHashMap<Long, String>();
-        for (var enumeration : Xml.children(enumerationList)) {
-            attributes(enumeration, "value", "label", SHORT_DESCRIPTION);
-            final long value = Long.parseLong(enumeration.getAttribute("value"));
-            if (labels.putIfAbsent(value, enumeration.getAttribute("label")) != null) {
-                throw invalid(enumerationList, "has value " + value + " more than once");
-            }
-            if (enumeration.hasAttribute(SHORT_DESCRIPTION)) {
-                descriptions.put(value, enumeration.getAttribute(SHORT_DESCRIPTION));
-            }
-        }
-        return new Enumeration(labels, descriptions);
+        types.put(type.getAttribute(NAME), ParameterTypeReader.read(type));
     }
 
     private void readParameter(Element element) {
@@ -334,190 +73,6 @@ public final class XtceReader {
             throw invalid(element, "refers to unknown parameter type " + typeRef);
         }
         final var name = element.getAttribute(NAME);
-        final var description = attribute(element, SHORT_DESCRIPTION, null);
-        parameters.put(name, new Parameter(name, description, type));
-    }
-
-    private void readContainer(Element container) {
-        attributes(container, NAME, SHORT_DESCRIPTION, "abstract");
-        final var entries = new ArrayList<SequenceContainer.Entry>();
-        String base = null;
-        final var restriction = new ArrayList<PendingComparison>();
-        for (var child : Xml.children(container)) {
-            switch (child.getLocalName()) {
-                case "EntryList" -> Xml.children(child).forEach(entry -> entries.add(readEntry(entry)));
-                case "BaseContainer" -> {
-                    attributes(child, "containerRef");
-                    base = child.getAttribute("containerRef");
-                    Xml.children(child).forEach(criteria -> restriction.addAll(readRestriction(criteria)));
-                }
-                default -> throw unsupported(child);
-            }
-        }
-        final var name = container.getAttribute(NAME);
-        containers.put(name, new ContainerDefinition(name, Boolean.parseBoolean(attribute(container, "abstract",
-                "false")), entries, base, restriction));
-    }
-
-    private SequenceContainer.Entry readEntry(Element entry) {
-        if (!entry.getLocalName().equals("ParameterRefEntry")) {
-            throw unsupported(entry);
-        }
-        attributes(entry, "parameterRef", SHORT_DESCRIPTION);
-        long offset = 0;
-        for (var child : Xml.children(entry)) {
-            if (!child.getLocalName().equals("LocationInContainerInBits")) {
-                throw unsupported(child);
-            }
-            offset = readLocation(child);
-        }
-        return new SequenceContainer.Entry(parameter(entry), offset);
-    }
-
-    private static long readLocation(Element location) {
-        attributes(location, "referenceLocation");
-        requireDefault(location, "referenceLocation", "previousEntry");
-        final var value = Xml.children(location).getFirst();
-        if (!value.getLocalName().equals(FIXED_VALUE)) {
-            throw unsupported(value);
-        }
-        final long offset = Long.parseLong(value.getTextContent().strip());
-        if (offset < 0) {
-            throw invalid(location, "is " + offset + " bits; an entry can't overlap the one before it");
-        }
-        return offset;
-    }
-
-    private List<PendingComparison> readRestriction(Element criteria) {
-        final var condition = Xml.children(criteria).getFirst();
-        return switch (condition.getLocalName()) {
-            case "Comparison" -> List.of(readComparison(condition));
-            case "ComparisonList" -> Xml.children(condition).stream().map(this::readComparison).toList();
-            default -> throw unsupported(condition);
-        };
-    }
-
-    private PendingComparison readComparison(Element comparison) {
-        attributes(comparison, "parameterRef", "value", "comparisonOperator", "useCalibratedValue", "instance");
-        requireDefault(comparison, "comparisonOperator", "==");
-        requireDefault(comparison, "instance", "0");
-        return new PendingComparison(parameter(comparison), comparison.getAttribute("value"),
-                Boolean.parseBoolean(attribute(comparison, "useCalibratedValue", "true")));
-    }
-
-    private Parameter parameter(Element reference) {
-        final var name = reference.getAttribute("parameterRef");
-        final var parameter = parameters.get(name);
-        if (parameter == null) {
-            throw invalid(reference, "refers to unknown parameter " + name);
-        }
-        return parameter;
-    }
-
-    private SequenceContainer buildTree() {
-        final var roots = containers.values().stream().filter(container -> container.base() == null).toList();
-        if (roots.size() != 1) {
-            throw new InvalidMissionDatabaseException("A mission database needs exactly one root container (one "
-                    + "without a BaseContainer); found " + roots.stream().map(ContainerDefinition::name).toList());
-        }
-        containers.values().stream()
-                .filter(container -> container.base() != null && !containers.containsKey(container.base()))
-                .findFirst()
-                .ifPresent(container -> {
-                    throw new InvalidMissionDatabaseException("SequenceContainer '" + container.name()
-                            + "' has unknown base container " + container.base());
-                });
-        final var root = build(roots.getFirst(), Set.of());
-        if (built.size() < containers.size()) {
-            throw new InvalidMissionDatabaseException("Containers in an inheritance cycle: "
-                    + containers.keySet().stream().filter(name -> !built.contains(name)).toList());
-        }
-        return root;
-    }
-
-    private SequenceContainer build(ContainerDefinition definition, Set<String> decodedBefore) {
-        built.add(definition.name());
-        final var decoded = new HashSet<>(decodedBefore);
-        definition.entries().forEach(entry -> decoded.add(entry.parameter().name()));
-        final var children = containers.values().stream()
-                .filter(child -> definition.name().equals(child.base()))
-                .map(child -> new SequenceContainer.Child(build(child, decoded), restriction(child, decoded)))
-                .toList();
-        return new SequenceContainer(definition.name(), definition.isAbstract(), definition.entries(), children);
-    }
-
-    private static List<Comparison> restriction(ContainerDefinition container, Set<String> decoded) {
-        return container.restriction().stream().map(pending -> {
-            final var parameter = pending.parameter();
-            if (!decoded.contains(parameter.name())) {
-                throw new InvalidMissionDatabaseException("The restriction of SequenceContainer '"
-                        + container.name() + "' compares " + parameter.name()
-                        + ", which is not decoded before it");
-            }
-            try {
-                final EngineeringValue expected = pending.calibrated()
-                        ? parameter.type().parse(pending.value())
-                        : new IntegerValue(Long.parseLong(pending.value()));
-                return new Comparison(parameter, expected, pending.calibrated());
-            } catch (IllegalArgumentException e) {
-                throw new InvalidMissionDatabaseException("The restriction of SequenceContainer '"
-                        + container.name() + "' compares " + parameter.name() + " with '" + pending.value()
-                        + "', which is not a valid value: " + e.getMessage());
-            }
-        }).toList();
-    }
-
-    private static void attributes(Element element, String... supported) {
-        final var allowed = Set.of(supported);
-        final var attributes = element.getAttributes();
-        for (int i = 0; i < attributes.getLength(); i++) {
-            final var attribute = (Attr) attributes.item(i);
-            if (attribute.getNamespaceURI() == null && !allowed.contains(attribute.getLocalName())) {
-                throw invalid(element, "has attribute " + attribute.getLocalName() + ", which is not supported");
-            }
-        }
-    }
-
-    private static void requireDefault(Element element, String attribute, String required) {
-        if (!attribute(element, attribute, required).equals(required)) {
-            throw invalid(element, "has " + attribute + "=\"" + element.getAttribute(attribute) + "\"; only \""
-                    + required + "\" is supported");
-        }
-    }
-
-    private static String attribute(Element element, String name, String defaultValue) {
-        return element.hasAttribute(name) ? element.getAttribute(name) : defaultValue;
-    }
-
-    private static InvalidMissionDatabaseException unsupported(Element element) {
-        return new InvalidMissionDatabaseException("Unsupported XTCE element " + describe(element));
-    }
-
-    private static InvalidMissionDatabaseException invalid(Element element, String problem) {
-        return new InvalidMissionDatabaseException(describe(element) + " " + problem);
-    }
-
-    private static String describe(Element element) {
-        if (element.hasAttribute(NAME)) {
-            return element.getLocalName() + " '" + element.getAttribute(NAME) + "'";
-        }
-        return element.getLocalName() + " in " + describe((Element) element.getParentNode());
-    }
-
-    private record Encoding(IntegerEncoding encoding, PolynomialCalibrator calibrator) {
-    }
-
-    private record Bound(double value, boolean inclusive) {
-    }
-
-    private record Enumeration(Map<Long, String> labels, Map<Long, String> descriptions) {
-    }
-
-    private record PendingComparison(Parameter parameter, String value, boolean calibrated) {
-    }
-
-    private record ContainerDefinition(String name, boolean isAbstract, List<SequenceContainer.Entry> entries,
-                                       String base,
-                                       List<PendingComparison> restriction) {
+        parameters.put(name, new Parameter(name, attribute(element, SHORT_DESCRIPTION, null), type));
     }
 }

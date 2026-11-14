@@ -19,7 +19,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Optional;
 
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
@@ -181,14 +180,14 @@ class ContactWatchTest {
 
     @Test
     @Requirement("CON-050")
-    void framesOfTheLinkAreTalliedWithThePassTheyArrivedIn() {
+    void framesOfTheLinkAreTalliedWithThePassTheyArrivedInAndNotOutsideAPass() {
         watching(PLAN);
 
         watch.frameReceived(SATELLITE, AOS, 2, true);
         watch.frameFailedCheck(SATELLITE, LOS);
 
-        verify(linkQuality).frameReceived(SATELLITE, Optional.of(PASS), AOS, 2, true);
-        verify(linkQuality).frameFailedCheck(SATELLITE, Optional.empty(), LOS);
+        verify(linkQuality).frameReceived(SATELLITE, PASS, AOS, 2, true);
+        verify(linkQuality, never()).frameFailedCheck(any(), any(), any());
     }
 
     @Test
@@ -211,8 +210,8 @@ class ContactWatchTest {
         checkAt(AOS.plusSeconds(1));
         checkAt(LOS);
 
-        verify(linkQuality).check(Optional.of(PASS), AOS.plusSeconds(1));
-        verify(linkQuality).check(Optional.empty(), LOS);
+        verify(linkQuality).check(PASS, AOS.plusSeconds(1));
+        verify(linkQuality).noPass();
     }
 
     private void watching(ContactPlan plan) {

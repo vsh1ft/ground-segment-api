@@ -1,4 +1,4 @@
-package lt.vsh1ft.groundstation.pass;
+package lt.vsh1ft.groundstation.station;
 
 import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
 import static java.lang.annotation.ElementType.FIELD;
@@ -17,16 +17,16 @@ import jakarta.validation.ReportAsSingleViolation;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 
-@DecimalMin("-5")
-@DecimalMax("90")
+@DecimalMin("-180")
+@DecimalMax("180")
 @ReportAsSingleViolation
 @Constraint(validatedBy = {})
 @Documented
 @Target({METHOD, FIELD, ANNOTATION_TYPE, PARAMETER, TYPE_USE})
 @Retention(RUNTIME)
-public @interface MinElevation {
+public @interface Longitude {
 
-    String message() default "must be between -5 and 90";
+    String message() default "must be between -180 and 180";
 
     Class<?>[] groups() default {};
 

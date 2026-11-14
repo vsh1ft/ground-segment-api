@@ -1,8 +1,8 @@
 package lt.vsh1ft.groundstation.tmtc;
 
-import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.core.JdbcAggregateOperations;
@@ -20,13 +20,11 @@ class EventArchive {
         aggregates.insert(event);
     }
 
-    Page events(NoradId satellite, EventsQuery query) {
+    CursorPage<StoredEvent> events(NoradId satellite, EventsQuery query) {
         final var newestFirst = Query.query(matching(satellite, query))
                 .sort(Sort.by(Sort.Direction.DESC, "id"))
                 .limit(query.limit() + 1);
-        final var found = aggregates.findAll(newestFirst, StoredEvent.class);
-        final var page = found.stream().limit(query.limit()).toList();
-        return new Page(page, found.size() > query.limit() ? page.getLast().id() : null);
+        return CursorPage.of(aggregates.findAll(newestFirst, StoredEvent.class), query.limit(), StoredEvent::id);
     }
 
     private static Criteria matching(NoradId satellite, EventsQuery query) {
@@ -44,8 +42,5 @@ class EventArchive {
             criteria = criteria.and("severity").in(query.minSeverity().andWorse().stream().map(Enum::name).toList());
         }
         return criteria;
-    }
-
-    record Page(List<StoredEvent> events, Long nextBefore) {
     }
 }

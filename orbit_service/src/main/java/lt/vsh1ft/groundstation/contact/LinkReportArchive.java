@@ -1,10 +1,10 @@
 package lt.vsh1ft.groundstation.contact;
 
+import static lt.vsh1ft.groundstation.shared.SqlTime.instant;
+import static lt.vsh1ft.groundstation.shared.SqlTime.utc;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.Instant;
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
@@ -59,13 +59,5 @@ class LinkReportArchive {
         return new LinkReport(row.getInt("norad_id"), instant(row, "pass_start"), instant(row, "pass_end"),
                 row.getLong("frames_received"), row.getLong("frames_lost"), row.getLong("frames_failed_check"),
                 row.getLong("idle_frames"), instant(row, "updated_at"));
-    }
-
-    private static OffsetDateTime utc(Instant instant) {
-        return instant.atOffset(ZoneOffset.UTC);
-    }
-
-    private static Instant instant(ResultSet row, String column) throws SQLException {
-        return row.getObject(column, OffsetDateTime.class).toInstant();
     }
 }

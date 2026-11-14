@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.station.GroundStation;
 import org.junit.jupiter.api.Test;
 
 class PassForecastServiceTest {

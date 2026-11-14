@@ -7,7 +7,7 @@ import java.io.File;
 import java.time.Duration;
 import java.time.Instant;
 
-import lt.vsh1ft.groundstation.pass.GroundStation;
+import lt.vsh1ft.groundstation.station.GroundStation;
 import lt.vsh1ft.groundstation.shared.OrekitDataLoader;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeAll;

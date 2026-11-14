@@ -47,7 +47,7 @@ class TransmitterServiceTest {
                 transmitter("vhf", 25544, 145800000L, TransmitterStatus.INACTIVE, MORNING),
                 transmitter("noaa", 33591, 137100000L, TransmitterStatus.ACTIVE, MORNING)));
 
-        assertThat(service.transmitters(ISS, null)).extracting(TransmitterResponse::uuid)
+        assertThat(service.transmitters(ISS, null)).extracting(Transmitter::uuid)
                 .containsExactly("vhf", "uhf", "no-downlink");
     }
 
@@ -58,7 +58,7 @@ class TransmitterServiceTest {
                 transmitter("uhf", 25544, 437800000L, TransmitterStatus.ACTIVE, MORNING),
                 transmitter("vhf", 25544, 145800000L, TransmitterStatus.INACTIVE, MORNING)));
 
-        assertThat(service.transmitters(ISS, TransmitterStatus.ACTIVE)).extracting(TransmitterResponse::uuid)
+        assertThat(service.transmitters(ISS, TransmitterStatus.ACTIVE)).extracting(Transmitter::uuid)
                 .containsExactly("uhf");
     }
 

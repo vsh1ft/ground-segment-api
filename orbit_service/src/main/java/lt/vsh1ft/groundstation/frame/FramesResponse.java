@@ -1,8 +1,9 @@
-package lt.vsh1ft.groundstation.tmtc;
+package lt.vsh1ft.groundstation.frame;
 
 import java.util.List;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lt.vsh1ft.groundstation.shared.CursorPage;
 
 @Schema(description = "Frames of a satellite, most recently first received first")
 public record FramesResponse(
@@ -14,5 +15,9 @@ public record FramesResponse(
 
     public FramesResponse {
         frames = List.copyOf(frames);
+    }
+
+    static FramesResponse of(CursorPage<ReceivedFrame> page) {
+        return new FramesResponse(page.map(FrameResponse::from), page.nextBefore());
     }
 }

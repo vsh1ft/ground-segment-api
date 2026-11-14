@@ -1,9 +1,12 @@
 package lt.vsh1ft.groundstation.satnogs;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withTooManyRequests;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
@@ -87,6 +90,36 @@ class SatnogsNetworkClientTest {
         server.expect(requestTo(FRAME)).andRespond(withSuccess());
 
         assertThat(client.download(FRAME)).isEmpty();
+    }
+
+    @Test
+    @Requirement("SAT-010")
+    void throttledRequestSaysHowLongSatnogsAsksToWait() {
+        server.expect(requestTo(FIRST)).andRespond(withTooManyRequests().headers(retryAfter("1048")));
+
+        assertThatThrownBy(() -> client.observations(FRONTIERSAT, START, END, null))
+                .isInstanceOfSatisfying(SatnogsThrottledException.class,
+                        throttled -> assertThat(throttled.retryAfter()).contains(Duration.ofSeconds(1048)));
+    }
+
+    @Test
+    @Requirement("SAT-010")
+    void throttledRequestWithoutAUsableWaitTimeGivesNone() {
+        server.expect(requestTo(FIRST)).andRespond(withTooManyRequests().headers(retryAfter("soon")));
+        server.expect(requestTo(NEXT)).andRespond(withTooManyRequests());
+
+        assertThatThrownBy(() -> client.observations(FRONTIERSAT, START, END, null))
+                .isInstanceOfSatisfying(SatnogsThrottledException.class,
+                        throttled -> assertThat(throttled.retryAfter()).isEmpty());
+        assertThatThrownBy(() -> client.observations(FRONTIERSAT, START, END, NEXT))
+                .isInstanceOfSatisfying(SatnogsThrottledException.class,
+                        throttled -> assertThat(throttled.retryAfter()).isEmpty());
+    }
+
+    private static HttpHeaders retryAfter(String value) {
+        final var headers = new HttpHeaders();
+        headers.set(HttpHeaders.RETRY_AFTER, value);
+        return headers;
     }
 
     @Test

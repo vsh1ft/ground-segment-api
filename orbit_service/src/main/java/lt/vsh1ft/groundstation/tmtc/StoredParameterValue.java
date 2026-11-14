@@ -32,19 +32,11 @@ record StoredParameterValue(
         Double engineeringNumber,
         String engineeringText) {
 
-    static StoredParameterValue of(NoradId satellite, long packetId, Instant generationTime, ParameterValue value) {
-        return of(satellite, packetId, null, generationTime, value);
-    }
-
-    static StoredParameterValue ofFrame(NoradId satellite, long frameId, Instant generationTime,
-                                        ParameterValue value) {
-        return of(satellite, null, frameId, generationTime, value);
-    }
-
-    private static StoredParameterValue of(NoradId satellite, Long packetId, Long frameId, Instant generationTime,
-                                           ParameterValue value) {
+    static StoredParameterValue of(NoradId satellite, TelemetrySource source, Instant generationTime,
+                                   ParameterValue value) {
         final var engineering = value.engineering();
-        return new StoredParameterValue(null, satellite.value(), packetId, frameId, value.parameter().name(),
+        return new StoredParameterValue(null, satellite.value(), source.packetId(), source.frameId(),
+                value.parameter().name(),
                 generationTime, value.raw(), engineering.flatMap(EngineeringValue::number).orElse(null),
                 engineering.map(StoredParameterValue::text).orElse(null));
     }

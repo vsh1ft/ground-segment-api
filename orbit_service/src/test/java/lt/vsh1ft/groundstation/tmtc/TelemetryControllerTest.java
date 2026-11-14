@@ -5,9 +5,11 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
 
 import lt.vsh1ft.groundstation.contact.Visibility;
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
@@ -22,9 +24,9 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 class TelemetryControllerTest {
 
     private static final NoradId SATELLITE = new NoradId(99999);
-    private static final TmPacketResponse HOUSEKEEPING = new TmPacketResponse(42, 100, 5, 3, 25,
+    private static final StoredTmPacket HOUSEKEEPING = new StoredTmPacket(42L, 99999, 100, 5, 3, 25,
             Instant.parse("2026-11-08T00:00:00.5Z"), Instant.parse("2026-11-08T00:00:00.512Z"),
-            Visibility.IN_PASS, "0864C00500122003190001000012345678800001020304FB2C");
+            Visibility.IN_PASS, HexFormat.of().parseHex("0864C00500122003190001000012345678800001020304FB2C"));
 
     @Autowired
     private MockMvcTester mvc;
@@ -37,7 +39,7 @@ class TelemetryControllerTest {
     void packetsOfTheSatelliteAreListedWithEveryFilterAndTheCursorForTheNextPage() {
         final var query = new PacketsQuery(1, 50L, Instant.parse("2026-11-08T00:00:00Z"),
                 Instant.parse("2026-11-08T01:00:00Z"), 100, 3, 25);
-        given(archive.packets(SATELLITE, query)).willReturn(new TmPacketsResponse(List.of(HOUSEKEEPING), 42L));
+        given(archive.packets(SATELLITE, query)).willReturn(new CursorPage<>(List.of(HOUSEKEEPING), 42L));
 
         assertThat(mvc.get().uri("/satellites/99999/telemetry/packets?limit=1&before=50"
                 + "&from=2026-11-08T00:00:00Z&to=2026-11-08T01:00:00Z&apid=100&service=3&subtype=25"))
@@ -55,7 +57,7 @@ class TelemetryControllerTest {
     @Requirement("TM-040")
     void packetsDefaultToTheNewestTwentyWithoutFilters() {
         given(archive.packets(SATELLITE, new PacketsQuery(20, null, null, null, null, null, null)))
-                .willReturn(new TmPacketsResponse(List.of(), null));
+                .willReturn(new CursorPage<>(List.of(), null));
 
         assertThat(mvc.get().uri("/satellites/99999/telemetry/packets")).hasStatusOk()
                 .bodyJson().isStrictlyEqualTo("""
@@ -85,8 +87,8 @@ class TelemetryControllerTest {
     void everyLimitOfTheQueryIsAccepted() {
         final var largest = new PacketsQuery(100, 1L, null, null, 2047, 255, 255);
         final var smallest = new PacketsQuery(1, null, null, null, 0, 0, 0);
-        given(archive.packets(SATELLITE, largest)).willReturn(new TmPacketsResponse(List.of(), null));
-        given(archive.packets(SATELLITE, smallest)).willReturn(new TmPacketsResponse(List.of(), null));
+        given(archive.packets(SATELLITE, largest)).willReturn(new CursorPage<>(List.of(), null));
+        given(archive.packets(SATELLITE, smallest)).willReturn(new CursorPage<>(List.of(), null));
 
         assertThat(mvc.get().uri("/satellites/99999/telemetry/packets?limit=100&before=1&apid=2047&service=255"
                 + "&subtype=255")).hasStatusOk();

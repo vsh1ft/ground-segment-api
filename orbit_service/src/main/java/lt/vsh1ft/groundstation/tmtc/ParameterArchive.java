@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 
 import lombok.RequiredArgsConstructor;
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.xtce.Parameter;
 import lt.vsh1ft.xtce.ParameterValue;
@@ -20,26 +21,18 @@ class ParameterArchive {
 
     private final JdbcAggregateOperations aggregates;
 
-    void store(NoradId satellite, long packetId, Instant generationTime, List<ParameterValue> values) {
+    void store(NoradId satellite, TelemetrySource source, Instant generationTime, List<ParameterValue> values) {
         aggregates.insertAll(values.stream()
-                .map(value -> StoredParameterValue.of(satellite, packetId, generationTime, value))
+                .map(value -> StoredParameterValue.of(satellite, source, generationTime, value))
                 .toList());
     }
 
-    void storeFromFrame(NoradId satellite, long frameId, Instant generationTime, List<ParameterValue> values) {
-        aggregates.insertAll(values.stream()
-                .map(value -> StoredParameterValue.ofFrame(satellite, frameId, generationTime, value))
-                .toList());
-    }
-
-    ParameterValuesResponse values(NoradId satellite, Parameter parameter, ValuesQuery query) {
+    CursorPage<StoredParameterValue> values(NoradId satellite, Parameter parameter, ValuesQuery query) {
         final var newestFirst = Query.query(matching(satellite, parameter, query))
                 .sort(Sort.by(Sort.Direction.DESC, "id"))
                 .limit(query.limit() + 1);
-        final var found = aggregates.findAll(newestFirst, StoredParameterValue.class);
-        final var page = found.stream().limit(query.limit()).toList();
-        final var nextBefore = found.size() > query.limit() ? page.getLast().id() : null;
-        return ParameterValuesResponse.of(parameter, page, nextBefore);
+        return CursorPage.of(aggregates.findAll(newestFirst, StoredParameterValue.class), query.limit(),
+                StoredParameterValue::id);
     }
 
     List<StoredParameterValue> ofPackets(NoradId satellite, Collection<Long> packetIds) {

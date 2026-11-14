@@ -16,9 +16,9 @@ import java.util.UUID;
 
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.elements.TleSource;
-import lt.vsh1ft.groundstation.pass.GroundStation;
-import lt.vsh1ft.groundstation.pass.GroundStationSource;
-import lt.vsh1ft.groundstation.radio.TransmitterResponse;
+import lt.vsh1ft.groundstation.station.GroundStation;
+import lt.vsh1ft.groundstation.station.GroundStationSource;
+import lt.vsh1ft.groundstation.radio.Transmitter;
 import lt.vsh1ft.groundstation.radio.TransmitterService;
 import lt.vsh1ft.groundstation.radio.TransmitterStatus;
 import lt.vsh1ft.groundstation.radio.TransmitterType;
@@ -146,9 +146,9 @@ class TrackServiceTest {
         return new OrekitTracker.Geometry(time, 262.0, 5.0, 1876.8, APPROACHING);
     }
 
-    private static TransmitterResponse transmitter(String uuid, TransmitterType type, Long downlinkLow,
-                                                   Long downlinkHigh, Long uplinkLow, Long uplinkHigh) {
-        return new TransmitterResponse(uuid, uuid, type, TransmitterStatus.ACTIVE, uplinkLow, uplinkHigh, downlinkLow,
-                downlinkHigh, "FM", "FM", null, false, NOW);
+    private static Transmitter transmitter(String uuid, TransmitterType type, Long downlinkLow, Long downlinkHigh,
+                                           Long uplinkLow, Long uplinkHigh) {
+        return new Transmitter(uuid, ISS.value(), uuid, type, TransmitterStatus.ACTIVE, uplinkLow, uplinkHigh,
+                downlinkLow, downlinkHigh, "FM", "FM", null, false, NOW, NOW);
     }
 }

@@ -82,7 +82,7 @@ class XtceReaderTest {
                           </IntegerDataEncoding>
                         </FloatParameterType>
                         <EnumeratedParameterType name="mode_t">
-                          <IntegerDataEncoding/>
+                          <UnitSet/><IntegerDataEncoding/>
                           <EnumerationList><Enumeration value="1" label="NOMINAL"/></EnumerationList>
                         </EnumeratedParameterType>""",
                 """

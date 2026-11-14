@@ -20,6 +20,7 @@ import lt.vsh1ft.groundstation.contact.SilenceEnded;
 import lt.vsh1ft.groundstation.contact.SilenceStarted;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.tmtc.ParameterValuesReceived;
+import lt.vsh1ft.groundstation.tmtc.TelemetrySource;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import lt.vsh1ft.xtce.MissionDatabase;
 import lt.vsh1ft.xtce.MonitoringLevel;
@@ -218,7 +219,7 @@ class AlarmModuleTest {
 
     private static ParameterValuesReceived received(NoradId satellite, int second, int batteryMillivolts,
                                                     int temperatureDeciCelsius) {
-        return new ParameterValuesReceived(satellite, second, T0.plusSeconds(second), List.of(
+        return new ParameterValuesReceived(satellite, TelemetrySource.packet(second), T0.plusSeconds(second), List.of(
                 value("BATTERY_VOLTAGE", batteryMillivolts),
                 value("PLATFORM_TEMPERATURE", temperatureDeciCelsius),
                 value("SPACECRAFT_MODE", 0)));

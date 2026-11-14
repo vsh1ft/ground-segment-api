@@ -7,7 +7,6 @@ import static org.mockito.BDDMockito.given;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HexFormat;
 
 import lt.vsh1ft.ccsds.Apid;
 import lt.vsh1ft.ccsds.MessageType;
@@ -18,7 +17,7 @@ import lt.vsh1ft.groundstation.PostgresTestcontainer;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.contact.ContactWatch;
 import lt.vsh1ft.groundstation.contact.Visibility;
-import lt.vsh1ft.groundstation.pass.GroundStationSource;
+import lt.vsh1ft.groundstation.station.GroundStationSource;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.BeforeEach;
@@ -81,11 +80,11 @@ class TmtcModuleTest {
         final var first = archive.packets(SATELLITE, query(2, null));
         final var second = archive.packets(SATELLITE, query(2, first.nextBefore()));
 
-        assertThat(first.packets()).extracting(TmPacketResponse::sequenceCount).containsExactly(3, 2);
-        assertThat(second.packets()).extracting(TmPacketResponse::sequenceCount).containsExactly(0);
+        assertThat(first.items()).extracting(StoredTmPacket::sequenceCount).containsExactly(3, 2);
+        assertThat(second.items()).extracting(StoredTmPacket::sequenceCount).containsExactly(0);
         assertThat(second.nextBefore()).isNull();
-        assertThat(second.packets().getFirst().raw())
-                .isEqualTo(hex(packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0)));
+        assertThat(second.items().getFirst().raw())
+                .isEqualTo(packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0).encode());
     }
 
     @Test
@@ -108,7 +107,7 @@ class TmtcModuleTest {
         final var found = archive.packets(SATELLITE,
                 new PacketsQuery(null, null, T0.plusSeconds(1), T0.plusSeconds(3), null, null, null));
 
-        assertThat(found.packets()).extracting(TmPacketResponse::sequenceCount).containsExactly(2, 1);
+        assertThat(found.items()).extracting(StoredTmPacket::sequenceCount).containsExactly(2, 1);
     }
 
     @Test
@@ -122,7 +121,7 @@ class TmtcModuleTest {
 
         final var found = archive.packets(SATELLITE, new PacketsQuery(null, null, null, null, 100, 5, 1));
 
-        assertThat(found.packets()).extracting(TmPacketResponse::sequenceCount).containsExactly(2);
+        assertThat(found.items()).extracting(StoredTmPacket::sequenceCount).containsExactly(2);
     }
 
     @Test
@@ -212,18 +211,14 @@ class TmtcModuleTest {
         return new TmPacket(new Apid(apid), sequenceCount, header, new byte[] {1});
     }
 
-    private static String hex(TmPacket packet) {
-        return HexFormat.of().withUpperCase().formatHex(packet.encode());
-    }
-
     @Test
     @Requirement({"CON-020", "TM-040"})
     void packetIsListedWithTheVisibilityItWasStoredWith() {
         archive.store(SATELLITE, packet(0, 100, MessageType.HOUSEKEEPING_PARAMETER_REPORT, T0), T0,
                 Visibility.OUTSIDE_PASS);
 
-        assertThat(archive.packets(SATELLITE, query(20, null)).packets()).singleElement()
-                .extracting(TmPacketResponse::visibility).isEqualTo(Visibility.OUTSIDE_PASS);
+        assertThat(archive.packets(SATELLITE, query(20, null)).items()).singleElement()
+                .extracting(StoredTmPacket::visibility).isEqualTo(Visibility.OUTSIDE_PASS);
     }
 
     private void store(NoradId satellite, TmPacket packet, Instant receivedAt) {

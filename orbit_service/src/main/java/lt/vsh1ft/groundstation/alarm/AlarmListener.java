@@ -26,8 +26,8 @@ class AlarmListener {
         try {
             monitor.check(received);
         } catch (RuntimeException e) {
-            log.error("Alarms not updated for packet {} of satellite {}; its values stay unchecked",
-                    received.packetId(), received.satellite(), e);
+            log.error("Alarms not updated for the {} of satellite {}; its values stay unchecked",
+                    received.source(), received.satellite(), e);
         }
     }
 

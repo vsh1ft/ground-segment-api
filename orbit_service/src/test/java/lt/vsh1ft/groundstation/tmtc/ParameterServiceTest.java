@@ -8,6 +8,7 @@ import static org.mockito.Mockito.mock;
 
 import java.util.List;
 
+import lt.vsh1ft.groundstation.shared.CursorPage;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
@@ -32,7 +33,7 @@ class ParameterServiceTest {
     void valuesComeFromTheArchiveForTheNamedParameter() {
         final var battery = databases.of(SATELLITE).orElseThrow().parameter("BATTERY_VOLTAGE").orElseThrow();
         final var expected = new ParameterValuesResponse("BATTERY_VOLTAGE", "V", List.of(), null);
-        given(archive.values(SATELLITE, battery, DEFAULTS)).willReturn(expected);
+        given(archive.values(SATELLITE, battery, DEFAULTS)).willReturn(new CursorPage<>(List.of(), null));
 
         assertThat(service.values(SATELLITE, "BATTERY_VOLTAGE", DEFAULTS)).isEqualTo(expected);
     }

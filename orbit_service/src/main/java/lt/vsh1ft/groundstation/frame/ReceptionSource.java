@@ -1,4 +1,4 @@
-package lt.vsh1ft.groundstation.tmtc;
+package lt.vsh1ft.groundstation.frame;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 

@@ -11,7 +11,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -23,14 +22,11 @@ import java.util.Optional;
 import lt.vsh1ft.groundstation.catalog.SatelliteNotInCatalogException;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.shared.NoradId;
-import lt.vsh1ft.groundstation.tmtc.FrameReception;
-import lt.vsh1ft.groundstation.tmtc.Reception;
+import lt.vsh1ft.groundstation.frame.FrameReception;
+import lt.vsh1ft.groundstation.frame.Reception;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.scheduling.TaskScheduler;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 
 class SatnogsImportTest {
@@ -159,7 +155,7 @@ class SatnogsImportTest {
         given(state.importedUntil(FRONTIERSAT)).willReturn(Optional.of(H17));
         given(client.observations(FRONTIERSAT, H17.minus(SatnogsImport.OVERLAP), H18, null)).willReturn(NOTHING);
         given(client.observations(FRONTIERSAT, H18.minus(SatnogsImport.OVERLAP), H19, null))
-                .willThrow(tooManyRequests("1048"));
+                .willThrow(new SatnogsThrottledException(Duration.ofSeconds(1048), null));
 
         satnogsImport.importAll();
         clock.now = NOW.plusSeconds(1047);
@@ -175,9 +171,7 @@ class SatnogsImportTest {
     @Requirement("SAT-010")
     void throttledImportWithoutAUsableWaitTimeWaitsOneInterval() {
         given(state.importedUntil(FRONTIERSAT)).willReturn(Optional.of(H18));
-        given(client.observations(any(), any(), any(), any())).willThrow(
-                HttpClientErrorException.create(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", null, null, null),
-                tooManyRequests("soon"));
+        given(client.observations(any(), any(), any(), any())).willThrow(new SatnogsThrottledException(null, null));
 
         satnogsImport.importAll();
         clock.now = NOW.plus(Duration.ofHours(1)).minusSeconds(1);
@@ -249,13 +243,6 @@ class SatnogsImportTest {
 
     private static String url(SatnogsObservation observation) {
         return observation.demoddata().getFirst().payloadDemod();
-    }
-
-    private static HttpClientErrorException tooManyRequests(String retryAfter) {
-        final var headers = new HttpHeaders();
-        headers.set("Retry-After", retryAfter);
-        return HttpClientErrorException.create(HttpStatus.TOO_MANY_REQUESTS, "Too Many Requests", headers,
-                new byte[0], StandardCharsets.UTF_8);
     }
 
     private static final class SettableClock extends Clock {

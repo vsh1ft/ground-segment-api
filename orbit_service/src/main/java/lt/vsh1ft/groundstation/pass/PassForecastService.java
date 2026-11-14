@@ -5,6 +5,7 @@ import java.time.Duration;
 
 import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.station.GroundStation;
 import org.springframework.stereotype.Service;
 
 @Service

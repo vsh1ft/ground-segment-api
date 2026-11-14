@@ -5,8 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.UUID;
 
 import lt.vsh1ft.groundstation.PostgresTestcontainer;
-import lt.vsh1ft.groundstation.pass.GroundStation;
-import lt.vsh1ft.groundstation.pass.GroundStationSource;
 import lt.vsh1ft.groundstation.traceability.Requirement;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -9,13 +9,11 @@ import lombok.extern.slf4j.Slf4j;
 import lt.vsh1ft.groundstation.catalog.SatelliteNotInCatalogException;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.shared.NoradId;
-import lt.vsh1ft.groundstation.tmtc.FrameReception;
-import lt.vsh1ft.groundstation.tmtc.Reception;
+import lt.vsh1ft.groundstation.frame.FrameReception;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.HttpClientErrorException;
 
 @Slf4j
 @Component
@@ -64,14 +62,14 @@ class SatnogsImport {
             final var until = now.minus(properties.settle());
             var from = state.importedUntil(satellite).orElse(now.minus(properties.lookBack()));
             while (from.isBefore(until)) {
-                final var to = from.plus(CHUNK).isBefore(until) ? from.plus(CHUNK) : until;
+                final var to = earlier(from.plus(CHUNK), until);
                 run.importChunk(from.minus(OVERLAP), to);
                 state.save(satellite, to);
                 from = to;
             }
             log.info("SatNOGS import of satellite {} up to {}: {}", satellite, until, run);
-        } catch (HttpClientErrorException.TooManyRequests e) {
-            final var wait = retryAfter(e);
+        } catch (SatnogsThrottledException e) {
+            final var wait = e.retryAfter().orElse(properties.interval());
             pausedUntil = clock.instant().plus(wait);
             log.warn("SatNOGS throttled the import of satellite {}; waiting {} before asking again; so far {}",
                     satellite, wait, run);
@@ -83,12 +81,8 @@ class SatnogsImport {
         }
     }
 
-    private Duration retryAfter(HttpClientErrorException.TooManyRequests e) {
-        final var header = e.getResponseHeaders() == null ? null : e.getResponseHeaders().getFirst("Retry-After");
-        if (header == null || !header.matches("\\d+")) {
-            return properties.interval();
-        }
-        return Duration.ofSeconds(Long.parseLong(header));
+    private static Instant earlier(Instant one, Instant other) {
+        return one.isBefore(other) ? one : other;
     }
 
     private final class Run {
@@ -97,7 +91,7 @@ class SatnogsImport {
         private int observations;
         private int frames;
         private int newFrames;
-        private int failedFrames;
+        private int skippedFrames;
 
         Run(NoradId satellite) {
             this.satellite = satellite;
@@ -114,8 +108,8 @@ class SatnogsImport {
 
         @Override
         public String toString() {
-            return observations + " observations, " + frames + " frames, " + newFrames + " new, " + failedFrames
-                    + " failed downloads";
+            return observations + " observations, " + frames + " frames, " + newFrames + " new, " + skippedFrames
+                    + " skipped";
         }
 
         private void importObservation(SatnogsObservation observation) {
@@ -125,15 +119,13 @@ class SatnogsImport {
                     final var url = file.payloadDemod();
                     final var receivedAt = SatnogsFrameFile.receivedAt(url).orElse(observation.start());
                     final var outcome = reception.receive(satellite, SatnogsFrameFile.frame(client.download(url)),
-                            Reception.satnogs(observation.stationName(), observation.stationLat(),
-                                    observation.stationLng(), observation.stationAlt(), observation.id(),
-                                    receivedAt));
+                            observation.receivedAt(receivedAt));
                     frames++;
                     if (outcome.newFrame()) {
                         newFrames++;
                     }
                 } catch (RuntimeException e) {
-                    failedFrames++;
+                    skippedFrames++;
                     log.warn("Frame {} of SatNOGS observation {} not imported: {}", file.payloadDemod(),
                             observation.id(), e.toString());
                 }

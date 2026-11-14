@@ -11,8 +11,8 @@ import java.util.Optional;
 
 import lt.vsh1ft.groundstation.elements.OrbitDataUnavailableException;
 import lt.vsh1ft.groundstation.elements.TleSource;
-import lt.vsh1ft.groundstation.pass.GroundStation;
-import lt.vsh1ft.groundstation.pass.GroundStationSource;
+import lt.vsh1ft.groundstation.station.GroundStation;
+import lt.vsh1ft.groundstation.station.GroundStationSource;
 import lt.vsh1ft.groundstation.pass.orekit.OrekitPassPredictor;
 import lt.vsh1ft.groundstation.pass.orekit.PassDetectionProperties;
 import lt.vsh1ft.groundstation.shared.NoradId;

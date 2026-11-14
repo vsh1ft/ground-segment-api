@@ -4,10 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lt.vsh1ft.groundstation.pass.GroundStation;
-import lt.vsh1ft.groundstation.pass.Latitude;
-import lt.vsh1ft.groundstation.pass.Longitude;
-import lt.vsh1ft.groundstation.pass.MinElevation;
 
 @Schema(description = "A ground station to create or replace")
 public record StationRequest(

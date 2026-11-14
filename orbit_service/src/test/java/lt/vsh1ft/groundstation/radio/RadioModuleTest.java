@@ -54,7 +54,7 @@ class RadioModuleTest {
 
         scenario.publish(new CatalogRefreshed())
                 .andWaitForStateChange(() -> transmitters.transmitters(ISS, null), found -> !found.isEmpty())
-                .andVerify(found -> assertThat(found).extracting(TransmitterResponse::description)
+                .andVerify(found -> assertThat(found).extracting(Transmitter::description)
                         .containsExactly("Mode V APRS"));
     }
 

@@ -6,7 +6,7 @@ import java.util.List;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import lt.vsh1ft.xtce.ParameterValue;
 
-public record ParameterValuesReceived(NoradId satellite, long packetId, Instant generationTime,
+public record ParameterValuesReceived(NoradId satellite, TelemetrySource source, Instant generationTime,
                                       List<ParameterValue> values) {
 
     public ParameterValuesReceived {

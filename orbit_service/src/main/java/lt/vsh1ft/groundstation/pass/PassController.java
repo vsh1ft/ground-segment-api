@@ -3,6 +3,7 @@ package lt.vsh1ft.groundstation.pass;
 import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
 import lt.vsh1ft.groundstation.shared.NoradId;
+import lt.vsh1ft.groundstation.station.GroundStationSource;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController

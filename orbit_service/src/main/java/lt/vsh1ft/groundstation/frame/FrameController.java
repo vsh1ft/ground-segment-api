@@ -1,10 +1,10 @@
-package lt.vsh1ft.groundstation.tmtc;
+package lt.vsh1ft.groundstation.frame;
 
 import java.util.HexFormat;
 
 import lombok.RequiredArgsConstructor;
 import lt.vsh1ft.groundstation.catalog.SatelliteService;
-import lt.vsh1ft.groundstation.pass.GroundStationSource;
+import lt.vsh1ft.groundstation.station.GroundStationSource;
 import lt.vsh1ft.groundstation.shared.NoradId;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,7 +21,7 @@ class FrameController implements FramesApi {
 
     @Override
     public FramesResponse frames(int noradId, FramesQuery query) {
-        return archive.frames(new NoradId(noradId), query);
+        return FramesResponse.of(archive.frames(new NoradId(noradId), query));
     }
 
     @Override
@@ -32,6 +32,6 @@ class FrameController implements FramesApi {
         final var outcome = reception.receive(satellite, HexFormat.of().parseHex(upload.frame()),
                 Reception.own(upload.station(), station, upload.receivedAt()));
         return ResponseEntity.status(outcome.newFrame() ? HttpStatus.CREATED : HttpStatus.OK)
-                .body(archive.frame(outcome.frameId()));
+                .body(FrameResponse.from(archive.frame(outcome.frameId())));
     }
 }

@@ -1,4 +1,4 @@
-package lt.vsh1ft.groundstation.tmtc;
+package lt.vsh1ft.groundstation.frame;
 
 import java.time.Instant;
 import java.util.UUID;

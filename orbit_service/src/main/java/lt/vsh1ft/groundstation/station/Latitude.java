@@ -1,4 +1,4 @@
-package lt.vsh1ft.groundstation.pass;
+package lt.vsh1ft.groundstation.station;
 
 import static java.lang.annotation.ElementType.ANNOTATION_TYPE;
 import static java.lang.annotation.ElementType.FIELD;

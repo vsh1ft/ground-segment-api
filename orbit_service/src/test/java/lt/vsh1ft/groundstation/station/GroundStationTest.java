@@ -1,4 +1,4 @@
-package lt.vsh1ft.groundstation.pass;
+package lt.vsh1ft.groundstation.station;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

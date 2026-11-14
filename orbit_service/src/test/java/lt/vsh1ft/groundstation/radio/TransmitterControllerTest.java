@@ -22,9 +22,10 @@ import org.springframework.test.web.servlet.assertj.MockMvcTester;
 class TransmitterControllerTest {
 
     private static final NoradId ISS = new NoradId(25544);
-    private static final TransmitterResponse ISS_APRS = new TransmitterResponse("ZJxCeQmih9zDfYNVrB4wRN",
+    private static final Transmitter ISS_APRS = new Transmitter("ZJxCeQmih9zDfYNVrB4wRN", 25544,
             "Mode V APRS", TransmitterType.TRANSCEIVER, TransmitterStatus.ACTIVE, 145825000L, null, 145825000L, null,
-            "AFSK", "AFSK", 1200.0, false, Instant.parse("2019-06-16T08:49:33.586159Z"));
+            "AFSK", "AFSK", 1200.0, false, Instant.parse("2019-06-16T08:49:33.586159Z"),
+            Instant.parse("2026-11-08T00:00:00Z"));
 
     @Autowired
     private MockMvcTester mvc;

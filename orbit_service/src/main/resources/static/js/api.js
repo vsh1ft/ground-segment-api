@@ -22,12 +22,19 @@ async function request(method, path, { query, json, text } = {}) {
         body = text;
     }
     const response = await fetch(url, { method, headers, body });
-    const content = await response.text();
-    const parsed = content ? JSON.parse(content) : null;
+    const parsed = parse(await response.text());
     if (!response.ok) {
         throw new ApiError(response.status, parsed);
     }
     return parsed;
+}
+
+function parse(content) {
+    try {
+        return content ? JSON.parse(content) : null;
+    } catch {
+        return null;
+    }
 }
 
 export const api = {

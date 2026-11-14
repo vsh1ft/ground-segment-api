@@ -4,14 +4,14 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.zip.CRC32C;
 
-enum FrameCheck {
+public enum FrameCheck {
 
     NONE,
     CRC32C_TRAILER;
 
     private static final int TRAILER_LENGTH = Integer.BYTES;
 
-    Checked check(byte[] frame) {
+    public Checked check(byte[] frame) {
         if (this == NONE) {
             return new Checked(frame, null);
         }
@@ -27,6 +27,6 @@ enum FrameCheck {
         return (int) crc.getValue() == ByteBuffer.wrap(frame, frame.length - TRAILER_LENGTH, TRAILER_LENGTH).getInt();
     }
 
-    record Checked(byte[] content, Boolean crcChecked) {
+    public record Checked(byte[] content, Boolean crcChecked) {
     }
 }

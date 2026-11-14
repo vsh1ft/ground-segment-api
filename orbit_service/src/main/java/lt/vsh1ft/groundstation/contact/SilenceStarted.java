@@ -4,5 +4,5 @@ import java.time.Instant;
 
 import lt.vsh1ft.groundstation.shared.NoradId;
 
-public record SilenceStarted(NoradId satellite, Instant at) {
+public record SilenceStarted(NoradId satellite, Instant at) implements SilenceChange {
 }

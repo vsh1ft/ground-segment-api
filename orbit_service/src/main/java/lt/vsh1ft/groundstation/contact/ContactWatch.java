@@ -27,17 +27,16 @@ public class ContactWatch {
     private final Clock clock;
     private final ApplicationEventPublisher events;
 
-    private NoradId satellite;
-    private String station;
+    private volatile NoradId satellite;
+    private volatile String station;
+    private SilenceDetector silence;
     private ContactPlan plan = ContactPlan.UNKNOWN;
-    private Instant lastPacket;
-    private Pass silentPass;
 
     public void watch(NoradId linkSatellite, String linkStation) {
         synchronized (this) {
             satellite = linkSatellite;
             station = linkStation;
-            lastPacket = clock.instant();
+            silence = new SilenceDetector(linkSatellite, properties.silenceThreshold(), clock.instant());
         }
         replan();
         scheduler.scheduleWithFixedDelay(this::replan, clock.instant().plus(properties.planInterval()),
@@ -47,93 +46,37 @@ public class ContactWatch {
                 + "of signal", linkSatellite, linkStation, properties.silenceThreshold());
     }
 
-    public Visibility received(NoradId from, Instant at) {
-        final Visibility visibility;
-        final boolean silenceEnds;
-        synchronized (this) {
-            if (!from.equals(satellite)) {
-                return Visibility.UNKNOWN;
-            }
-            lastPacket = at;
-            visibility = plan.visibility(at);
-            silenceEnds = silentPass != null;
-            silentPass = null;
+    public synchronized Visibility received(NoradId from, Instant at) {
+        if (!from.equals(satellite)) {
+            return Visibility.UNKNOWN;
         }
-        if (silenceEnds) {
-            events.publishEvent(new SilenceEnded(from, at));
-        }
-        return visibility;
+        silence.packetReceived(at).ifPresent(events::publishEvent);
+        return plan.visibility(at);
     }
 
-    public void frameReceived(NoradId from, Instant at, int lostBefore, boolean idle) {
-        if (isLink(from)) {
-            linkQuality.frameReceived(from, passAt(at), at, lostBefore, idle);
-        }
+    public synchronized void frameReceived(NoradId from, Instant at, int lostBefore, boolean idle) {
+        passOfLink(from, at).ifPresent(pass -> linkQuality.frameReceived(from, pass, at, lostBefore, idle));
     }
 
-    public void frameFailedCheck(NoradId from, Instant at) {
-        if (isLink(from)) {
-            linkQuality.frameFailedCheck(from, passAt(at), at);
-        }
-    }
-
-    private synchronized boolean isLink(NoradId from) {
-        return from.equals(satellite);
-    }
-
-    private synchronized Optional<Pass> passAt(Instant at) {
-        return plan.passAt(at);
+    public synchronized void frameFailedCheck(NoradId from, Instant at) {
+        passOfLink(from, at).ifPresent(pass -> linkQuality.frameFailedCheck(from, pass, at));
     }
 
     void replan() {
-        final NoradId linkSatellite;
-        final String linkStation;
-        synchronized (this) {
-            linkSatellite = satellite;
-            linkStation = station;
-        }
-        final var made = planner.plan(linkSatellite, linkStation, clock.instant());
+        final var made = planner.plan(satellite, station, clock.instant());
         synchronized (this) {
             plan = made;
         }
     }
 
-    void check() {
+    synchronized void check() {
         final var now = clock.instant();
-        final Object event;
-        final Optional<Pass> passNow;
-        synchronized (this) {
-            event = silentPass == null ? silenceStarting(now) : silenceEnding(now);
-            passNow = plan.passAt(now);
-        }
-        if (event != null) {
-            events.publishEvent(event);
-        }
-        linkQuality.check(passNow, now);
+        final var passNow = plan.passAt(now);
+        silence.check(passNow, now).ifPresent(events::publishEvent);
+        passNow.ifPresentOrElse(pass -> linkQuality.check(pass, now), linkQuality::noPass);
     }
 
-    private SilenceStarted silenceStarting(Instant now) {
-        final var pass = plan.passAt(now);
-        if (pass.isEmpty()) {
-            return null;
-        }
-        final var start = pass.get().start().time();
-        final var silentSince = lastPacket.isAfter(start) ? lastPacket : start;
-        if (now.isBefore(silentSince.plus(properties.silenceThreshold()))) {
-            return null;
-        }
-        silentPass = pass.get();
-        log.warn("No packet from satellite {} since {}, during the pass that ends at {}", satellite, silentSince,
-                silentPass.end().time());
-        return new SilenceStarted(satellite, now);
-    }
-
-    private SilenceEnded silenceEnding(Instant now) {
-        final var end = silentPass.end().time();
-        if (now.isBefore(end)) {
-            return null;
-        }
-        silentPass = null;
-        return new SilenceEnded(satellite, end);
+    private Optional<Pass> passOfLink(NoradId from, Instant at) {
+        return from.equals(satellite) ? plan.passAt(at) : Optional.empty();
     }
 }
