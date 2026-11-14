@@ -1,6 +1,7 @@
 package lt.vsh1ft.groundstation.satnogs;
 
 import java.net.URI;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -21,10 +22,11 @@ class SatnogsNetworkClient {
 
     private final RestClient satnogsNetworkRestClient;
 
-    Page observations(NoradId satellite, String next) {
+    Page observations(NoradId satellite, Instant start, Instant end, String next) {
         final var request = next == null
-                ? satnogsNetworkRestClient.get().uri("/api/observations/?norad_cat_id={id}&format=json",
-                satellite.value())
+                ? satnogsNetworkRestClient.get().uri(
+                "/api/observations/?norad_cat_id={id}&start={start}&end={end}&format=json", satellite.value(), start,
+                end)
                 : satnogsNetworkRestClient.get().uri(URI.create(next));
         final var response = request.retrieve().toEntity(OBSERVATIONS);
         final var observations = response.getBody() == null ? List.<SatnogsObservation>of() : response.getBody();

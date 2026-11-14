@@ -18,7 +18,10 @@ import org.springframework.web.client.RestClient;
 class SatnogsNetworkClientTest {
 
     private static final NoradId FRONTIERSAT = new NoradId(69015);
-    private static final String FIRST = "https://network.satnogs.org/api/observations/?norad_cat_id=69015&format=json";
+    private static final Instant START = Instant.parse("2026-11-08T17:30:00Z");
+    private static final Instant END = Instant.parse("2026-11-08T19:00:00Z");
+    private static final String FIRST = "https://network.satnogs.org/api/observations/?norad_cat_id=69015"
+            + "&start=2026-11-08T17%3A30%3A00Z&end=2026-11-08T19%3A00%3A00Z&format=json";
     private static final String NEXT = "https://network.satnogs.org/api/observations/?cursor=cD0yMDI2&format=json"
             + "&norad_cat_id=69015";
     private static final String FRAME = "https://s3.eu-central-1.wasabisys.com/satnogs-network/data_obs/2026/11/8/18/"
@@ -40,7 +43,7 @@ class SatnogsNetworkClientTest {
                   "demoddata": [{"payload_demod": "%s"}]}]
                 """.formatted(FRAME), MediaType.APPLICATION_JSON).headers(headers));
 
-        final var page = client.observations(FRONTIERSAT, null);
+        final var page = client.observations(FRONTIERSAT, START, END, null);
 
         assertThat(page.next()).isEqualTo(NEXT);
         assertThat(page.observations()).containsExactly(new SatnogsObservation(15386644,
@@ -56,7 +59,7 @@ class SatnogsNetworkClientTest {
                   "station_lat": null, "station_lng": null, "station_alt": null, "demoddata": null}]
                 """, MediaType.APPLICATION_JSON));
 
-        final var page = client.observations(FRONTIERSAT, NEXT);
+        final var page = client.observations(FRONTIERSAT, START, END, NEXT);
 
         assertThat(page.next()).isNull();
         assertThat(page.observations()).singleElement()
@@ -67,7 +70,7 @@ class SatnogsNetworkClientTest {
     void emptyBodyMeansNoObservations() {
         server.expect(requestTo(FIRST)).andRespond(withSuccess());
 
-        assertThat(client.observations(FRONTIERSAT, null).observations()).isEmpty();
+        assertThat(client.observations(FRONTIERSAT, START, END, null).observations()).isEmpty();
     }
 
     @Test

@@ -249,9 +249,17 @@ The parameter values go into the **same** parameter archive as the simulator's, 
 | `groundstation.satnogs.import.look-back` | 2 days | how far back the very first import of a satellite goes |
 | `groundstation.satnogs.import.settle` | 1 hour | only observations that ended at least this long ago are imported |
 
-Each import, for each satellite, pages through its observations, newest first, and stops at the last one already
-imported. It skips observations without frames, takes every observation whatever its `status` (volunteers vet
-recordings hours or days later, and the frames are real either way), and downloads the frames one by one.
+Each import, for each satellite, walks from where the last one ended to the settle time, **oldest first, one hour
+at a time**. FrontierSat is popular: about 25 observations an hour, so two days is around a thousand observations
+and forty pages. For each hour it asks for the observations that end in that hour and start no more than 30
+minutes before it (`start` and `end` filters of the API), so an observation that straddles two hours is never
+missed; overlaps cost a few extra downloads, and deduplication makes them harmless. After each finished hour it
+saves its position, so an import that SatNOGS throttles or that loses its connection keeps the hours it finished
+and continues from there next time.
+
+It takes every observation whatever its `status` (volunteers vet recordings hours or days later, and the frames
+are real either way) and downloads the frames one by one. A frame file that can't be downloaded (the storage
+service occasionally answers 503) is logged and skipped rather than blocking the import.
 
 The **settle** time is there because stations upload frames after the pass ends, usually within minutes but
 sometimes later. An observation that ended five minutes ago may still be missing frames, and since the import never

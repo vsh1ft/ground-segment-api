@@ -4,8 +4,9 @@
     configurable interval, 1 hour by default, starting when it starts: on the first import of a satellite going
     back a configurable time, 2 days by default, and afterwards continuing from where the last import ended. It shall
     take observations of any status but only those that ended at least a configurable settle time ago, 1 hour by
-    default, and shall start again from the same point when an import or any of its frame downloads fails. After a
-    throttled request it shall not ask again before the time SatNOGS gives in Retry-After, or one interval without it.
+    default. It shall import oldest first, one hour of observations at a time, keep the hours it finished when it
+    stops, skip a frame file that can't be downloaded, and after a throttled request not ask again before the time
+    SatNOGS gives in Retry-After, or one interval without it.
   verification: T
 
 - id: SAT-020

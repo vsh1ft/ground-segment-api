@@ -22,6 +22,9 @@ import org.springframework.web.client.HttpClientErrorException;
 @RequiredArgsConstructor
 class SatnogsImport {
 
+    static final Duration CHUNK = Duration.ofHours(1);
+    static final Duration OVERLAP = Duration.ofMinutes(30);
+
     private final SatnogsNetworkClient client;
     private final SatnogsImportState state;
     private final FrameReception reception;
@@ -54,26 +57,29 @@ class SatnogsImport {
     }
 
     private void importSatellite(NoradId satellite) {
+        final var run = new Run(satellite);
         try {
             catalog.ensureInCatalog(satellite);
             final var now = clock.instant();
-            final var run = new Run(satellite, state.importedUntil(satellite).orElse(now.minus(properties.lookBack())),
-                    now.minus(properties.settle()));
-            run.importObservations();
-            if (run.failedFrames == 0) {
-                state.save(satellite, run.until);
+            final var until = now.minus(properties.settle());
+            var from = state.importedUntil(satellite).orElse(now.minus(properties.lookBack()));
+            while (from.isBefore(until)) {
+                final var to = from.plus(CHUNK).isBefore(until) ? from.plus(CHUNK) : until;
+                run.importChunk(from.minus(OVERLAP), to);
+                state.save(satellite, to);
+                from = to;
             }
-            log.info("SatNOGS import of satellite {} up to {}: {} observations, {} frames, {} new; {} failed",
-                    satellite, run.until, run.observations, run.frames, run.newFrames, run.failedFrames);
+            log.info("SatNOGS import of satellite {} up to {}: {}", satellite, until, run);
         } catch (HttpClientErrorException.TooManyRequests e) {
             final var wait = retryAfter(e);
             pausedUntil = clock.instant().plus(wait);
-            log.warn("SatNOGS throttled the import of satellite {}; waiting {} before asking again", satellite, wait);
+            log.warn("SatNOGS throttled the import of satellite {}; waiting {} before asking again; so far {}",
+                    satellite, wait, run);
         } catch (SatelliteNotInCatalogException e) {
             log.warn("Not importing SatNOGS frames of satellite {}: {}", satellite, e.getMessage());
         } catch (RuntimeException e) {
-            log.warn("SatNOGS import of satellite {} failed; it starts again from the same point next time: {}",
-                    satellite, e.toString());
+            log.warn("SatNOGS import of satellite {} stopped; it continues from the last finished hour next time: {}; "
+                    + "so far {}", satellite, e.toString(), run);
         }
     }
 
@@ -88,33 +94,28 @@ class SatnogsImport {
     private final class Run {
 
         private final NoradId satellite;
-        private final Instant from;
-        private final Instant until;
         private int observations;
         private int frames;
         private int newFrames;
         private int failedFrames;
 
-        Run(NoradId satellite, Instant from, Instant until) {
+        Run(NoradId satellite) {
             this.satellite = satellite;
-            this.from = from;
-            this.until = until;
         }
 
-        void importObservations() {
+        void importChunk(Instant start, Instant end) {
             String next = null;
             do {
-                final var page = client.observations(satellite, next);
-                for (var observation : page.observations()) {
-                    if (!observation.end().isAfter(from)) {
-                        return;
-                    }
-                    if (!observation.end().isAfter(until)) {
-                        importObservation(observation);
-                    }
-                }
+                final var page = client.observations(satellite, start, end, next);
+                page.observations().forEach(this::importObservation);
                 next = page.next();
             } while (next != null);
+        }
+
+        @Override
+        public String toString() {
+            return observations + " observations, " + frames + " frames, " + newFrames + " new, " + failedFrames
+                    + " failed downloads";
         }
 
         private void importObservation(SatnogsObservation observation) {
